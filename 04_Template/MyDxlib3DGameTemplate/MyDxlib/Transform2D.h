@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "../MyDxlibMath/MyDxlibMath.h"
+#include "Vector2.h"
 
 struct Transform2D
 {

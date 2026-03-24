@@ -143,7 +143,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyDxlib\InputKey.cpp" />
     <ClCompile Include="MyDxlib\InputMouse.cpp" />
-    <ClCompile Include="MyDxlib\Vector2.cpp" />
     <ClCompile Include="TitleScene.cpp" />
   </ItemGroup>
   <ItemGroup>

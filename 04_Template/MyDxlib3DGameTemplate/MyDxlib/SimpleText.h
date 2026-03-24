@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "MyDxlibGame.h"
+#include "MyDxlib.h"
 #include <string>
 
 /// <summary>

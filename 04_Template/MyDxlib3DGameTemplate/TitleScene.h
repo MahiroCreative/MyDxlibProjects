@@ -11,9 +11,9 @@ private:
 	//矢印のタイマー切り替え用
 	bool _arrowTimerSwitch = false;
 	//setScene.
-	GameSetting::SceneState _setScene;
+	GameSetting::SceneState _setScene = GameSetting::SceneState::Title;
 	//nextScene.
-	GameSetting::SceneState _nextScene;
+	GameSetting::SceneState _nextScene = GameSetting::SceneState::Game;
 
 public:
 	//コンストラクタ

@@ -1,230 +1,113 @@
 ﻿#pragma once
-//C++標準ライブラリ
+#include <cmath>
 #include <cassert>
 #include <string>
-#include <cmath>
-#include <numbers>
+#include "DxLib.h"
 
-//namespace.
-using namespace std;
-
-//実装
-namespace MyMath
+struct Vector3
 {
-	/// <summary>
-	/// 3次元ベクトルの構造体(float)
-	/// </summary>
-	struct Vector3
-	{
-		/*メンバ変数*/
-		float X = 0, Y = 0, Z = 0;
+    /* メンバ変数 */
+    float X = 0.0f;
+    float Y = 0.0f;
+    float Z = 0.0f;
 
-		/*演算子オーバーロード*/
-		//単項演算子(const付けるとメンバ変数の変更を行えなくなる)
-		Vector3 operator+(const Vector3& right) const
-		{
-			Vector3 ans;
-			ans.X = this->X + right.X;
-			ans.Y = this->Y + right.Y;
-			ans.Z = this->Z + right.Z;
-			return ans;
-		}
-		Vector3 operator-(const Vector3& right) const
-		{
-			Vector3 ans;
-			ans.X = this->X - right.X;
-			ans.Y = this->Y - right.Y;
-			ans.Z = this->Z - right.Z;
-			return ans;
-		}
-		Vector3 operator*(const float& right) const
-		{
-			Vector3 ans;
-			ans.X = this->X * right;
-			ans.Y = this->Y * right;
-			ans.Z = this->Z * right;
-			return ans;
-		}
-		Vector3 operator/(const float& right) const
-		{
-			assert(right != 0.0f && "0で除算しています！");
-			//実処理
-			Vector3 ans;
-			ans.X = this->X / right;
-			ans.Y = this->Y / right;
-			ans.Z = this->Z / right;
-			return ans;
-		}
-		void operator+=(const Vector3& right)
-		{
-			this->X += right.X;
-			this->Y += right.Y;
-			this->Z += right.Z;
-		}
-		void operator-=(const Vector3& right)
-		{
-			this->X -= right.X;
-			this->Y -= right.Y;
-			this->Z -= right.Z;
-		}
-		bool operator==(const Vector3& right) const
-		{
-			bool isX = X == right.X;
-			bool isY = Y == right.Y;
-			bool isZ = Z == right.Z;
-			return isX && isY && isZ;
-		}
-		bool operator!=(const Vector3& right) const
-		{
-			bool isX = X != right.X;
-			bool isY = Y != right.Y;
-			bool isZ = Z != right.Z;
-			return isX || isY || isZ;
-		}
+    /* staticメンバ変数宣言 */
+    static const Vector3 Zero;
+    static const Vector3 Left;
+    static const Vector3 Right;
+    static const Vector3 Up;
+    static const Vector3 Down;
+    static const Vector3 Forward;
+    static const Vector3 Back;
 
-		/*メンバ関数*/
-		/// <summary>
-		/// ベクトル成分の一括代入
-		/// </summary>
-		void Set(float x, float y, float z)
-		{
-			this->X = x;
-			this->Y = y;
-			this->Z = z;
-		}
-		/// <summary>
-		/// ベクトルの大きさを取得
-		/// </summary>
-		float Magnitude() const
-		{
-			//平方和の平方根(2乗して足した後にルートする)
-			return hypot(this->X, this->Y, this->Z);
-		}
-		/// <summary>
-		/// ベクトルの大きさの2乗を取得(ルートしてないので早い)
-		/// </summary>
-		float sqrtMagnitude() const
-		{
-			return this->X * this->X + this->Y * this->Y + this->Z * this->Z;
-		}
-		/// <summary>
-		/// 正規化したベクトルを取得
-		/// </summary>
-		Vector3 Normalize() const
-		{
-			Vector3 ans;
-			//正規化
-			ans = (*this) / this->Magnitude();
-			return ans;
-		}
-		/// <summary>
-		/// 全ての成分の絶対値を取ったベクトルを取得
-		/// </summary>
-		Vector3 Abs()
-		{
-			Vector3 ans;
-			//絶対値の計算
-			ans.X = abs(this->X);
-			ans.Y = abs(this->Y);
-			ans.Z = abs(this->Z);
-			return ans;
-		}
-		/// <summary>
-		/// ベクトル成分を文字列で返す
-		/// </summary>
-		string ToString() const
-		{
-			return to_string(X) + ":" + to_string(Y) + ":" + to_string(Z);
-		}
+    /* メンバ関数 */
+    // ベクトルの長さの2乗
+    float LengthSq() const {
+        return X * X + Y * Y + Z * Z;
+    }
+    // ベクトルの長さ
+    float Length() const {
+        return std::sqrtf(LengthSq());
+    }
+    // 正規化
+    Vector3 Normalize() const {
+        float len = Length();
+        assert(len != 0 && "Vector3::Normalize : 0 division");
+        if (len <= 0.0f) return Zero;
+        return { X / len, Y / len, Z / len };
+    }
+    // 絶対値
+    Vector3 Abs() const {
+        return { std::abs(X), std::abs(Y), std::abs(Z) };
+    }
+    // 文字列変換
+    std::string ToString() const {
+        return std::to_string(X) + ":" + std::to_string(Y) + ":" + std::to_string(Z);
+    }
 
-		/*staticメンバ関数*/
-		/// <summary>
-		/// 内積の計算
-		/// </summary>
-		static float Dot(const Vector3& left, const Vector3& right)
-		{
-			//変数
-			float ans;
-			//計算
-			ans = left.X * right.X + left.Y * right.Y + left.Z * right.Z;
-			//return
-			return ans;
-		}
-		/// <summary>
-		/// 外積の計算
-		/// </summary>
-		static Vector3 Cross(const Vector3& left, const Vector3& right)
-		{
-			//変数
-			Vector3 ans;
-			//計算
-			ans.X = left.Y * right.Z - left.Z * right.Y;
-			ans.Y = left.Z * right.X - left.X * right.Z;
-			ans.Z = left.X * right.Y - left.Y * right.X;
-			//return
-			return ans;
-		}
+    /* staticメンバ関数 */
+    // 内積
+    static float Dot(const Vector3& l, const Vector3& r) {
+        return l.X * r.X + l.Y * r.Y + l.Z * r.Z;
+    }
+    // 外積
+    static Vector3 Cross(const Vector3& l, const Vector3& r) {
+        return {
+            l.Y * r.Z - l.Z * r.Y,
+            l.Z * r.X - l.X * r.Z,
+            l.X * r.Y - l.Y * r.X
+        };
+    }
+    // 距離
+    static float Distance(const Vector3& from, const Vector3& to) {
+        return (to - from).Length();
+    }
 
-		/*staticメンバ関数(定数)*/
-		/// <summary>
-		/// 右ベクトル
-		/// </summary>
-		/// <returns>(1, 0, 0)</returns>
-		static constexpr Vector3 Right()
-		{
-			return Vector3{ 1.0f,0.0f,0.0f };
-		}
-		/// <summary>
-		/// 左ベクトル
-		/// </summary>
-		/// <returns>(-1, 0, 0)</returns>
-		static constexpr Vector3 Left()
-		{
-			return Vector3{ -1.0f,0.0f,0.0f };
-		}
-		/// <summary>
-		/// 上ベクトル
-		/// </summary>
-		/// <returns>(0, 1, 0)</returns>
-		static constexpr Vector3 Up()
-		{
-			return Vector3{ 0.0f,1.0f,0.0f };
-		}
-		/// <summary>
-		/// 下ベクトル
-		/// </summary>
-		/// <returns>(0, -1, 0)</returns>
-		static constexpr Vector3 Down()
-		{
-			return Vector3{ 0.0f,-1.0f,0.0f };
-		}
-		/// <summary>
-		/// 正面ベクトル
-		/// </summary>
-		/// <returns>(0, 0, 1)</returns>
-		static constexpr Vector3 Forward()
-		{
-			return Vector3{ 0.0f,0.0f,1.0f };
-		}
-		/// <summary>
-		/// 背面ベクトル
-		/// </summary>
-		/// <returns>(0, 0, -1)</returns>
-		static constexpr Vector3 Back()
-		{
-			return Vector3{ 0.0f,0.0f,-1.0f };
-		}
-		/// <summary>
-		/// ゼロベクトル
-		/// </summary>
-		/// <returns></returns>
-		static constexpr Vector3 Zero()
-		{
-			return Vector3{ 0.0f,0.0f,0.0f };
-		}
-	};
-}
+    /* 演算子オーバーロード */
+    //単項演算子(const付けるとメンバ変数の変更を行えなくなる)
+    //-A
+    Vector3 operator-() const { return { -X, -Y, -Z }; }
+    //A+B
+    Vector3 operator+(const Vector3& r) const { return { X + r.X, Y + r.Y, Z + r.Z }; }
+    //A-B
+    Vector3 operator-(const Vector3& r) const { return { X - r.X, Y - r.Y, Z - r.Z }; }
+    //A*k
+    Vector3 operator*(float k)          const { return { X * k, Y * k, Z * k }; }
+    //A/k
+    Vector3 operator/(float k)          const {
+        assert(k != 0 && "Vector3::operator/ : 0 division");
+        return { X / k, Y / k, Z / k };
+    }
+    //複合代入演算子
+    // A+=B
+    Vector3& operator+=(const Vector3& r) { X += r.X; Y += r.Y; Z += r.Z; return *this; }
+    // A-=B
+    Vector3& operator-=(const Vector3& r) { X -= r.X; Y -= r.Y; Z -= r.Z; return *this; }
+    // A*=k
+    Vector3& operator*=(float k) { X *= k; Y *= k; Z *= k; return *this; }
+    //friend関数(非メンバ関数)として定義することで、左辺が定数の演算も可能になる
+    // k*A
+    friend Vector3 operator*(float k, const Vector3& r) { return r * k; }
+    //DXlibのVECTOR型に自動変換
+    operator VECTOR() const
+    {
+        return VGet(X, Y, Z);
+    }
+	//DXlibのVECTOR型から自動変換
+    Vector3& operator=(const VECTOR& v)
+    {
+        X = v.x;
+        Y = v.y;
+        Z = v.z;
+        return *this;
+	}
+};
 
-
-
-
+/* staticメンバ変数の実装 */
+inline const Vector3 Vector3::Zero = { 0.0f,  0.0f,  0.0f };
+inline const Vector3 Vector3::Left = { -1.0f,  0.0f,  0.0f };
+inline const Vector3 Vector3::Right = { 1.0f,  0.0f,  0.0f };
+inline const Vector3 Vector3::Up = { 0.0f,  1.0f,  0.0f };//3D空間では、上方向はY軸が正の方向
+inline const Vector3 Vector3::Down = { 0.0f, -1.0f,  0.0f };//3D空間では、下方向はY軸が負の方向
+inline const Vector3 Vector3::Forward = { 0.0f,  0.0f,  -1.0f };//DxLibの3D空間では、前方向はZ軸が負の方向
+inline const Vector3 Vector3::Back = { 0.0f,  0.0f, 1.0f };//DxLibの3D空間では、後方向はZ軸が正の方向

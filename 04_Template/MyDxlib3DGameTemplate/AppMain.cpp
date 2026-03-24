@@ -28,7 +28,7 @@ bool Application::Init()
 	SetGraphMode(GameSetting::WINDOW_WIDTH, GameSetting::WINDOW_HEIGHT, 32);//画面サイズと解像度
 
 	//初期化
-	if (DxLib_Init() == -1) { return -1; }//Dxlib初期化
+	if (DxLib_Init() == -1) { return false; }//Dxlib初期化
 
 	//ダブルバッファリング
 	SetDrawScreen(DX_SCREEN_BACK);

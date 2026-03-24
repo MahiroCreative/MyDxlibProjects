@@ -33,9 +33,6 @@
     <ClCompile Include="MyDxlib\InputMouse.cpp">
       <Filter>MyDxlib</Filter>
     </ClCompile>
-    <ClCompile Include="MyDxlib\Vector2.cpp">
-      <Filter>MyDxlib</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
@@ -66,9 +63,6 @@
     <ClInclude Include="MyDxlib\Color.h">
       <Filter>MyDxlib</Filter>
     </ClInclude>
-    <ClInclude Include="GameSetting.h">
-      <Filter>MyDxlib</Filter>
-    </ClInclude>
     <ClInclude Include="MyDxlib\InputKey.h">
       <Filter>MyDxlib</Filter>
     </ClInclude>
@@ -92,6 +86,9 @@
     </ClInclude>
     <ClInclude Include="MyDxlib\Vector3.h">
       <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSetting.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
