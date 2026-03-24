@@ -139,6 +139,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AppMain.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -149,6 +150,7 @@
     <Text Include="Log.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AppMain.h" />
     <ClInclude Include="MyDxlib\MyDxlib.h" />
     <ClInclude Include="MyDxlib\MyMath\MyMath.h" />
     <ClInclude Include="MyDxlib\MyMath\Quaternion.h" />

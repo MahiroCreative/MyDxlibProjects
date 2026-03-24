@@ -1,18 +1,19 @@
-﻿#include "DxLib.h"
+﻿#include "Dxlib.h"
+#include "AppMain.h"
 
-// プログラムは WinMain から始まります
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
-	if (DxLib_Init() == -1)		// ＤＸライブラリ初期化処理
-	{
-		return -1;			// エラーが起きたら直ちに終了
-	}
+	//メインループのインスタンス作成
+	auto& app = Application::GetInstance();
 
-	DrawPixel(320, 240, GetColor(255, 255, 255));	// 点を打つ
+	//初期化処理
+	if (!app.Init()) { return -1; }//失敗した場合は終了
+	
+	//メインループ
+	app.Run();
 
-	WaitKey();				// キー入力待ち
+	//終了処理
+	app.End();
 
-	DxLib_End();				// ＤＸライブラリ使用の終了処理
-
-	return 0;				// ソフトの終了 
+	return 0;
 }
