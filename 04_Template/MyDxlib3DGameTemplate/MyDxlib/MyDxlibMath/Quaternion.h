@@ -1,6 +1,10 @@
 ﻿#pragma once
 //数学系
-#include "MyMath.h"
+//C++標準ライブラリ
+#include <cassert>
+#include <string>
+#include <cmath>
+#include <numbers>
 
 using namespace std;
 using namespace MyMath;

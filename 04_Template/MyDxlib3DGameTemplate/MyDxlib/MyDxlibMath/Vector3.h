@@ -1,5 +1,9 @@
 ﻿#pragma once
-#include "MyMath.h"
+//C++標準ライブラリ
+#include <cassert>
+#include <string>
+#include <cmath>
+#include <numbers>
 
 //namespace.
 using namespace std;

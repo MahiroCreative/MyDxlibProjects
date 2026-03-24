@@ -1,31 +1,11 @@
-﻿#include "AppMain.h"
-#include "Dxlib.h"
-#include "SceneBase.h"
-
-//匿名名前空間は、同一ファイル内でのみ有効。
-namespace
-{
-	/*静的設定*/
-	// ウィンドウタイトル
-	constexpr const char* WINDOW_TITLE = "MyDxlib3DGameTemplate";
-	// ウィンドウサイズ
-	constexpr int WINDOW_WIDTH = 1280;
-	constexpr int WINDOW_HEIGHT = 720;
-	//ウィンドウ中央座標
-	constexpr int WINDOW_CENTER_X = WINDOW_WIDTH / 2;
-	constexpr int WINDOW_CENTER_Y = WINDOW_HEIGHT / 2;
-
-	/*動的設定*/
-	bool isWindowMode = true;	//Windowモード
-
-	/*シーン*/
-	enum class Scene
-	{
-		TITLE,
-		GAME,
-		RESULT
-	};
-}
+﻿//STL.
+#include <memory>
+//Dxlib.
+#include "MyDxlib/MyDxlib.h"
+//Origin.
+#include "AppMain.h"
+#include "GameSetting.h"
+#include "TitleScene.h"
 
 //コンストラクタ
 Application::Application() {}
@@ -42,10 +22,10 @@ Application& Application::GetInstance()
 bool Application::Init()
 {
 	/*Dxlib初期化前処理*/
-	ChangeWindowMode(isWindowMode);//ウィンドウモードの設定
-	SetMainWindowText(WINDOW_TITLE);//ウィンドウタイトルの設定
+	ChangeWindowMode(GameSetting::isWindowMode);//ウィンドウモードの設定
+	SetMainWindowText(GameSetting::WINDOW_TITLE);//ウィンドウタイトルの設定
 	SetChangeScreenModeGraphicsSystemResetFlag(false);//画面モード変更時にグラフィックスをリセットしない
-	SetGraphMode(WINDOW_WIDTH, WINDOW_HEIGHT, 32);//画面サイズと解像度
+	SetGraphMode(GameSetting::WINDOW_WIDTH, GameSetting::WINDOW_HEIGHT, 32);//画面サイズと解像度
 
 	//初期化
 	if (DxLib_Init() == -1) { return -1; }//Dxlib初期化
@@ -69,6 +49,11 @@ void Application::Run()
 	LONGLONG frameTime = 0;
 	bool isGameRoop = true;
 
+	/*ゲームシーンの生成*/
+	std::unique_ptr<_baseGameScene> gameScene;
+	gameScene = std::make_unique<TitleScene>();
+	gameScene->Init();//初期化
+
 	/*ゲームループ*/
 	while (isGameRoop)
 	{
@@ -77,6 +62,8 @@ void Application::Run()
 		ClearDrawScreen();//裏画面の初期化
 
 		/*ゲーム部*/
+		gameScene->Update();//更新
+		gameScene->Draw();//描画
 
 
 		/*roop更新部*/		

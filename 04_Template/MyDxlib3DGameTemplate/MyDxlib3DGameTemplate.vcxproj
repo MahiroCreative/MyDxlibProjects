@@ -141,6 +141,10 @@
   <ItemGroup>
     <ClCompile Include="AppMain.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MyDxlib\MyDxlibGame\InputKey.cpp" />
+    <ClCompile Include="MyDxlib\MyDxlibGame\InputMouse.cpp" />
+    <ClCompile Include="MyDxlib\MyDxlibMath\Vector2.cpp" />
+    <ClCompile Include="TitleScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
@@ -151,13 +155,24 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppMain.h" />
+    <ClInclude Include="GameSetting.h" />
     <ClInclude Include="MyDxlib\MyDxlib.h" />
-    <ClInclude Include="MyDxlib\MyMath\MyMath.h" />
-    <ClInclude Include="MyDxlib\MyMath\Quaternion.h" />
-    <ClInclude Include="MyDxlib\MyMath\Vector3.h" />
-    <ClInclude Include="MyDxlib\MyTool\MyTool.h" />
-    <ClInclude Include="MyDxlib\MyTool\TimeTool.h" />
-    <ClInclude Include="MyDxlib\Test.h" />
+    <ClInclude Include="MyDxlib\MyDxlibDebug\MyDxlibDebug.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\CircleCollision2D.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\Color.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\InputKey.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\InputMouse.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\MyDxlibGame.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\Rigidbody2D.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\SimpleText.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\Transform2D.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\_baseGameObject2D.h" />
+    <ClInclude Include="MyDxlib\MyDxlibGame\_baseGameScene.h" />
+    <ClInclude Include="MyDxlib\MyDxlibMath\MyDxlibMath.h" />
+    <ClInclude Include="MyDxlib\MyDxlibMath\Quaternion.h" />
+    <ClInclude Include="MyDxlib\MyDxlibMath\Vector2.h" />
+    <ClInclude Include="MyDxlib\MyDxlibMath\Vector3.h" />
+    <ClInclude Include="TitleScene.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
