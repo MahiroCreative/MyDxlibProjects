@@ -1,5 +1,6 @@
 ﻿#include "AppMain.h"
 #include "Dxlib.h"
+#include "SceneBase.h"
 
 //匿名名前空間は、同一ファイル内でのみ有効。
 namespace
@@ -15,8 +16,15 @@ namespace
 	constexpr int WINDOW_CENTER_Y = WINDOW_HEIGHT / 2;
 
 	/*動的設定*/
-	//Windowモード
-	bool isWindowMode = true;
+	bool isWindowMode = true;	//Windowモード
+
+	/*シーン*/
+	enum class Scene
+	{
+		TITLE,
+		GAME,
+		RESULT
+	};
 }
 
 //コンストラクタ

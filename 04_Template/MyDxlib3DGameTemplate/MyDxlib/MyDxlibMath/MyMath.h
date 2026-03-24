@@ -1,6 +1,5 @@
-﻿//外部ライブラリに依存しない数学系
-//ライブラリをまとめたヘッダファイル
-#pragma once
+﻿#pragma once
+//Dxlib用の数学ライブラリ
 //C++標準ライブラリ
 #include <cassert>
 #include <string>
