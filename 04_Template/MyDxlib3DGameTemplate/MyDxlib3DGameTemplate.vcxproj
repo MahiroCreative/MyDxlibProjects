@@ -159,6 +159,7 @@
     <ClInclude Include="MyDxlib\Color.h" />
     <ClInclude Include="MyDxlib\InputKey.h" />
     <ClInclude Include="MyDxlib\InputMouse.h" />
+    <ClInclude Include="MyDxlib\Matrix4x4.h" />
     <ClInclude Include="MyDxlib\MyDxlib.h" />
     <ClInclude Include="MyDxlib\Quaternion.h" />
     <ClInclude Include="MyDxlib\Rigidbody2D.h" />
