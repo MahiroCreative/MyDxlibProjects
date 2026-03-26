@@ -11,13 +11,13 @@ namespace
 	//矢印の非表示切替時間
 	constexpr int _kArrowDeleteTime = 30;
 	//矢印の初期位置
-	const Vector3 _kArrowFirstPos = Vector3(GameSetting::WINDOW_CENTER_X - 120.0f, 280.0f);
+	const Vector2 _kArrowFirstPos = Vector2(GameSetting::WINDOW_CENTER_X - 120.0f, 280.0f);
 	//1番目のテキストの表示位置
-	const Vector3 _kFirstTextPos = Vector3(GameSetting::WINDOW_CENTER_X - 80.0f, 280.0f);
+	const Vector2 _kFirstTextPos = Vector2(GameSetting::WINDOW_CENTER_X - 80.0f, 280.0f);
 	//2番目のテキストの表示位置
-	const Vector3 _kSecondTextPos = Vector3(GameSetting::WINDOW_CENTER_X - 80.0f, 320.0f);
+	const Vector2 _kSecondTextPos = Vector2(GameSetting::WINDOW_CENTER_X - 80.0f, 320.0f);
 	//3番目のテキストの表示位置
-	const Vector3 _kThirdTextPos = Vector3(GameSetting::WINDOW_CENTER_X - 80.0f, 360.0f);
+	const Vector2 _kThirdTextPos = Vector2(GameSetting::WINDOW_CENTER_X - 80.0f, 360.0f);
 
 }
 

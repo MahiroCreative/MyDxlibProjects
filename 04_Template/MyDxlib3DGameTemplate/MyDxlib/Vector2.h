@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cassert>
 #include <string>
+#include <numbers>
 #include "Vector3.h"
 
 struct Vector2
@@ -27,17 +28,21 @@ struct Vector2
 	//ベクトの長さ
 	float Length() const
 	{
-		return sqrtf(LengthSq());
+		return std::sqrtf(LengthSq());
 	}
 	//ベクトルの正規化
 	Vector2 Normalize() const
 	{
-		//長さ出す
-		float len = Length();
-		//エラー検知(0除算)
-		assert(len != 0 && "0 division");
-		//リリース時クラッシュ回避
-		if (len <= 0.0f) { return Zero; }//0以下ならば、0ベクトルを返す
+		//長さの２乗を出す
+		float lenSq = LengthSq();
+		//0以下ならば、0ベクトルを返す(リリース時クラッシュ回避)
+		if (lenSq <= 0.0f)
+		{
+			assert(lenSq != 0 && "0 division");//Debugビルドで0除算を検出
+			return Zero;
+		}
+		//長さを出す
+		float len = std::sqrtf(lenSq);
 		//長さを成分で割って、正規化した値を返す
 		return Vector2{ X / len, Y / len };
 	}
@@ -45,6 +50,19 @@ struct Vector2
 	Vector2 Abs() const
 	{
 		return Vector2{ std::abs(X),std::abs(Y)};
+	}
+	//ベクトルの回転(angleDegree: 度数法)
+	//Dxlibはスクリーン座標系(Y軸下向き)なので、プラスで時計回りに回転
+	Vector2 Rotate(float angleDegree) const {
+		float rad = angleDegree * std::numbers::pi_v<float> / 180.0f;
+		float s = std::sin(rad);
+		float c = std::cos(rad);
+		return Vector2{ X * c - Y * s, X * s + Y * c };
+	}
+	// このベクトルが向いている角度(度数法)を返す
+	// 0度が右(1,0)、90度が下(0,1)となります
+	float GetAngle() const {
+		return std::atan2(Y, X) * 180.0f / std::numbers::pi_v<float>;
 	}
 	//文字列変換
 	std::string ToString() const
@@ -68,9 +86,18 @@ struct Vector2
 	{
 		return (to - from).Length();
 	}
+	//線形補間(t=0でstart, t=1でend)
+	static Vector2 Lerp(const Vector2& start, const Vector2& end, float t) {
+		return start + (end - start) * t;
+	}
 
 	/*演算子オーバーロード*/
 	//単項演算子(const付けるとメンバ変数の変更を行えなくなる)
+	//-A(単項マイナス)
+	Vector2 operator-() const
+	{
+		return Vector2{ -this->X, -this->Y };
+	}
 	//A+B
 	Vector2 operator+(const Vector2& right) const
 	{
@@ -92,11 +119,7 @@ struct Vector2
 		assert(k != 0 && "0 division");//0除算
 		return Vector2{ this->X / k, this->Y / k };
 	}
-	//-A(単項マイナス)
-	Vector2 operator-() const
-	{
-		return Vector2{ -this->X, -this->Y };
-	}
+
 	//複合代入演算子
 	//A+=B
 	Vector2& operator+=(const Vector2& right)
@@ -124,6 +147,12 @@ struct Vector2
 	friend Vector2 operator*(float k, const Vector2& v)
 	{
 		return Vector2{ v.X * k, v.Y * k };
+	}
+	// DxLibの VECTOR 型（3D用）への変換
+	// Z成分を 0.0f として変換します
+	operator VECTOR() const
+	{
+		return VGet(X, Y, 0.0f);
 	}
 };
 
