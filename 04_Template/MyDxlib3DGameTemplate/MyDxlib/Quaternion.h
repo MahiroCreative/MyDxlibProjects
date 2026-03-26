@@ -7,8 +7,6 @@
 #include <algorithm>
 //original
 #include "Vector3.h"
-#include "Matrix4x4.h"
-#include "DxLib.h"
 
 /// <summary>
 /// Quaternion型の構造体(float)
@@ -52,47 +50,6 @@ struct Quaternion
 	std::string ToString() const
 	{
 		return std::to_string(X) + ":" + std::to_string(Y) + ":" + std::to_string(Z) + ":" + std::to_string(W);
-	}
-	/// <summary>
-	/// クォータニオンを回転行列に変換。
-	/// ＤＸライブラリの行優先(Row-Major)・行ベクトル形式に準拠。
-	/// </summary>
-	Matrix4x4 ToMatrix4x4() const
-	{
-		// 単位行列で初期化（これにより4行目や4列目の 0, 0, 0, 1 が保証される）
-		Matrix4x4 res = Matrix4x4::Identity;
-
-		// 計算を高速化するため、各成分の二乗や積をあらかじめ算出
-		float xx = X * X; float yy = Y * Y; float zz = Z * Z;
-		float xy = X * Y; float xz = X * Z; float yz = Y * Z;
-		float wx = W * X; float wy = W * Y; float wz = W * Z;
-
-		// --- 1行目：回転後のＸ軸（右方向ベクトル） ---
-		res.m[0][0] = 1.0f - 2.0f * (yy + zz);
-		res.m[0][1] = 2.0f * (xy + wz); // ＤＸライブラリ用：ここに +wz
-		res.m[0][2] = 2.0f * (xz - wy);
-		// res.m[0][3] は 0.0f (Identityにより設定済み)
-
-		// --- 2行目：回転後のＹ軸（上方向ベクトル） ---
-		res.m[1][0] = 2.0f * (xy - wz); // ＤＸライブラリ用：ここに -wz
-		res.m[1][1] = 1.0f - 2.0f * (xx + zz);
-		res.m[1][2] = 2.0f * (yz + wx);
-		// res.m[1][3] は 0.0f
-
-		// --- 3行目：回転後のＺ軸（前方向ベクトル） ---
-		res.m[2][0] = 2.0f * (xz + wy);
-		res.m[2][1] = 2.0f * (yz - wx);
-		res.m[2][2] = 1.0f - 2.0f * (xx + yy);
-		// res.m[2][3] は 0.0f
-
-		// --- 4行目：移動成分 (Translation) ---
-		// クォータニオンは回転のみを表すため、座標は 0, 0, 0 のまま
-		// res.m[3][0] = 0.0f;
-		// res.m[3][1] = 0.0f;
-		// res.m[3][2] = 0.0f;
-		// res.m[3][3] = 1.0f;
-
-		return res;
 	}
 
 	/*staticメンバ関数*/
