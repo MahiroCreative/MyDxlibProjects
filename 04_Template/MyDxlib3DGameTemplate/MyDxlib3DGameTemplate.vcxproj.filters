@@ -24,12 +24,6 @@
     <ClCompile Include="TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="MyDxlib\InputKey.cpp">
-      <Filter>MyDxlib</Filter>
-    </ClCompile>
-    <ClCompile Include="MyDxlib\InputMouse.cpp">
-      <Filter>MyDxlib</Filter>
-    </ClCompile>
     <ClCompile Include="testMain.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
