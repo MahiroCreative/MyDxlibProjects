@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ソース ファイル">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ヘッダー ファイル">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="リソース ファイル">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="MyDxlib">
+      <UniqueIdentifier>{683b986a-d833-43e1-853c-8d43b8d018f5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AppMain.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="TitleScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="testMain.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+    <None Include=".gitignore" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Log.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AppMain.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\MyDxlib.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="TitleScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\_baseGameObject2D.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\_baseGameScene.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\CircleCollision2D.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Color.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\InputKey.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\InputMouse.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Quaternion.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Rigidbody2D.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\SimpleText.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Transform2D.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Vector2.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Vector3.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSetting.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="MyDxlib\Matrix4x4.h">
+      <Filter>MyDxlib</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

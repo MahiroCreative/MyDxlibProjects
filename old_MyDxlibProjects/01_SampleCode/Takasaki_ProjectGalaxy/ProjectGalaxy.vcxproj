@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{a258279b-4a49-40c3-a3eb-b2fdaacdfc1d}</ProjectGuid>
+    <RootNamespace>ProjectGalaxy</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>プロジェクトに追加すべきファイル_VC用;$(ProjectDir);$(ProjectDir)Scene;$(ProjectDir)Planet;$(ProjectDir)LoadManager;$(ProjectDir)Object;$(ProjectDir)Object\Camera;$(ProjectDir)Object\Player;$(ProjectDir)Object\WarpGate;$(ProjectDir)Object\ClearObject;$(ProjectDir)Object\Item;$(ProjectDir)Object\Enemy;$(ProjectDir)Object\Base;$(ProjectDir)Object\Gimmick;$(ProjectDir)MyLib;$(ProjectDir)MyLib\Physics;$(ProjectDir)Game</AdditionalIncludeDirectories>
+      <AdditionalUsingDirectories>$(IntDir)</AdditionalUsingDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>プロジェクトに追加すべきファイル_VC用;$(ProjectDir);$(ProjectDir)Scene;$(ProjectDir)Planet;$(ProjectDir)LoadManager;$(ProjectDir)Object;$(ProjectDir)Object\Camera;$(ProjectDir)Object\Player;$(ProjectDir)Object\WarpGate;$(ProjectDir)Object\ClearObject;$(ProjectDir)Object\Item;$(ProjectDir)Object\Enemy;$(ProjectDir)Object\Base;$(ProjectDir)Object\Gimmick;$(ProjectDir)MyLib;$(ProjectDir)MyLib\Physics;$(ProjectDir)Game</AdditionalLibraryDirectories>
+      <HeapCommitSize>
+      </HeapCommitSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>プロジェクトに追加すべきファイル_VC用;$(ProjectDir);$(ProjectDir)Scene;$(ProjectDir)Planet;$(ProjectDir)LoadManager;$(ProjectDir)Object;$(ProjectDir)Object\Camera;$(ProjectDir)Object\Player;$(ProjectDir)Object\WarpGate;$(ProjectDir)Object\ClearObject;$(ProjectDir)Object\Item;$(ProjectDir)Object\Enemy;$(ProjectDir)Object\Base;$(ProjectDir)Object\Gimmick;$(ProjectDir)MyLib;$(ProjectDir)MyLib\Physics;$(ProjectDir)Game</AdditionalIncludeDirectories>
+      <AdditionalUsingDirectories>$(IntDir)</AdditionalUsingDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>プロジェクトに追加すべきファイル_VC用;$(ProjectDir);$(ProjectDir)Scene;$(ProjectDir)Planet;$(ProjectDir)LoadManager;$(ProjectDir)Object;$(ProjectDir)Object\Camera;$(ProjectDir)Object\Player;$(ProjectDir)Object\WarpGate;$(ProjectDir)Object\ClearObject;$(ProjectDir)Object\Item;$(ProjectDir)Object\Enemy;$(ProjectDir)Object\Base;$(ProjectDir)Object\Gimmick;$(ProjectDir)MyLib;$(ProjectDir)MyLib\Physics;$(ProjectDir)Game</AdditionalLibraryDirectories>
+      <HeapCommitSize>
+      </HeapCommitSize>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Game.cpp" />
+    <ClCompile Include="Game\DebugGalaxy.cpp" />
+    <ClCompile Include="Game\Galaxy.cpp" />
+    <ClCompile Include="Game\GameManager.cpp" />
+    <ClCompile Include="Game\SerialPlanetGalaxy.cpp" />
+    <ClCompile Include="Game\WatchGalaxy.cpp" />
+    <ClCompile Include="Game\World.cpp" />
+    <ClCompile Include="LoadManager\EffectManager.cpp" />
+    <ClCompile Include="LoadManager\FontManager.cpp" />
+    <ClCompile Include="LoadManager\GraphManager.cpp" />
+    <ClCompile Include="LoadManager\ModelManager.cpp" />
+    <ClCompile Include="LoadManager\ScreenManager.cpp" />
+    <ClCompile Include="LoadManager\SoundManager.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="MyLib\DebugDraw.cpp" />
+    <ClCompile Include="MyLib\Easing.cpp" />
+    <ClCompile Include="MyLib\Geometry.cpp" />
+    <ClCompile Include="MyLib\Physics\Collidable.cpp" />
+    <ClCompile Include="MyLib\Physics\ColliderBase.cpp" />
+    <ClCompile Include="MyLib\Physics\ColliderBox.cpp" />
+    <ClCompile Include="MyLib\Physics\ColliderCapsule.cpp" />
+    <ClCompile Include="MyLib\Physics\ColliderSphere.cpp" />
+    <ClCompile Include="MyLib\Physics\Physics.cpp" />
+    <ClCompile Include="MyLib\Physics\Rigidbody.cpp" />
+    <ClCompile Include="MyLib\Quaternion.cpp" />
+    <ClCompile Include="MyLib\Vec2.cpp" />
+    <ClCompile Include="MyLib\Vec3.cpp" />
+    <ClCompile Include="Object\Base\SphereBase.cpp" />
+    <ClCompile Include="Object\Camera\Camera.cpp" />
+    <ClCompile Include="Object\ClearObject\ClearObject.cpp" />
+    <ClCompile Include="Object\Enemy\Enemy.cpp" />
+    <ClCompile Include="Object\Enemy\EnemyManager.cpp" />
+    <ClCompile Include="Object\Enemy\EnemySphere.cpp" />
+    <ClCompile Include="Object\Enemy\Gorori.cpp" />
+    <ClCompile Include="Object\Enemy\Killer.cpp" />
+    <ClCompile Include="Object\Enemy\KillerTheSeeker.cpp" />
+    <ClCompile Include="Object\Enemy\Kuribo.cpp" />
+    <ClCompile Include="Object\Enemy\SpaceEmperor.cpp" />
+    <ClCompile Include="Object\Enemy\Takobo.cpp" />
+    <ClCompile Include="Object\Gimmick\Crystal.cpp" />
+    <ClCompile Include="Object\Gimmick\Invisible.cpp" />
+    <ClCompile Include="Object\Gimmick\SeekerLine.cpp" />
+    <ClCompile Include="Object\Gimmick\StarCapture.cpp" />
+    <ClCompile Include="Object\Item\Coin.cpp" />
+    <ClCompile Include="Object\Item\Item.cpp" />
+    <ClCompile Include="Object\LocationsManager.cpp" />
+    <ClCompile Include="Object\ObjectManager.cpp" />
+    <ClCompile Include="Object\Player\Player.cpp" />
+    <ClCompile Include="Object\Player\PlayerSphere.cpp" />
+    <ClCompile Include="Object\Player\PlayerStickSphere.cpp" />
+    <ClCompile Include="Object\WarpGate\Booster.cpp" />
+    <ClCompile Include="Object\WarpGate\WarpGate.cpp" />
+    <ClCompile Include="Pad.cpp" />
+    <ClCompile Include="Planet\BossPlanet.cpp" />
+    <ClCompile Include="Planet\BoxPlanet.cpp" />
+    <ClCompile Include="Planet\DumbbellPlanet.cpp" />
+    <ClCompile Include="Planet\Planet.cpp" />
+    <ClCompile Include="Planet\SpherePlanet.cpp" />
+    <ClCompile Include="Scene\ClearScene.cpp" />
+    <ClCompile Include="Scene\GameOverScene.cpp" />
+    <ClCompile Include="Scene\GamePlayingScene.cpp" />
+    <ClCompile Include="Scene\PauseScene.cpp" />
+    <ClCompile Include="Scene\Scene.cpp" />
+    <ClCompile Include="Scene\SceneManager.cpp" />
+    <ClCompile Include="Scene\TitleScene.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Application.h" />
+    <ClInclude Include="Game.h" />
+    <ClInclude Include="Game\DebugGalaxy.h" />
+    <ClInclude Include="Game\Galaxy.h" />
+    <ClInclude Include="Game\GameManager.h" />
+    <ClInclude Include="Game\SerialPlanetGalaxy.h" />
+    <ClInclude Include="Game\WatchGalaxy.h" />
+    <ClInclude Include="Game\World.h" />
+    <ClInclude Include="Kuribo.h" />
+    <ClInclude Include="LoadManager\EffectManager.h" />
+    <ClInclude Include="LoadManager\FontManager.h" />
+    <ClInclude Include="LoadManager\GraphManager.h" />
+    <ClInclude Include="LoadManager\ModelManager.h" />
+    <ClInclude Include="LoadManager\ScreenManager.h" />
+    <ClInclude Include="LoadManager\SoundManager.h" />
+    <ClInclude Include="MyLib\DebugDraw.h" />
+    <ClInclude Include="MyLib\Easing.h" />
+    <ClInclude Include="MyLib\Geometry.h" />
+    <ClInclude Include="MyLib\ObjectTag.h" />
+    <ClInclude Include="MyLib\Physics\Collidable.h" />
+    <ClInclude Include="MyLib\Physics\ColliderBase.h" />
+    <ClInclude Include="MyLib\Physics\ColliderBox.h" />
+    <ClInclude Include="MyLib\Physics\ColliderCapsule.h" />
+    <ClInclude Include="MyLib\Physics\ColliderSphere.h" />
+    <ClInclude Include="MyLib\Physics\CollisionUtil.h" />
+    <ClInclude Include="MyLib\Physics\Physics.h" />
+    <ClInclude Include="MyLib\Physics\Rigidbody.h" />
+    <ClInclude Include="MyLib\Quaternion.h" />
+    <ClInclude Include="MyLib\Vec2.h" />
+    <ClInclude Include="MyLib\Vec3.h" />
+    <ClInclude Include="Object\Base\SphereBase.h" />
+    <ClInclude Include="Object\Camera\Camera.h" />
+    <ClInclude Include="Object\ClearObject\ClearObject.h" />
+    <ClInclude Include="Object\Enemy\Enemy.h" />
+    <ClInclude Include="Object\Enemy\EnemyManager.h" />
+    <ClInclude Include="Object\Enemy\EnemySphere.h" />
+    <ClInclude Include="Object\Enemy\Gorori.h" />
+    <ClInclude Include="Object\Enemy\Killer.h" />
+    <ClInclude Include="Object\Enemy\KillerTheSeeker.h" />
+    <ClInclude Include="Object\Enemy\SpaceEmperor.h" />
+    <ClInclude Include="Object\Enemy\Takobo.h" />
+    <ClInclude Include="Object\Gimmick\Crystal.h" />
+    <ClInclude Include="Object\Gimmick\Invisible.h" />
+    <ClInclude Include="Object\Gimmick\SeekerLine.h" />
+    <ClInclude Include="Object\Gimmick\StarCapture.h" />
+    <ClInclude Include="Object\Item\Coin.h" />
+    <ClInclude Include="Object\Item\Item.h" />
+    <ClInclude Include="Object\LocationsManager.h" />
+    <ClInclude Include="Object\ObjectManager.h" />
+    <ClInclude Include="Object\Player\Player.h" />
+    <ClInclude Include="Object\Player\PlayerSphere.h" />
+    <ClInclude Include="Object\Player\PlayerStickSphere.h" />
+    <ClInclude Include="Object\WarpGate\Booster.h" />
+    <ClInclude Include="Object\WarpGate\WarpGate.h" />
+    <ClInclude Include="Pad.h" />
+    <ClInclude Include="Planet\BossPlanet.h" />
+    <ClInclude Include="Planet\BoxPlanet.h" />
+    <ClInclude Include="Planet\DumbbellPlanet.h" />
+    <ClInclude Include="Planet\Planet.h" />
+    <ClInclude Include="Planet\SpherePlanet.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="Scene\ClearScene.h" />
+    <ClInclude Include="Scene\GameOverScene.h" />
+    <ClInclude Include="Scene\GamePlayingScene.h" />
+    <ClInclude Include="Scene\PauseScene.h" />
+    <ClInclude Include="Scene\Scene.h" />
+    <ClInclude Include="Scene\SceneManager.h" />
+    <ClInclude Include="Scene\TitleScene.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ProjectGalaxy.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

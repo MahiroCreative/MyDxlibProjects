@@ -1,0 +1,7 @@
+﻿ID,名前,スピード
+Idle,Armature|01_Idle,0.5
+Walk,Armature|02_Walk,0.5
+Jump,Armature|03_Jump,0.5
+Aerial,Armature|04_Aerial,0.5
+Landing,Armature|05_Landing,0.5
+Death,Armature|06_Death,0.5

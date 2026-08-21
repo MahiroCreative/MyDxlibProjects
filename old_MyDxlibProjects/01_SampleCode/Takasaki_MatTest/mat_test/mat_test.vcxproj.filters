@@ -1,0 +1,132 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ソース ファイル">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="ヘッダー ファイル">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="リソース ファイル">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="ソース ファイル\MyLib">
+      <UniqueIdentifier>{898f9349-ccc3-4207-9918-2f2e556cd548}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\MyLib\Physics">
+      <UniqueIdentifier>{6918cc3e-09db-45c3-bfac-bce7750ffa4e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\Object">
+      <UniqueIdentifier>{50f08c10-e032-4df3-8923-b950ec238751}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\Collidable.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\ColliderBase.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\ColliderBox.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\ColliderCapsule.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\ColliderSphere.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\Physics.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Physics\Rigidbody.cpp">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\DebugDraw.cpp">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Geometry.cpp">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Quaternion.cpp">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Vec2.cpp">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClCompile>
+    <ClCompile Include="MyLib\Vec3.cpp">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera\Camera.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Pad.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Base\SphereBase.cpp">
+      <Filter>ソース ファイル\Object</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerSphere.cpp">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MyLib\Physics\Collidable.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Physics\ColliderBase.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Physics\ColliderBox.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Physics\ColliderCapsule.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Physics\ColliderSphere.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Physics\Physics.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Physics\Rigidbody.h">
+      <Filter>ソース ファイル\MyLib\Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\DebugDraw.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Geometry.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\ObjectTag.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Quaternion.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Vec2.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+    <ClInclude Include="MyLib\Vec3.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera\Camera.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Pad.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Base\SphereBase.h">
+      <Filter>ソース ファイル\Object</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerSphere.h">
+      <Filter>ソース ファイル\MyLib</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
