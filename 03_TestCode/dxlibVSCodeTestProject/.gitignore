@@ -1,0 +1,18 @@
+# Build output
+/build/
+
+# DxLib runtime log
+Log.txt
+
+# MSVC / compiler artifacts (in case any land outside build/)
+*.obj
+*.exe
+*.pdb
+*.ilk
+
+# VSCode machine-specific config
+.vscode/c_cpp_properties.json
+
+# OS files
+Thumbs.db
+desktop.ini
