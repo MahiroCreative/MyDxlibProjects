@@ -1,0 +1,2 @@
+# install.bat は CRLF のまま保つ(cmd.exe は LF だけの bat で、ラベルへの goto が壊れることがある)
+*.bat text eol=crlf

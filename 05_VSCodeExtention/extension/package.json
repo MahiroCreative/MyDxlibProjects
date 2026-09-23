@@ -1,0 +1,294 @@
+{
+  "name": "dxlib-devenv",
+  "displayName": "DxLib 開発環境",
+  "description": "DxLib(C++)のプロジェクト作成・ビルド・実行・デバッグをボタン操作だけで行えるようにします。",
+  "version": "0.0.1",
+  "publisher": "mahirocreative",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MahiroCreative/MyDxlibProjects.git",
+    "directory": "05_VSCodeExtention/extension"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "extensionPack": [
+    "ms-vscode.cpptools",
+    "MS-CEINTL.vscode-language-pack-ja",
+    "TimGJones.hlsltools"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dxlib",
+          "title": "DxLib",
+          "icon": "resources/dxlib.svg"
+        }
+      ]
+    },
+    "views": {
+      "dxlib": [
+        {
+          "type": "webview",
+          "id": "dxlib.panel",
+          "name": "DxLib"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "dxlib.refreshEnvironment",
+        "title": "環境を再チェック",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.selectSdk",
+        "title": "SDK フォルダを指定",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.selectTemplatesDir",
+        "title": "テンプレートフォルダを指定",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.createProject",
+        "title": "新規プロジェクト作成",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.build",
+        "title": "ビルド (Debug)",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.run",
+        "title": "実行",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.debug",
+        "title": "デバッグ実行",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.compileShaders",
+        "title": "シェーダーをコンパイル",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.saveAsTemplate",
+        "title": "今開いているプロジェクトをテンプレートとして保存",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.createDefinition",
+        "title": "定義を作成",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.openReference",
+        "title": "DxLib リファレンスを開く",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.showAllDeclarations",
+        "title": "DxLib 関数の宣言をすべて表示",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.addCppWorkload",
+        "title": "C++ ワークロードを追加",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.openVsDownload",
+        "title": "Visual Studio のダウンロードページを開く",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.openSetupGuide",
+        "title": "セットアップ手順を見る",
+        "category": "DxLib"
+      },
+      {
+        "command": "dxlib.newShaderFile",
+        "title": "新しいシェーダーを作成",
+        "category": "DxLib"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "dxlib.createDefinition",
+        "key": "ctrl+alt+d",
+        "when": "editorTextFocus && editorLangId == cpp"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "dxlib.createDefinition",
+          "when": "editorLangId == cpp",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dxlib.openReference",
+          "when": "editorLangId == cpp",
+          "group": "navigation@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "dxlib.createProject",
+          "when": "explorerResourceIsFolder",
+          "group": "dxlib@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "dxlib.showAllDeclarations",
+          "when": "false"
+        }
+      ]
+    },
+    "taskDefinitions": [
+      {
+        "type": "dxlib",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "type": "string",
+            "enum": [
+              "debug",
+              "release"
+            ],
+            "description": "ビルド構成"
+          }
+        }
+      }
+    ],
+    "configuration": {
+      "title": "DxLib",
+      "properties": {
+        "dxlib.sdkPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "DxLib SDK の「プロジェクトに追加すべきファイル_VC用」フォルダの絶対パス。"
+        },
+        "dxlib.templatesPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "外部テンプレートフォルダ。直下のサブフォルダがテンプレートとして一覧に出ます。"
+        },
+        "dxlib.visualStudioDownloadUrl": {
+          "type": "string",
+          "default": "https://visualstudio.microsoft.com/ja/vs/community/",
+          "scope": "machine",
+          "description": "Visual Studio のダウンロード案内で開く URL。"
+        },
+        "dxlib.build.cppStandard": {
+          "type": "string",
+          "enum": [
+            "c++17",
+            "c++20",
+            "c++latest"
+          ],
+          "default": "c++20",
+          "scope": "resource",
+          "description": "cl.exe に渡す /std: の値。"
+        },
+        "dxlib.shader.sourceDir": {
+          "type": "string",
+          "default": "shaders",
+          "scope": "resource",
+          "description": "シェーダーソースのフォルダ(プロジェクト直下からの相対パス)。"
+        },
+        "dxlib.shader.outputDir": {
+          "type": "string",
+          "default": "shaders/bin",
+          "scope": "resource",
+          "description": "コンパイル済みシェーダー(.vso/.pso)の出力先。"
+        },
+        "dxlib.shader.vertexTarget": {
+          "type": "string",
+          "default": "vs_4_0",
+          "scope": "resource",
+          "description": "頂点シェーダーのターゲット(ShaderCompiler の /T)。"
+        },
+        "dxlib.shader.pixelTarget": {
+          "type": "string",
+          "default": "ps_4_0",
+          "scope": "resource",
+          "description": "ピクセルシェーダーのターゲット(ShaderCompiler の /T)。"
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "dxlib.gettingStarted",
+        "title": "DxLib 開発環境のはじめかた",
+        "description": "Visual Studio と DxLib SDK を準備して、最初のプロジェクトを作ります。",
+        "steps": [
+          {
+            "id": "dxlib.step.vs",
+            "title": "1. Visual Studio を準備する",
+            "description": "Visual Studio Community を「C++ によるデスクトップ開発」ワークロード付きでインストールします。\n[手順を見る](command:dxlib.openSetupGuide)\n[ダウンロードページを開く](command:dxlib.openVsDownload)",
+            "media": {
+              "markdown": "docs/setup-guide.md"
+            }
+          },
+          {
+            "id": "dxlib.step.sdk",
+            "title": "2. DxLib SDK のフォルダを指定する",
+            "description": "配布された DxLib の zip を展開し、「プロジェクトに追加すべきファイル_VC用」フォルダを指定します。\n[フォルダを指定](command:dxlib.selectSdk)",
+            "media": {
+              "markdown": "docs/setup-guide.md"
+            }
+          },
+          {
+            "id": "dxlib.step.project",
+            "title": "3. 最初のプロジェクトを作る",
+            "description": "左の DxLib アイコンからパネルを開き、「新規プロジェクト作成」を押します。\n[パネルを開く](command:workbench.view.extension.dxlib)",
+            "media": {
+              "markdown": "docs/setup-guide.md"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit -p ./",
+    "package": "vsce package",
+    "test": "node esbuild.js && node test/runTest.js %TEMP%/dxlib-vscode-test \"%DXLIB_SDK%\"",
+    "release": "vsce package && node scripts/release.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.7.0",
+    "vscode-cpptools": "^7.0.0"
+  }
+}

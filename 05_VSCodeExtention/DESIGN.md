@@ -1,0 +1,312 @@
+# DxLib 開発環境 VSCode 拡張機能 設計書
+
+最終更新: 2026-09-23
+
+## 0. 目的と対象
+
+- 目的: 生徒が VSCode だけで DxLib(C++)のプロジェクトを作り、ビルド・実行・デバッグできる状態を、ボタン操作だけで作る。
+- 対象: ゲーム系専門学校の生徒。UI はすべて日本語。コマンドパレットは使わせない。
+- 配布: VSIX を直接インストール(Marketplace には出さない)。
+- 前提: Windows + Visual Studio Community(C++ によるデスクトップ開発ワークロード)。MinGW は対象外。
+
+## 1. 決定事項一覧
+
+| 項目 | 決定 |
+|---|---|
+| UI | アクティビティバーの DxLib アイコン → 1 枚のパネル(Webview)。状態表示とボタンを集約。初回はウォークスルー。ステータスバーに「▶ 実行」 |
+| ツールチェーン | vswhere で検出。プロジェクト側にパスを書かない(タスク種別 `dxlib` を拡張機能が提供) |
+| SDK | 生徒が自分で置き、パネルの「変更」でフォルダ指定。ダウンロード機能は作らない。バージョンを `DxLib.h` から読んで表示 |
+| SDK の運用 | 講師が安定版を指定し、更新は任意。切り替えは指し直すだけ |
+| ビルド | `cl.exe` 直叩きのフルビルド(`/MP`)。必要になったら CMake を検討 |
+| 文字コード | プロジェクトのソースは BOM 付き UTF-8(`files.encoding: utf8bom`)。cl には `/source-charset:.932 /execution-charset:.932`(BOM のあるファイルは UTF-8、BOM の無い DxLib ヘッダーは CP932 として読まれる)。`/source-charset:utf-8` は DxLib.h の日本語コメントが警告 C4828 の洪水になるので不可。cl の出力は `chcp 65001` で UTF-8 化 |
+| 構成 | Debug: `/Od /MTd /Zi /D_DEBUG` + `/link /DEBUG`。Release: `/O2 /MT /DNDEBUG`。出力は `build\Debug` `build\Release` |
+| lib 選択 | DxLib の自動リンク(`DxDataTypeWin.h` の `#pragma comment(lib)`)に任せる。明示指定しない |
+| デバッグ | C/C++ 拡張の `cppvsdbg`。F5 でビルド → 起動 |
+| IntelliSense | C/C++ 拡張の設定プロバイダー API で、拡張機能が include/defines/compilerPath を動的に渡す |
+| プロジェクト名 | 英数字とアンダースコアのみ(先頭は英字か `_`) |
+| テンプレート | フォルダ 1 つ = 1 テンプレート。`template.json` に名前と説明。同梱は「最小」のみ。授業用・自作は外部テンプレートフォルダ(設定)に置き、フォルダ名順 |
+| 置換 | `__PROJECT_NAME__` をファイル名と内容の両方で置換 |
+| テンプレートの禁則 | `.vscode`、ビルド成果物、SDK のコピーは無視 |
+| 保存 | 「今開いているプロジェクトをテンプレートとして保存」ボタン |
+| シェーダー | Direct3D 11 モード。既定ターゲット `vs_4_0` / `ps_4_0`(プロジェクト設定で変更可)。`.hlsl` と `.fx` を扱い、新規作成は `.hlsl` |
+| シェーダーのコンパイル | SDK 付属 `Tool\ShaderCompiler\ShaderCompiler.exe`。ソースを CP932 に変換してから渡す |
+| 定義の作成 | C/C++ 拡張の「宣言/定義の作成」を右クリック最上段と `Ctrl+Alt+D` に出す |
+| 作者コメント | `DxLib.h` の行末コメントを解析してホバーに表示。宣言は 3 件まで、残りはリンクでタブに一覧。「リファレンスを開く」も併設 |
+| 整形 | clang-format。`.clang-format` をプロジェクトに生成、保存時整形。HLSL にも同じ設定で拡張機能が整形器を登録 |
+| C/C++ 拡張の状態 | 未導入/無効なら起動時に警告 + パネル赤表示。初回準備中は「準備中…」、応答が無ければ黄色。ただし「応答が無ければ」の 120 秒タイマーは DxLib プロジェクトを開いているときだけ動く(2026-09-23 修正。17.2 参照) |
+| VS 未導入 | パネルで案内。ワークロード追加はインストーラーをコマンドラインで起動して代行 |
+| DxLib プロジェクト判定 | `.vscode/tasks.json` に `dxlib` タスクがあるかで判定(`isDxLibProject`)。無関係なフォルダを開いただけではビルド/実行ボタンとステータスバーの「▶ 実行」を出さない(2026-09-23 追加。当初は「フォルダが開いていれば表示」になっていた不具合を修正) |
+
+## 2. 利用者の流れ
+
+PC ごとに 1 回:
+1. Visual Studio Community を C++ ワークロード付きで入れる(パネルとウォークスルーが案内)。
+2. VSIX をインストール(依存拡張は自動導入)。
+3. パネルの環境欄が赤い項目を、横のボタンで直す。SDK は「フォルダを指定」。
+
+プロジェクトごと:
+1. パネルの「新規プロジェクト作成」→ 名前・作成先・テンプレートを入力 → 作成。
+2. 生成フォルダが開く。F5 か「▶ 実行」。
+
+## 3. パネルの内容
+
+```
+DxLib
+──────────────────────
+環境
+  ✔ Visual Studio 2026 Community
+  ✘ C++ によるデスクトップ開発 が未インストール   [ワークロードを追加] [手順を見る]
+  ✔ DxLib SDK 3.24f  C:\...\プロジェクトに追加すべきファイル_VC用   [変更]
+  … C/C++ 拡張: 準備中
+  テンプレート: C:\...\MyTemplates   [変更]
+──────────────────────
+[ 新規プロジェクト作成 ]  → パネル内フォーム(名前 / 作成先 / テンプレート)
+──────────────────────
+現在のプロジェクト: MyGame
+[ ビルド ] [ 実行 ] [ デバッグ実行 ] [ シェーダーをコンパイル ] [ テンプレートとして保存 ]
+```
+
+## 4. 環境検出
+
+- vswhere: `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe`。
+  - `-requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64` あり → 「使える」。
+  - 無しで見つかる → 「ワークロード未導入」。
+  - 何も無い → 「VS 未導入」。
+- ワークロード追加: `Installer\setup.exe modify --installPath <path> --add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --passive --norestart`。引数は `quoteWindowsArg` で 1 本のコマンドライン文字列にしてから `Start-Process -Verb RunAs` に渡す(17.1 参照)。
+- cl.exe: `<VS>\VC\Tools\MSVC\<最新>\bin\Hostx64\x64\cl.exe`(IntelliSense 用)。
+- C/C++ 拡張: `vscode.extensions.getExtension('ms-vscode.cpptools')`。
+
+## 5. SDK
+
+- 設定 `dxlib.sdkPath` に「プロジェクトに追加すべきファイル_VC用」フォルダの絶対パス(ユーザー設定。プロジェクトには持たない)。
+- 検査: 必須ヘッダー 5 本と x64 MT/MTd の lib があるか。`DXLIB_VERSION_STR_W` を読んで表示。
+- 派生パス: `..\Tool\ShaderCompiler\ShaderCompiler.exe`、`..\help\`(リファレンス)。
+- **間違ったフォルダでも保存する(2026-09-23 ユーザー決定)。** 「変更」で `DxLib.h` の無いフォルダを選んでも拒否せず、設定に保存してエラーを出す。パネルの SDK 行は赤い ✗ になる。当初は「拒否して元の設定を維持」だったが、エラーが出ているのに ✓ のままで矛盾して見えるため変更した。
+- **SDK が正しくない間は、プロジェクトを作成できない(同)。** 判定は `sdkProblem()`(未設定 / `DxLib.h` なし / ファイル不足)。次の 4 か所で止める。
+  - パネルの「新規プロジェクト作成」ボタンを無効にし、赤字で理由を出す。開いている作成フォームは閉じる。
+  - コマンド `dxlib.createProject` の入口(エクスプローラーの右クリックなど、どの入口でもフォームを開かない)。
+  - `createProject()` 本体(API からも作成が拒否される)。
+  - 正しい SDK に戻せば、すぐ作成できる。
+- 検証: 段階 1 に、誤ったフォルダの保存・コマンドと API からの作成拒否・正しい SDK に戻して作成できることの 4 項目。段階 3 に、✗ と無効ボタンのスクリーンショット(`panel-sdk-invalid.png`)。全段階 66 項目 OK。
+
+## 6. ビルド(タスク種別 `dxlib`)
+
+- `tasks.json` には `{ "type": "dxlib", "config": "debug" }` だけ。
+- 拡張機能がビルド用 bat を拡張機能の保存領域に生成して実行する。
+  1. `chcp 65001`
+  2. `call vcvarsall.bat x64 >nul 2>&1`(stderr の vswhere 警告を抑える)
+  3. `src\**\*.cpp` を列挙
+  4. `cl /nologo /EHsc /MP /W3 /wd4819 /std:c++20 /source-charset:.932 /execution-charset:.932 /D_WINDOWS /DWIN32 <構成> /I <SDK> /I src ... /Fe build\<構成>\<名前>.exe /link /SUBSYSTEM:WINDOWS /LIBPATH:<SDK>`
+- この bat と同じ内容を日本語パスの SDK に対して実行し、警告 0 で exe ができることを確認済み(2026-09-23)。
+- 問題マッチャー `$msCompile`。
+- 拡張機能が無い PC ではビルドできない(受け入れ済み)。
+
+## 7. デバッグと IntelliSense
+
+- `launch.json`: `cppvsdbg`、`program` は `build\Debug\<名前>.exe`、`cwd` はプロジェクト直下、`preLaunchTask` は Debug ビルド。
+- `c_cpp_properties.json`: `configurationProvider: "mahirocreative.dxlib-devenv"` のみ。
+- 設定プロバイダーが渡すもの: `compilerPath`(cl.exe)、`includePath`(SDK, src)、`defines`(`_WINDOWS`, `WIN32`, `_DEBUG`)、`intelliSenseMode: windows-msvc-x64`、`standard: c++20`。
+- 初回の問い合わせが来た時点で「準備完了」。来なければ一定時間後に「応答なし」。
+
+## 8. プロジェクト作成とテンプレート
+
+- 入力: 名前(`^[A-Za-z_][A-Za-z0-9_]*$`)、作成先、テンプレート。
+- 生成: テンプレートをコピー(禁則フォルダを除外) → `__PROJECT_NAME__` を置換 → `.vscode/{tasks,launch,c_cpp_properties,settings}.json`、`.clang-format`、`.gitignore` を書く → フォルダを開く。
+- テンプレート一覧: 同梱 `templates/`(先頭固定)+ 設定 `dxlib.templatesPath` 直下のサブフォルダ(フォルダ名順)。
+- `template.json`: `{ "name": "表示名", "description": "説明" }`。
+- テンプレートとして保存: 現在のフォルダを外部テンプレートフォルダにコピー(禁則除外)、`template.json` を生成、プロジェクト名を `__PROJECT_NAME__` に戻すかを選択。
+
+## 9. シェーダー
+
+- 前提: DxLib は既定で Direct3D 11。D3D9 用と D3D11 用のシェーダーは別物(公式リファレンス)。
+- 既定ターゲット: `vs_4_0` / `ps_4_0`(DxLib 本体と同じ。機能レベル 10_0 以上で動く。5.0 の追加機能は DxLib から使えない)。設定 `dxlib.shader.vertexTarget` / `pixelTarget` で変更可。
+- ファイル: `shaders/*VS.hlsl` → 頂点、`*PS.hlsl` → ピクセル(`.fx` も可)。出力 `shaders/bin/<名前>.vso|.pso`。
+- コンパイル: ソース一式を一時フォルダへ CP932 で書き出し、`ShaderCompiler.exe /T<target> /Fo<out> <src>`。CP932 に無い文字はエラーにする。
+- D3D11 の定数バッファ割り当てなど実証済みの要点はメモリと IdaFaber の引き継ぎ資料 19.8 章を参照。
+
+### 9.1 シェーダー雛形(`extension/resources/shaders/`。2026-09-23 Opus で作り直し、DxLib 上で描画確認済み)
+
+「新しいシェーダー」ボタンで選べる雛形は 3 種類。
+
+| 雛形 | 用途 | 入力の並び |
+|---|---|---|
+| ピクセルシェーダー(2D) | `DrawPrimitive2DToShader` | SV_POSITION, COLOR0, **COLOR1**, TEXCOORD0, TEXCOORD1 |
+| ピクセルシェーダー(3D) | `DrawPolygon3DToShader` | SV_POSITION, COLOR0, TEXCOORD0, TEXCOORD1 |
+| 頂点シェーダー(3D) | `DrawPolygon3DToShader` | VERTEX3DSHADER の全 9 要素(POSITION0, POSITION1, NORMAL, TANGENT, BINORMAL, COLOR0, COLOR1, TEXCOORD0, TEXCOORD1) |
+
+DxLib 3.24f のソースで確認した事実:
+- 2D の `DrawPrimitive2DToShader` は、自作の頂点シェーダーを指定しても**無視して**、常に DxLib の `VS_Shader2D` を使う(`Graphics_D3D11_CommonBuffer_DrawPrimitive` の既定引数)。その出力はスペキュラー色(COLOR1)を含む。
+- 3D の `DrawPolygon3DToShader` は、頂点シェーダーを指定しなければ `VS3D_Normal` を使う。出力はスペキュラー色を含まない。つまり 2D と 3D でピクセルシェーダーの入力の並びが違う。
+- 自作の頂点シェーダーは、使わない要素も含めて VERTEX3DSHADER の全要素を同じ順番で宣言しないと、何も描かれない(エラーも出ない)。DxLib は入力レイアウトを自前の頂点シェーダーの並びで作っており、Direct3D 11 は頂点データを「入力の何番目か」で渡すため。
+- カメラ行列は定数バッファ b1(`DX_D3D11_VS_CONST_BUFFER_BASE`)。先頭から AntiViewportMatrix[4]、ProjectionMatrix[4]、ViewMatrix[3]、LocalWorldMatrix[3]。
+
+最初の雛形(2026-09-23 Sonnet 時点)は、2D ではテクスチャ座標がずれて全面が 1 色になり、3D の頂点シェーダーでは何も描かれなかった。コンパイルが通ることしか確かめていなかったため。
+
+検証: 段階 4(`test/shader-runtime/`)が、雛形を拡張機能と同じ手順でコンパイルし、DxLib で 2D・3D を描画して画素の色で判定する。雛形そのものに加え、1 行だけ色反転に変えた版で「DxLib の既定ではなく自作シェーダーが実際に動いている」ことも確かめる。
+
+## 10. エディタ支援
+
+- 定義の作成: `C_Cpp.CreateDeclarationOrDefinition` を `dxlib.createDefinition` から呼ぶ。右クリック最上段、`Ctrl+Alt+D`。
+- ホバー: SDK の `DxLib.h`(CP932)を 1 回解析し、`extern ... Name( ... ) ; // コメント` を関数名で索引。宣言 3 件 + 残りはリンク(`dxlib.showAllDeclarations`)。
+- リファレンス: `help/dxfunc.html` の `href="...#RnNm">Name</a>` を索引にして既定ブラウザで開く。
+- 整形: C++ は C/C++ 拡張の clang-format。HLSL(`.hlsl`/`.fx`)は C/C++ 拡張が同梱している clang-format.exe を借用し(`<cpptools>/LLVM/bin/clang-format.exe`。新しいバイナリは配らない)、`DocumentFormattingEditProvider` として拡張機能自身が登録する。プロジェクト直下の `.clang-format` を C++ と共通で使う(`-style=file` はカレントディレクトリから上向きに探すので、実行時のカレントを対象ファイルのフォルダにする)。`register(t0)` や `: SV_POSITION` のセマンティクスも、clang-format には C++ の三項演算子・ビットフィールド相当として扱われ、実機で崩れずに整形されることを確認済み(2026-09-23)。`settings.json` の `"[hlsl]"` に既定整形器として明示する。
+
+## 11. 同時インストール(`extensionPack`)
+
+`extensionDependencies` にすると、C/C++ 拡張が無効なとき DxLib 拡張自体が起動せず、無効化の警告が出せない。そのため `extensionPack` で一緒に入れるだけにする(2026-09-23 変更)。
+
+
+- `ms-vscode.cpptools`(補完・デバッグ・C++ 整形)
+- `MS-CEINTL.vscode-language-pack-ja`(メニューの日本語化)
+- `TimGJones.hlsltools`(HLSL 補完。最終更新が古い点は既知のリスク)
+
+## 12. フォルダ構成
+
+```
+05_VSCodeExtention/
+  DESIGN.md              この文書
+  CLAUDE.md              作業の手引き
+  00_DxLib_Make/         DxLib ソースパッケージ 3.24f(D3D11 シェーダー原本・定数ヘッダーの参照用)
+  extension/             拡張機能本体
+    package.json
+    src/
+      extension.ts       登録と配線
+      env/               vswhere.ts sdk.ts cpptools.ts environment.ts
+      build/             taskProvider.ts(dxlib タスク、bat 生成)
+      project/           templates.ts createProject.ts saveAsTemplate.ts
+      shader/            compileShaders.ts
+      intellisense/      configProvider.ts
+      hover/             dxlibHover.ts
+      panel/             panelView.ts(Webview)
+      util/              exec.ts fsx.ts
+    templates/minimal/   同梱テンプレート
+    docs/setup-guide.md  VS インストール案内(ウォークスルーとパネルで共用)
+    resources/           アイコン
+```
+
+## 13. 実装順序と状態
+
+| # | 内容 | 状態 |
+|---|---|---|
+| 1 | 骨組み、vswhere / SDK 検出 | 骨組み作成済み |
+| 2 | パネル(環境表示・ボタン・作成フォーム) | 実機のスクリーンショットで見た目を確認済み(Opus 再検証 2026-09-23)。長いパスの折り返し崩れ、✔ が絵文字で描かれて緑にならない不具合を修正済み |
+| 3 | プロジェクト生成 + `.vscode` 一式 + dxlib タスク + F5 | 実機検証済み(Debug/Release ビルド、エラーの問題パネル表示、デバッグ実行) |
+| 4 | テンプレート機構・保存ボタン | 実機検証済み(保存 → 一覧反映 → プロジェクト名の置換・.vscode 非同梱を確認)。入力はパネル内フォームに移行済み(12.1 参照) |
+| 5 | ウォークスルー・案内ページ | 完了(2026-09-23)。画像は付けない方針に変更(下記) |
+| 6 | シェーダーコンパイル | 実機検証済み(日本語コメント、絵文字の拒否)。「新しいシェーダー」の入力はパネル内フォームに移行済み(12.1 参照) |
+| 7 | IntelliSense 設定プロバイダー | 実機検証済み(問い合わせ到達、DxLib.h 解決でエラー 0) |
+| 8 | ホバー・リファレンス・定義の作成 | 実機検証済み(Opus 再検証 2026-09-23)。リファレンスはファイルとアンカーの実在、アンカー位置の宣言が目的の関数であることまで確認。「定義を作成」はヘッダーの宣言から .cpp に雛形が生成されることを確認(生成結果は未保存のまま残るが、ビルド前に自動保存される) |
+| 9 | HLSL 整形器 | 実機検証済み(C/C++ 拡張の clang-format を借用。タブ・Allman ブレースで保存時整形) |
+| 10 | ステータスバー整備・DxLib プロジェクト判定 | 実機検証済み。DxLib プロジェクトでないフォルダではビルド/実行ボタンと「▶ 実行」を出さないよう修正(2026-09-23) |
+| 11 | 細部の日本語化の見直し | レビュー済み(2026-09-23)。エラーメッセージの文言統一、フォームのクライアント側/サーバー側の検証メッセージ一致を確認。修正が必要な箇所は見つからず |
+| 12 | 「テンプレートとして保存」「新しいシェーダー」のフォーム化 | 実機検証済み(Sonnet 2026-09-23)。詳細は 12.1 |
+
+### 12.1 入力のフォーム化(2026-09-23)
+
+「テンプレートとして保存」「新しいシェーダー」の入力を、`showInputBox`/`showQuickPick` からパネル内フォームへ移した(「新規プロジェクト作成」と同じ形)。
+
+- **コマンドの二面性。** `dxlib.newShaderFile` と `dxlib.saveAsTemplate` は、引数付きで呼べば即実行(ダイアログを出さない)、引数なしで呼べばパネルのフォームを開く。webview はボタン送信時に前者、コマンドパレット等の外部呼び出しは後者になる。`dxlib.createProject` と同じパターン。
+- **事前チェックは維持。** 引数なし呼び出し時、フォームを開く前に「フォルダが開いているか」「(保存の場合)テンプレートフォルダが設定済みか」を確認し、未設定なら案内(および `selectTemplatesDir` への導線)を出してからフォームを開く。フォームを開いても使えない状態を避けるため。
+- **実行部分は純粋関数として分離。** `createShaderFile(extensionPath, args)`(shader/compileShaders.ts)、`saveAsTemplateWork(args)`(project/saveAsTemplate.ts)。どちらもダイアログを出さず `{ ok, error? }` 形式の結果を返す。呼び出し側(`extension.ts`)がエラーなら `showErrorMessage`、成功なら完了通知とパネル再描画を行う(`dxlib.createProject` のエラー処理と同じ形)。
+- **シェーダーの種類一覧は単一の情報源。** `SHADER_TEMPLATES`(id 付き)を `compileShaders.ts` からエクスポートし、パネルの状態(`shaderKinds`)経由で webview に渡す。種類・ラベル・説明・拡張子サフィックスがずれない。
+- **ファイル名プレビュー。** シェーダーフォームは、種類と名前の入力に応じて「ファイル名: MyShaderPS.hlsl」のようにその場で表示する。
+- **テンプレート保存フォームの初期値。** 表示名にはプロジェクト名を自動で入れる。「プロジェクト名を `__PROJECT_NAME__` に戻す」は既定でチェック済み。
+- 実機のスクリーンショットで両フォームの表示を確認済み(`panel-shader-form.png` / `panel-template-form.png`)。
+
+## 14. 検証済みの事実(2026-09-23)
+
+- VS 2026(cl 19.51)+ DxLib 3.24f で、`/I` と `/LIBPATH` だけで Release/Debug ともリンク成功。
+- `chcp 65001` 後の cl のエラーメッセージは正しい UTF-8。
+- DxLib 本体は D3D11 で `vs_4_0` / `ps_4_0` を使用。既定の機能レベルは 11_0 以上、設定で 10_0〜9_1 も許容。
+
+## 15. 別タスク(この拡張機能とは分ける)
+
+1. Direct3D 11 版の定数バッファ仕様書。
+2. サンプルシェーダー 20 本の D3D11 版 + C++ サンプル(動作確認済みのみ)。
+3. それを使うシェーダー用テンプレート。
+
+### 15.1 保留中の提案(やると決めていないもの)
+
+- **2D を「正射影カメラ + 3D の板」で描き、頂点シェーダーを使えるようにする(2026-09-23 提案、未検証)。**
+  - 背景: `DrawPrimitive2DToShader` は自作の頂点シェーダーを無視する(9.1)。2D で頂点を動かす処理(旗の波打ち、スライムの揺れなど)を C++ 側で毎フレーム計算するのは、本来シェーダーでやることを CPU でやる形になり、教材として気持ちが悪い(ユーザーの所感)。
+  - 案: `DrawPolygon3DToShader` は自作の頂点シェーダーを使うので、カメラを正射影にして画面のピクセルと 3D 座標を 1 対 1 に合わせ、2D の見た目のまま 3D の関数で描く。時間などは自作の定数バッファ(b4)で渡す。Unity の 2D と同じ仕組み。
+  - 実現したら: 雛形に「頂点シェーダー(2D 用・正射影)」を足し、C++ 側のカメラ設定をまとめた小さなヘッダーを付ける。
+  - 検証が必要な点: DxLib の 3D は Y 軸が上向きなので、上下を反転する設定で左右まで反転しないか。ピクセルの中心のずれでドット絵がにじまないか。`SetDrawBlendMode` が 2D と同じように効くか。
+  - 担当の目安: 実機検証なので Opus 5.5・中。
+- **2D で形を変えない揺らぎ(陽炎・水中・画面の乱れ)は、ピクセルシェーダーで UV をずらす方法で今でも作れる。** 教材の 2D シェーダー入門はここから入るのが扱いやすい(雛形の return の 1 行を書き換えるだけで効果が見える)。
+- Visual Studio が複数入っているときのバージョン選択(見送り)。
+- Visual Studio で作った既存のプロジェクトに、この拡張機能の設定を追加する機能(未決定)。
+- **ウォークスルーのスクリーンショット 2 枚(見送り。2026-09-23 決定)。** `docs/setup-guide.md` から画像参照を削除し、文章だけにした。SDK フォルダの指定は普通のフォルダ選択ダイアログで文章だけで十分。VS ワークロードの追加はパネルの「ワークロードを追加」ボタンが自動化しており、手動手順は VS 未インストール時の保険でしかない。未用意の画像を参照したままだと初回起動時に壊れた画像アイコンが出る方が害が大きいと判断。必要になれば `docs/images/` に画像を置いて `setup-guide.md` に `![説明](images/ファイル名.png)` を 1 行足すだけで復元できる(コード変更不要)。
+
+## 16. 作業ごとのモデルとエフォート(2026-09-23 決定)
+
+最低ラインは Sonnet 5・中。Haiku は使わない。上のモデルは「壊れたときに原因が見えにくい作業」「読み違いがそのまま教材の誤りになる作業」に使う。
+
+| 作業 | 割り当て |
+|---|---|
+| 実機検証と初回のバグ修正 | Opus 5.5・中 |
+| 検証後の個別バグ修正 | Sonnet 5・中 |
+| パネル UI の仕上げ(フォーム化・見た目) | Sonnet 5・中 |
+| HLSL 整形器 + clang-format 同梱 | Sonnet 5・中 |
+| IntelliSense とホバーの実機確認 | Opus 5.5・中 |
+| 別タスク: D3D11 定数バッファ仕様書 | Fable 5.1・高 |
+| 別タスク: サンプル 20 本の D3D11 変換と動作確認 | Opus 5.5・高 |
+| 別タスク: シェーダー用テンプレート | Sonnet 5・中 |
+
+## 17. 自動検証(`extension/test/`)
+
+- インストール済みの VSCode を別プロファイル(検証用の user-data と拡張フォルダ)で起動し、拡張機能を実際に動かす。
+- 実行: `node test/runTest.js <作業フォルダ> <SDK フォルダ>`(`npm test` は環境変数 `DXLIB_SDK` を使う)。
+- 段階 1: 環境検出、プロジェクト作成、名前の検査、生成物(BOM・置換・パス非記載)。
+- 段階 2: dxlib タスク一覧、Debug/Release ビルド、エラーの問題パネル表示、DxLib ホバー、IntelliSense(問い合わせ到達・赤波線 0)、シェーダーコンパイル、絵文字の拒否、HLSL の保存時整形(タブ・Allman ブレース)、リファレンスを開く(既知/未知の関数名)、定義を作成コマンドの呼び出し、C++ ワークロード追加(導入済み分岐)、テンプレートとして保存 → 一覧反映、デバッグ実行(Log.txt がプロジェクト直下にできること)。
+- 段階 2 には「新しいシェーダー」「テンプレートとして保存」を `dxlib.newShaderFile` / `dxlib.saveAsTemplate` に直接引数を渡して呼ぶ検証を含む(12.1 のフォーム化後は、これが webview のボタン送信と同じ経路)。引数なし呼び出し(フォームを開く側)が例外を出さないことの確認、名前や種類の検証エラー、同名拒否、テンプレートフォルダ未設定時の案内も含む。
+- 段階 4: シェーダー雛形を DxLib 上で実際に描画して画素の色で判定する(`test/shader-runtime/`。9.1 参照)。
+- 段階 3: パネルの見た目のスクリーンショット撮影(`test/screenshot.ps1`。UserDataDir で対象の Code.exe ウィンドウを特定し、.NET の `System.Drawing` だけで撮る。新しいツールは使わない)。通常時のパネル、新規プロジェクト作成フォーム、新しいシェーダーフォーム、テンプレートとして保存フォームの 4 枚。合否は判定せず、撮った画像を人(Claude)が見て確認する運用。
+- ダイアログを伴う操作(`showInformationMessage` / `showWarningMessage` / `showErrorMessage` / `showOpenDialog`)は、テスト内で一時的に差し替えて自動応答させ、`finally` で必ず元に戻す。フォーム化(12.1)後は `showInputBox` / `showQuickPick` の差し替えは不要になった(直接引数で呼べるため)。
+- 2026-09-23 に全項目 OK(段階 1: 16 / 段階 2: 33 / 段階 3: 6 / 段階 4: 11 / 段階 5: 7 = 73 項目)。
+- 注意: Claude Code など VSCode 拡張の中から実行すると `ELECTRON_RUN_AS_NODE=1` が引き継がれるので、runTest.js で消している。
+- 注意: C/C++ 拡張のような非同期に追加編集を行うコマンドをテストするときは、コマンドの Promise 解決後もファイル操作を試みる可能性があるため、後始末は「対象ファイルのパターン一致で掃除」「エディタを閉じてから削除」を徹底する。守らないと次のテスト(ビルドやデバッグ実行)に残骸が持ち越り、原因の分かりにくい失敗(VSCode の確認ダイアログなど)につながる。
+- 注意: `.ps1` に日本語コメントを書く場合は BOM 付きで保存する。BOM なし UTF-8 だと PowerShell 5.1 がシステムのコードページ(日本語 Windows では CP932)で読み、マルチバイト文字が壊れてパースエラーになる。`test/screenshot.ps1` はこれを避けるためコメントを英語だけにしている。
+- スクリーンショットで見つけて直したもの: SDK/テンプレートのパスが長いと折り返して縦に伸びすぎる → `text-overflow: ellipsis` の 1 行表示 + `title` 属性(ホバーで全体表示)に変更(2026-09-23)。
+- 段階 2 の追加分(リファレンス・定義の作成・ワークロード追加)は `test/suite/phase2_steps_ref_def_workload.js` にある。
+- 保存したテンプレートから別名のプロジェクトを作る往復も検証する。
+
+### 17.1 Opus による再検証で見つけたこと(2026-09-23)
+
+Sonnet で追加した実機検証を、割り当てどおり Opus で見直した結果。
+- **ワークロード追加が必ず失敗する不具合(修正済み)。** PowerShell 5.1 の `Start-Process -ArgumentList` は配列の要素に空白があっても引用しないため、`C:\Program Files\Microsoft Visual Studio\18\Community` が 4 つの引数に割れていた。VS の標準の置き場所は Program Files なので、生徒の PC では毎回失敗する。Windows のコマンドライン規則どおりに 1 本の文字列を組み立てる `quoteWindowsArg` に変更し、本番と同じ組み立てで実際の VS のパスが 1 つの引数として届くことを検証に加えた。Sonnet 版の検証は「導入済み」の分岐しか通っておらず、この経路を一度も動かしていなかった。
+- **ワークロード追加の引数不足(修正済み)。** `--passive --norestart` が無く、インストーラーの画面で生徒がさらに「変更」を押す必要があった。設計の「UAC の『はい』を押すだけ」に合わせた。
+- **「定義を作成」は動いていた。** Sonnet 版は「C/C++ 拡張のタイミング依存で自動検証できない」として常に合格を返していたが、実際は雛形が生成されており、検証がディスクだけを読んでいたのが原因。C/C++ 拡張は編集を未保存のまま残す。以前のデバッグ実行の失敗も、この未保存のエディタを閉じようとして確認ダイアログが出たことが原因と考えられる。
+- **リファレンスの検証が URL の形だけだった。** ファイルとアンカーの実在、アンカー位置の宣言が目的の関数であることまで確認するように強化。
+- **環境欄の ✔ が緑にならない不具合(修正済み)。** Windows は `✔`(U+2714)をカラー絵文字で描くため CSS の色が効かず、灰色になっていた。画素の実測で判明。絵文字にならない `✓`(U+2713)`✗`(U+2717)に変更し、緑 (131,204,132) で描かれることを実測で確認。
+- **撮影スクリプトの座標ずれ(修正済み)。** 150% 表示の PC で PowerShell が DPI 非対応のため、ウィンドウ位置がずれ、無関係な画面の中身まで写っていた。`SetProcessDPIAware()` を呼ぶよう修正。
+- 再検証後の全段階: 39 項目すべて OK。
+- その後シェーダー雛形を作り直し、段階 4 を追加。全段階 51 項目すべて OK(段階1: 11 / 段階2: 26 / 段階3: 3 / 段階4: 11)。
+
+### 17.2 実利用で見つかった不具合: C/C++ 拡張「応答しません」の誤報(2026-09-23)
+
+ユーザーがこの拡張機能の開発フォルダ(`05_VSCodeExtention`)自体を VSCode で開いた状態で VSIX を試したところ、パネルに「C/C++ 拡張が応答しません」と出た。
+
+- **原因。** 120 秒待っても設定プロバイダーへの問い合わせが来なければ「応答しません」にする、という単純なタイマーだった。ところが C/C++ 拡張は、開いているフォルダの `c_cpp_properties.json` が自分たちの拡張機能を指していない限り、そもそも問い合わせてこない。`05_VSCodeExtention` はこの拡張機能のソースであって DxLib プロジェクトではないため `.vscode/c_cpp_properties.json` が無く、C/C++ 拡張には問い合わせる理由が最初から無かった。待っても絶対に来ない問い合わせを待って誤報していた。
+- **修正。** タイマーは、開いているフォルダが `isDxLibProject()` で DxLib プロジェクトと判定できるときだけ動かす。DxLib プロジェクトを開いていない間は `preparing` のまま(誤報にしない)。フォルダを開き直した(例: 新規プロジェクト作成後に開き直る)タイミングでタイマーを張り直す(`onDidChangeWorkspaceFolders`)。
+- **再発防止のテスト。** 段階 1(フォルダを開かない状態)で実際に 125 秒待ち、`intelliSenseState()` が `unresponsive` にならないことを確認する項目を追加(実測で `preparing` のまま)。
+- 再検証後: 全段階 61 項目すべて OK(段階1: 12 / 段階2: 33 / 段階3: 5 / 段階4: 11)。
+
+
+## 18. 配布(生徒への渡し方)
+
+**生徒に VSIX をダブルクリックさせない。** Visual Studio が入っている PC では `.vsix` が Visual Studio(`VSLauncher.exe`)に関連付けられており、ダブルクリックすると Visual Studio のインストーラーが起動して「Visual Studio Code にインストールしてみてください」と失敗する(2026-09-23、ユーザーの PC で実際に発生)。生徒は全員 Visual Studio を入れているので、全員がこの状態になる。
+
+- **配布物は `extension/release/` の 3 点。** `dxlib-devenv-<版>.vsix`、`install.bat`、`README.txt`。フォルダごと zip にして渡す。
+- **作り方。** `npm run release`(`vsce package` のあとに `scripts/release.js` が `release-files/` と VSIX を `release/` に集める。`release/` は git 管理外)。
+- **`install.bat` の動き。** ダブルクリックで、VSCode の `code --install-extension <vsix> --force` を実行する。
+  - VSIX は install.bat と同じフォルダの `dxlib-devenv-*.vsix`(通常は 1 つ。複数あれば名前順で最後)。
+  - `code` は PATH → `%LOCALAPPDATA%\Programs\Microsoft VS Code` → `%ProgramFiles%` → `%ProgramFiles(x86)%` の順に探す。
+  - 見つからない・VSIX が無い・インストールに失敗、のときは日本語で原因と次の行動を案内し、終了コード 1。最後は `pause` で画面を閉じない。
+  - `--force` なので、同じ版が入っていても入れ直せる(更新にも使える)。
+- **書き方の注意(壊れやすい点)。**
+  - 日本語を出すため、`@echo off` の直後に `chcp 65001`。それより前に日本語を置かない。BOM なし UTF-8。
+  - 改行は CRLF のままにする(LF だけの bat は `goto` のラベルが壊れることがある)。`extension/.gitattributes` に `*.bat text eol=crlf`。
+  - `README.txt` は BOM 付き UTF-8 + CRLF(古いメモ帳でも文字化けしない)。
+- **検証(段階 5、`test/install-bat/run.js`)。** 偽の `code.cmd`(引数を記録するだけ)で、次を確認する。空白と日本語を含むフォルダから実行して引数が壊れない。PATH / LocalAppData / Program Files の 3 経路で code を見つける。VSCode が無い・VSIX が無い・code が失敗、の 3 つの案内。最後に本物の VSCode(検証用プロファイル)へ実際にインストールする。7 項目すべて OK。
+- **未確認。** ダブルクリックしたときの見た目(黒い画面の表示)。自動検証はコマンドを直接起動しているため。
