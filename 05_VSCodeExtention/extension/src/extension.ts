@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { DxLibTaskProvider, runBuild, TASK_TYPE } from './build/taskProvider';
+import { BuildDiagnostics } from './build/buildDiagnostics';
+import { buildLogPathOfTask, DxLibTaskProvider, runBuild, TASK_TYPE } from './build/taskProvider';
+import { migrateProject } from './project/migrate';
 import { CPPTOOLS_ID, cpptoolsInstalled, intelliSenseState, warnIfCpptoolsMissing } from './env/cpptools';
 import { registerHlslFormatter } from './format/hlslFormatter';
 import { collectEnvironment, currentFolder, getConfig, isDxLibProject, SDK_FIX_HINT, sdkProblem, setGlobalConfig } from './env/environment';
@@ -10,7 +12,7 @@ import { detectVisualStudio, installerSetupPath, workloadInstallArgs } from './e
 import { invalidateDxLibIndex, registerDxLibHover } from './hover/dxlibHover';
 import { DxLibConfigurationProvider } from './intellisense/configProvider';
 import { DxLibPanelProvider } from './panel/panelView';
-import { createProject, CreateProjectArgs } from './project/createProject';
+import { createProject, CreateProjectArgs, defaultCreateLocation } from './project/createProject';
 import { saveAsTemplateWork, SaveTemplateArgs } from './project/saveAsTemplate';
 import { listTemplates, TemplateInfo } from './project/templates';
 import { compileShaders, createShaderFile, NewShaderArgs } from './shader/compileShaders';
@@ -20,10 +22,15 @@ const DEBUG_LAUNCH_NAME = 'DxLib: デバッグ実行 (Debug)';
 
 /** 自動検証(test/)から使う窓口。利用者向けの機能ではない。 */
 export interface DxLibTestApi {
+	/** 制限モードでなく、ビルドなどの機能が起動しているか。 */
+	trustedFeaturesActive: () => boolean;
 	createProject: (args: CreateProjectArgs) => Promise<string>;
 	collectEnvironment: typeof collectEnvironment;
 	intelliSenseState: () => string;
+	lastIntelliSenseQuery: () => { at: number; includePath: string[] } | undefined;
 	listTemplates: () => TemplateInfo[];
+	/** 作成フォームの「作成先」の初期値(前回の作成先)。 */
+	defaultCreateLocation: () => string;
 	showCreateForm: (location?: string) => Promise<void>;
 	showNewShaderForm: () => Promise<void>;
 	showSaveTemplateForm: () => Promise<void>;
@@ -34,50 +41,144 @@ export interface DxLibTestApi {
 export async function activate(context: vscode.ExtensionContext): Promise<DxLibTestApi> {
 	const output = vscode.window.createOutputChannel('DxLib');
 	const panel = new DxLibPanelProvider(context);
-	const configProvider = new DxLibConfigurationProvider();
 	context.subscriptions.push(
 		output,
 		vscode.window.registerWebviewViewProvider(DxLibPanelProvider.viewType, panel),
+		vscode.commands.registerCommand('dxlib.manageTrust', () => vscode.commands.executeCommand('workbench.trust.manage')),
+	);
+	if (vscode.workspace.isTrusted) {
+		return activateTrusted(context, panel, output);
+	}
+
+	// 制限モード(信頼されていないフォルダ)。パネルには信頼の案内だけを出し、
+	// フォルダの中身に基づいてプロセスを動かす機能(ビルド・補完・シェーダー・整形など)は起動しない。
+	// 信頼されたら、その場で残りを起動する(開き直し不要)。
+	let trustedApi: DxLibTestApi | undefined;
+	context.subscriptions.push(
+		vscode.workspace.onDidGrantWorkspaceTrust(async () => {
+			trustedApi = await activateTrusted(context, panel, output);
+			await panel.refresh();
+		}),
+	);
+	const notYet = (): never => {
+		throw new Error('制限モードのため、まだ起動していません');
+	};
+	return {
+		trustedFeaturesActive: () => !!trustedApi,
+		createProject: (args) => (trustedApi ?? notYet()).createProject(args),
+		collectEnvironment: () => (trustedApi ?? notYet()).collectEnvironment(),
+		intelliSenseState: () => (trustedApi ?? notYet()).intelliSenseState(),
+		lastIntelliSenseQuery: () => (trustedApi ?? notYet()).lastIntelliSenseQuery(),
+		listTemplates: () => (trustedApi ?? notYet()).listTemplates(),
+		defaultCreateLocation: () => (trustedApi ?? notYet()).defaultCreateLocation(),
+		showCreateForm: (location) => (trustedApi ?? notYet()).showCreateForm(location),
+		showNewShaderForm: () => (trustedApi ?? notYet()).showNewShaderForm(),
+		showSaveTemplateForm: () => (trustedApi ?? notYet()).showSaveTemplateForm(),
+		workloadInstallArgs,
+		buildStartProcessScript,
+	};
+}
+
+/** 信頼されたフォルダ(または空の窓)で動かす機能をすべて起動する。 */
+async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPanelProvider, output: vscode.OutputChannel): Promise<DxLibTestApi> {
+	const configProvider = new DxLibConfigurationProvider(context.globalStorageUri.fsPath);
+	context.subscriptions.push(
 		vscode.tasks.registerTaskProvider(TASK_TYPE, new DxLibTaskProvider(context)),
 		configProvider,
+		// ビルドエラーの赤線(直し始めたら消す)
+		new BuildDiagnostics((task) => buildLogPathOfTask(context, task)),
 	);
+
+	// 以前の版で作ったプロジェクトの設定を今の形に直す
+	const migrate = (): void => {
+		const folder = currentFolder();
+		if (folder && isDxLibProject(folder)) {
+			for (const message of migrateProject(folder)) {
+				output.appendLine(`[DxLib] ${message}`);
+				void vscode.window.showInformationMessage(message);
+			}
+		}
+	};
+	migrate();
+	context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(migrate));
 	registerDxLibHover(context);
 	registerHlslFormatter(context);
 
-	// C/C++ 拡張の状態。DxLib プロジェクトを開いているときだけ「問い合わせが来たか」を見る。
-	// C/C++ 拡張は、開いているフォルダの c_cpp_properties.json が自分たちを指していない限り
-	// 設定プロバイダーに問い合わせてこない。DxLib プロジェクトを開いていないのに待ち続けると、
-	// 待っても絶対に来ない問い合わせを 120 秒待って「応答しません」という誤報になる。
+	// C/C++ 拡張の状態。問い合わせが来るはずの状況でだけ「来たか」を見る。
+	// C/C++ 拡張は、開いているフォルダの c_cpp_properties.json が自分たちを指していて、
+	// かつ C/C++ のファイルがエディタで開かれるまで、設定プロバイダーに問い合わせてこない。
+	// それ以外の状況で待つと、待っても絶対に来ない問い合わせを 120 秒待って「応答しません」という誤報になる。
+	const isCppDocument = (d: vscode.TextDocument): boolean =>
+		d.uri.scheme === 'file' && /\.(c|cc|cpp|cxx|h|hpp|hxx|inl)$/i.test(d.uri.fsPath);
 	let unresponsiveTimer: ReturnType<typeof setTimeout> | undefined;
-	const armUnresponsiveTimer = (): void => {
+	const stopUnresponsiveTimer = (): void => {
 		if (unresponsiveTimer) {
 			clearTimeout(unresponsiveTimer);
 			unresponsiveTimer = undefined;
 		}
+	};
+	const armUnresponsiveTimer = (): void => {
 		const folder = currentFolder();
-		if (intelliSenseState.get() !== 'preparing' || !folder || !isDxLibProject(folder)) {
-			return; // DxLib プロジェクトを開いていなければ、問い合わせを待つ理由が無い
+		const shouldWait =
+			intelliSenseState.get() === 'preparing' &&
+			!!folder &&
+			isDxLibProject(folder) &&
+			vscode.workspace.textDocuments.some(isCppDocument);
+		if (!shouldWait) {
+			stopUnresponsiveTimer();
+			return;
+		}
+		if (unresponsiveTimer) {
+			return; // すでに待っている。ファイルを開くたびに張り直すと、いつまでも判定しない
 		}
 		unresponsiveTimer = setTimeout(() => {
+			unresponsiveTimer = undefined;
 			if (intelliSenseState.get() === 'preparing') {
 				intelliSenseState.set('unresponsive');
 			}
 		}, 120_000);
 	};
-	context.subscriptions.push({ dispose: () => unresponsiveTimer && clearTimeout(unresponsiveTimer) });
+	context.subscriptions.push({ dispose: stopUnresponsiveTimer });
 
-	if (cpptoolsInstalled()) {
+	// C/C++ 拡張が使えるようになったら「準備中」にして設定プロバイダーを登録する。
+	// install.bat(code --install-extension)は DxLib 拡張を先に入れ、C/C++ 拡張は数秒遅れて入る。
+	// VSCode を開いたままだと DxLib 拡張が先に起動するので、起動時の 1 回だけの判定では足りない。
+	let providerRegistered = false;
+	const startCpptools = (): void => {
+		if (intelliSenseState.get() !== 'missing') {
+			return;
+		}
 		intelliSenseState.set('preparing');
-		void configProvider.register(context);
+		if (!providerRegistered) {
+			providerRegistered = true;
+			void configProvider.register(context);
+		}
 		armUnresponsiveTimer();
+	};
+	if (cpptoolsInstalled()) {
+		startCpptools();
 	} else {
-		void warnIfCpptoolsMissing();
+		// すぐ警告すると、後から入る途中の C/C++ 拡張を「未インストール」と誤報する。少し待ってから判断する。
+		const warnTimer = setTimeout(() => {
+			if (!cpptoolsInstalled()) {
+				void warnIfCpptoolsMissing();
+			}
+		}, 15_000);
+		context.subscriptions.push({ dispose: () => clearTimeout(warnTimer) });
 	}
 	context.subscriptions.push(
+		vscode.extensions.onDidChange(() => {
+			if (cpptoolsInstalled()) {
+				startCpptools();
+			} else {
+				intelliSenseState.set('missing');
+			}
+		}),
 		intelliSenseState.onDidChange(() => void panel.refresh()),
-		// フォルダを開き直した(例: DxLib プロジェクトを新規作成して開いた)ときに、
-		// まだ「準備中」のままなら、そのタイミングでタイマーを張り直す。
+		// フォルダを開き直した・C/C++ のファイルを開いた/閉じたときに、待つ条件を見直す。
 		vscode.workspace.onDidChangeWorkspaceFolders(() => armUnresponsiveTimer()),
+		vscode.workspace.onDidOpenTextDocument((d) => isCppDocument(d) && armUnresponsiveTimer()),
+		vscode.workspace.onDidCloseTextDocument((d) => isCppDocument(d) && armUnresponsiveTimer()),
 	);
 
 	// 設定が変わったら再検出
@@ -163,7 +264,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<DxLibT
 		}
 		try {
 			const dir = await createProject(context, args);
-			await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(dir), { forceNewWindow: false });
+			// フォルダを開いている窓なら新しい窓で開き、開いていた作業を閉じない。空の窓ならその窓で開く。
+			const forceNewWindow = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
+			await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(dir), { forceNewWindow });
 		} catch (e) {
 			void vscode.window.showErrorMessage(e instanceof Error ? e.message : String(e));
 		}
@@ -299,10 +402,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<DxLibT
 	}
 
 	return {
+		trustedFeaturesActive: () => true,
 		createProject: (args) => createProject(context, args),
 		collectEnvironment,
 		intelliSenseState: () => intelliSenseState.get(),
+		lastIntelliSenseQuery: () => configProvider.lastProvided,
 		listTemplates: () => listTemplates(context, getConfig<string>('templatesPath', '')),
+		defaultCreateLocation: () => defaultCreateLocation(context),
 		showCreateForm: (location) => panel.showCreateForm(location),
 		showNewShaderForm: () => panel.showNewShaderForm(),
 		showSaveTemplateForm: () => panel.showSaveTemplateForm(),

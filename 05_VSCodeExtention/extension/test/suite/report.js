@@ -54,4 +54,43 @@ async function waitFor(fn, timeoutMs, intervalMs = 500) {
 	return undefined;
 }
 
-module.exports = { Report, sleep, waitFor };
+/**
+ * 「新規プロジェクト作成」のボタン送信と同じ経路(dxlib.createProject に引数)で作り、
+ * 作成後に頼んだ「フォルダを開く」を横取りして記録する。実際に開くと検証中の窓が置き換わるため。
+ */
+async function createProjectCapturingOpen(vscode, args) {
+	const opened = [];
+	const orig = vscode.commands.executeCommand;
+	vscode.commands.executeCommand = async (id, ...rest) => {
+		if (id === 'vscode.openFolder') {
+			opened.push({ uri: rest[0], options: rest[1] });
+			return undefined;
+		}
+		return orig.call(vscode.commands, id, ...rest);
+	};
+	try {
+		await orig.call(vscode.commands, 'dxlib.createProject', args);
+	} finally {
+		vscode.commands.executeCommand = orig;
+	}
+	return opened;
+}
+
+/**
+ * 補完の設定のインクルードパスが、指定した SDK から作ったヘッダーの写しを指しているか(DESIGN.md 7 章)。
+ * 写しのフォルダには元の SDK のパスを書いた source.txt がある。
+ */
+function includesShadowOf(includePath, sdk) {
+	const fs = require('fs');
+	const path = require('path');
+	const same = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+	return includePath.some((p) => {
+		try {
+			return same(fs.readFileSync(path.join(p, 'source.txt'), 'utf8').trim(), sdk) && fs.existsSync(path.join(p, 'DxLib.h'));
+		} catch {
+			return false;
+		}
+	});
+}
+
+module.exports = { Report, sleep, waitFor, createProjectCapturingOpen, includesShadowOf };

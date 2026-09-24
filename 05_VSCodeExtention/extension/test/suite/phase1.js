@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
-const { Report, sleep } = require('./report');
+const { Report, sleep, createProjectCapturingOpen } = require('./report');
 
 exports.run = async function () {
 	const r = new Report('phase1');
@@ -33,8 +33,20 @@ exports.run = async function () {
 	});
 
 	if (dir) {
-		const expect = ['src/main.cpp', '.vscode/tasks.json', '.vscode/launch.json', '.vscode/c_cpp_properties.json', '.vscode/settings.json', '.clang-format', '.gitignore'];
+		const expect = ['src/main.cpp', '.vscode/tasks.json', '.vscode/launch.json', '.vscode/c_cpp_properties.json', '.vscode/settings.json', '.vscode/extensions.json', '.clang-format', '.gitignore'];
 		r.check('生成ファイルがそろっている', expect.every((f) => fs.existsSync(path.join(dir, f))), expect.filter((f) => !fs.existsSync(path.join(dir, f))).join(', ') || '全部あり');
+		await r.step('launch.json に非推奨の externalConsole が無い(デバッグ開始時の警告が出ない)', async () => {
+			// C/C++ 拡張は cppvsdbg の構成に externalConsole があると、デバッグ開始のたびに非推奨の警告を出す
+			const launch = JSON.parse(fs.readFileSync(path.join(dir, '.vscode', 'launch.json'), 'utf8'));
+			const bad = launch.configurations.filter((c) => Object.prototype.hasOwnProperty.call(c, 'externalConsole')).map((c) => c.name);
+			const consoles = launch.configurations.map((c) => c.console);
+			return { ok: bad.length === 0 && consoles.every((c) => c === 'internalConsole'), detail: `externalConsole あり: ${bad.join(', ') || 'なし'} / console=${consoles.join(', ')}` };
+		});
+		await r.step('extensions.json で C/C++ Extension Pack のおすすめを止めている', async () => {
+			const ej = JSON.parse(fs.readFileSync(path.join(dir, '.vscode', 'extensions.json'), 'utf8'));
+			const unwanted = ej.unwantedRecommendations || [];
+			return { ok: unwanted.includes('ms-vscode.cpptools-extension-pack'), detail: JSON.stringify(ej) };
+		});
 		r.check('template.json はコピーされない', !fs.existsSync(path.join(dir, 'template.json')));
 		const main = fs.readFileSync(path.join(dir, 'src', 'main.cpp'));
 		r.check('main.cpp は BOM 付き UTF-8', main[0] === 0xef && main[1] === 0xbb && main[2] === 0xbf);
@@ -42,6 +54,11 @@ exports.run = async function () {
 		r.check('__PROJECT_NAME__ が置換されている', text.includes('TestGame') && !text.includes('__PROJECT_NAME__'));
 		const tasks = JSON.parse(fs.readFileSync(path.join(dir, '.vscode', 'tasks.json'), 'utf8'));
 		r.check('tasks.json にパスが書かれていない', !JSON.stringify(tasks).includes(':\\\\'), JSON.stringify(tasks.tasks.map((t) => t.label)));
+		r.check(
+			'tasks.json の問題マッチャーは空(ビルドエラーの赤線は拡張が付ける)',
+			tasks.tasks.every((t) => Array.isArray(t.problemMatcher) && t.problemMatcher.length === 0),
+			JSON.stringify(tasks.tasks.map((t) => t.problemMatcher)),
+		);
 		await r.step('同名フォルダへの再作成を拒否する', async () => {
 			try {
 				await api.createProject({ name: 'TestGame', location: process.env.DXLIB_TEST_PROJECTS, templateId: 'builtin:minimal' });
@@ -51,6 +68,21 @@ exports.run = async function () {
 			}
 		});
 	}
+
+	// --- 作成後の開き方(2026-09-24 ユーザー決定)。フォルダを開いていない窓なら、その窓で開く ---
+	await r.step('作成後の開き方: フォルダを開いていない窓からなら、今の窓で開く', async () => {
+		const loc = path.join(process.env.DXLIB_TEST_WORK, 'open-test');
+		fs.rmSync(loc, { recursive: true, force: true });
+		fs.mkdirSync(loc, { recursive: true });
+		const folders = (vscode.workspace.workspaceFolders || []).length;
+		const opened = await createProjectCapturingOpen(vscode, { name: 'OpenTest1', location: loc, templateId: 'builtin:minimal' });
+		fs.rmSync(loc, { recursive: true, force: true });
+		const o = opened[0];
+		return {
+			ok: folders === 0 && opened.length === 1 && o.options && o.options.forceNewWindow === false,
+			detail: `開いていたフォルダ ${folders} 個 / openFolder ${opened.length} 回 / ${o ? JSON.stringify(o.options) + ' ' + o.uri.fsPath : ''}`,
+		};
+	});
 
 	// --- SDK が正しくない間はプロジェクトを作成できない(ユーザー決定 2026-09-23) -------------
 	// 「変更」で間違ったフォルダを選ぶと、拒否せず保存してパネルが ✗ になり、作成もできなくなる。

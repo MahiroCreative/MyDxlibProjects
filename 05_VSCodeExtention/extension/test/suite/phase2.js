@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
-const { Report, sleep, waitFor } = require('./report');
+const { Report, sleep, waitFor, createProjectCapturingOpen } = require('./report');
 
 /** タスクを実行して終了コードを待つ。 */
 function waitTaskEnd(startPromise, timeoutMs) {
@@ -78,17 +78,32 @@ exports.run = async function () {
 		return { ok: res.exitCode === 0 && fs.existsSync(exe), detail: `${JSON.stringify(res)} exe=${fs.existsSync(exe)}` };
 	});
 
-	await r.step('コンパイルエラーが問題パネルに出る', async () => {
-		const bad = path.join(proj, 'src', 'Broken.cpp');
-		fs.writeFileSync(bad, '\uFEFF// わざと壊したファイル\nvoid f() { undefined_symbol(); }\n', 'utf8');
+	// ビルドエラーの赤線は DxLib 拡張が cl の出力から付ける(source 'cl')。直し始めたら消える(DESIGN.md 6 章)。
+	const bad = path.join(proj, 'src', 'Broken.cpp');
+	const badUri = vscode.Uri.file(bad);
+	const clDiags = () => vscode.languages.getDiagnostics(badUri).filter((x) => x.source === 'cl');
+	await r.step('コンパイルエラーが問題パネルに出る(DxLib 拡張が付ける赤線)', async () => {
+		fs.writeFileSync(bad, '﻿// わざと壊したファイル\nvoid f() { undefined_symbol(); }\n', 'utf8');
 		const res = await waitTaskEnd(vscode.commands.executeCommand('dxlib.build'), 180000);
-		const diags = await waitFor(() => {
-			const d = vscode.languages.getDiagnostics(vscode.Uri.file(bad)).filter((x) => x.source === 'cpp' || /C3861|識別子/.test(x.message));
-			return d.length > 0 ? d : undefined;
-		}, 10000);
-		fs.rmSync(bad);
-		const msg = diags ? diags.map((d) => `${d.source}:${d.message}`).join(' / ') : 'なし';
-		return { ok: res.exitCode !== 0 && !!diags && diags.some((d) => /識別子/.test(d.message)), detail: `exit=${res.exitCode} diag=${msg}` };
+		const diags = await waitFor(() => (clDiags().length > 0 ? clDiags() : undefined), 10000);
+		const msg = diags ? diags.map((d) => `${d.source}:${d.code}:${d.range.start.line + 1}行:${d.message}`).join(' / ') : 'なし';
+		return { ok: res.exitCode !== 0 && !!diags && diags.some((d) => /識別子/.test(d.message) && d.range.start.line === 1), detail: `exit=${res.exitCode} diag=${msg}` };
+	});
+
+	await r.step('エラーを直し始めると、ビルドし直さなくても赤線が消える', async () => {
+		const before = clDiags().length;
+		const doc = await vscode.workspace.openTextDocument(badUri);
+		await vscode.window.showTextDocument(doc);
+		const edit = new vscode.WorkspaceEdit();
+		const at = doc.getText().indexOf('undefined_symbol();');
+		edit.replace(badUri, new vscode.Range(doc.positionAt(at), doc.positionAt(at + 'undefined_symbol();'.length)), '');
+		await vscode.workspace.applyEdit(edit);
+		const cleared = await waitFor(() => clDiags().length === 0, 5000, 200);
+		// 後片づけ: 保存して閉じてから消す(未保存のエディタを残すと後のテストで確認ダイアログが出る)
+		await doc.save();
+		await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+		fs.rmSync(bad, { force: true });
+		return { ok: before > 0 && !!cleared, detail: `直す前 ${before} 件 → 直し始めた後 ${clDiags().length} 件` };
 	});
 
 	// --- エディタ: ホバー と IntelliSense ------------------------------------
@@ -106,7 +121,9 @@ exports.run = async function () {
 		return { ok: !!text, detail: text ? text.split('\n').slice(0, 3).join(' ⏎ ').slice(0, 200) : 'DxLib のホバーが無い' };
 	});
 
-	await r.step('オーバーロードが多い関数で「残り n 件」リンクが出る', async () => {
+	// DxLib 3.24f には宣言が 4 つ以上ある関数が無く、「残り n 件」のリンクはどの関数でも出ない(2026-09-24 確認)。
+	// ここでは別ファイルでもホバーとリファレンスへのリンクが出ることを確かめる(以前の項目名は中身と合っていなかった)。
+	await r.step('別の .cpp でも DxLib のホバーと「リファレンスを開く」が出る', async () => {
 		fs.writeFileSync(path.join(proj, 'src', 'Probe.cpp'), '\uFEFF#include "DxLib.h"\nvoid probe() { DrawGraph(0, 0, 0, TRUE); LoadGraph("a.png"); }\n', 'utf8');
 		const uri = vscode.Uri.file(path.join(proj, 'src', 'Probe.cpp'));
 		const d = await vscode.workspace.openTextDocument(uri);
@@ -118,6 +135,20 @@ exports.run = async function () {
 	await r.step('IntelliSense の設定プロバイダーに問い合わせが来る', async () => {
 		const st = await waitFor(() => (api.intelliSenseState() === 'ready' ? 'ready' : undefined), 120000, 1000);
 		return { ok: st === 'ready', detail: api.intelliSenseState() };
+	});
+
+	await r.step('C/C++ 拡張のホバーの説明が文字化けせず、正しい関数の説明が出る(ヘッダーの写し)', async () => {
+		// 写しを使う前は、CP932 を UTF-8 として読んで化け、しかも 1 行上の関数(ジョイパッドの無効ゾーン)の説明が出ていた
+		const uri = vscode.Uri.file(path.join(proj, 'src', 'Probe.cpp'));
+		const d = await vscode.workspace.openTextDocument(uri);
+		const pos = d.positionAt(d.getText().indexOf('LoadGraph') + 2);
+		const cpptoolsText = await waitFor(async () => {
+			const hs = (await vscode.commands.executeCommand('vscode.executeHoverProvider', uri, pos)) || [];
+			const texts = hs.map((h) => hoverText([h])).filter((t) => !t.includes('**DxLib**'));
+			return texts.find((t) => t.includes('LoadGraph'));
+		}, 30000, 1000);
+		const ok = !!cpptoolsText && cpptoolsText.includes('画像ファイルからグラフィックハンドルを作成する') && !cpptoolsText.includes('�');
+		return { ok, detail: cpptoolsText ? cpptoolsText.replace(/\n/g, ' ⏎ ').slice(0, 200) : 'C/C++ 拡張のホバーが無い' };
 	});
 
 	await r.step('IntelliSense が DxLib.h を解決できる(赤波線が出ない)', async () => {
@@ -348,6 +379,41 @@ exports.run = async function () {
 		return { ok, detail: `BOM=${bom} RoundTrip=${text.includes('RoundTrip')} 残り=${text.includes('__PROJECT_NAME__') || text.includes('TestGame')}` };
 	});
 
+	// --- 作成後の開き方(2026-09-24 ユーザー決定)。フォルダを開いている窓なら新しい窓で開く ---
+	await r.step('作成後の開き方: プロジェクトを開いている窓からなら、新しい窓で開く(今の作業を閉じない)', async () => {
+		const loc = path.join(process.env.DXLIB_TEST_WORK, 'open-test');
+		fs.rmSync(loc, { recursive: true, force: true });
+		fs.mkdirSync(loc, { recursive: true });
+		const opened = await createProjectCapturingOpen(vscode, { name: 'OpenTest2', location: loc, templateId: 'builtin:minimal' });
+		const made = fs.existsSync(path.join(loc, 'OpenTest2', 'src', 'main.cpp'));
+		fs.rmSync(loc, { recursive: true, force: true });
+		const o = opened[0];
+		const still = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0].uri.fsPath;
+		return {
+			ok: made && opened.length === 1 && o.options && o.options.forceNewWindow === true && still && still.toLowerCase() === proj.toLowerCase(),
+			detail: `作成=${made} / openFolder ${opened.length} 回 / ${o ? JSON.stringify(o.options) : ''} / この窓のフォルダ=${still}`,
+		};
+	});
+
+	// --- 作成先の初期値(2026-09-24 ユーザー決定)。前回の作成先が次の初期値になる ---
+	// 段階 3(起動し直した後)で、この場所が残っていることを確かめるので、フォルダ自体は消さない。
+	await r.step('作成先の初期値: 作成すると、次の初期値が今回の作成先になる', async () => {
+		const loc = path.join(process.env.DXLIB_TEST_WORK, 'last-location');
+		fs.rmSync(loc, { recursive: true, force: true });
+		fs.mkdirSync(loc, { recursive: true });
+		const same = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+		const before = api.defaultCreateLocation();
+		await createProjectCapturingOpen(vscode, { name: 'LastLocTest', location: loc, templateId: 'builtin:minimal' });
+		const made = fs.existsSync(path.join(loc, 'LastLocTest', 'src', 'main.cpp'));
+		const after = api.defaultCreateLocation();
+		fs.rmSync(path.join(loc, 'LastLocTest'), { recursive: true, force: true });
+		return { ok: made && !same(before, loc) && same(after, loc), detail: `作成=${made} / 作る前=${before} / 作った後=${after}` };
+	});
+
+	// --- 開発の途中で SDK の場所を変える(phase2_steps_sdk_move.js) ----------------
+	// 最後に元の SDK へ戻すので、この後のビルドとデバッグ実行は戻したことの確認も兼ねる。
+	await require('./phase2_steps_sdk_move')(r, { api, proj, waitTaskEnd });
+
 	// --- デバッグ実行(F5 と同じ経路) ---------------------------------------
 	// ここまでの実験(壊れたソース・生成した Foo.h など)の後片づけが漏れていないかを
 	// デバッグ実行そのものより先に確かめる。漏れがあると VSCode 側の
@@ -379,7 +445,14 @@ exports.run = async function () {
 		const sub = vscode.debug.onDidStartDebugSession((s) => (session = s));
 		const started = await vscode.commands.executeCommand('dxlib.debug');
 		const s = await waitFor(() => session, 180000);
-		const logged = await waitFor(() => fs.existsSync(log) && fs.readFileSync(log).length > 200, 60000);
+		// 実行中のゲームが Log.txt に書き込んでいる最中は EBUSY で読めないことがある。例外で止めず、読めるまで待つ。
+		const logged = await waitFor(() => {
+			try {
+				return fs.existsSync(log) && fs.readFileSync(log).length > 200;
+			} catch {
+				return false;
+			}
+		}, 60000);
 		await sleep(2000);
 		if (s) {
 			await vscode.debug.stopDebugging(s);

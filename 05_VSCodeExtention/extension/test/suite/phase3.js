@@ -46,11 +46,25 @@ exports.run = async function () {
 		}
 	});
 
-	await r.step('スクリーンショット: 新規プロジェクト作成フォーム', async () => {
+	const lastLoc = path.join(process.env.DXLIB_TEST_WORK, 'last-location');
+	const same = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+	await r.step('作成先の初期値: 起動し直しても、前回(段階 2)の作成先が残っている', async () => {
+		const d = api.defaultCreateLocation();
+		return { ok: same(d, lastLoc), detail: d };
+	});
+
+	await r.step('スクリーンショット: 新規プロジェクト作成フォーム(作成先は前回の場所)', async () => {
 		await api.showCreateForm();
 		await sleep(1500);
 		const s = screenshot('panel-create-form');
 		return { ok: s.ok, detail: s.output };
+	});
+
+	await r.step('作成先の初期値: 前回の場所が消されていたら、開いているプロジェクトの親フォルダに戻る', async () => {
+		fs.rmSync(lastLoc, { recursive: true, force: true });
+		const d = api.defaultCreateLocation();
+		const parent = path.dirname(vscode.workspace.workspaceFolders[0].uri.fsPath);
+		return { ok: same(d, parent), detail: `${d}(期待: ${parent})` };
 	});
 
 	await r.step('スクリーンショット: 新しいシェーダーフォーム', async () => {

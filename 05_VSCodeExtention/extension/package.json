@@ -25,6 +25,12 @@
     "MS-CEINTL.vscode-language-pack-ja",
     "TimGJones.hlsltools"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "制限モードでは DxLib パネルに信頼の案内だけを表示します。ビルド・実行・コード補完などは、フォルダを信頼すると使えるようになります。"
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -48,81 +54,102 @@
       {
         "command": "dxlib.refreshEnvironment",
         "title": "環境を再チェック",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.selectSdk",
         "title": "SDK フォルダを指定",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.selectTemplatesDir",
         "title": "テンプレートフォルダを指定",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.createProject",
         "title": "新規プロジェクト作成",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.build",
         "title": "ビルド (Debug)",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.run",
         "title": "実行",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.debug",
         "title": "デバッグ実行",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.compileShaders",
         "title": "シェーダーをコンパイル",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.saveAsTemplate",
         "title": "今開いているプロジェクトをテンプレートとして保存",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.createDefinition",
         "title": "定義を作成",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.openReference",
         "title": "DxLib リファレンスを開く",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.showAllDeclarations",
         "title": "DxLib 関数の宣言をすべて表示",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.addCppWorkload",
         "title": "C++ ワークロードを追加",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.openVsDownload",
         "title": "Visual Studio のダウンロードページを開く",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.openSetupGuide",
         "title": "セットアップ手順を見る",
-        "category": "DxLib"
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "dxlib.newShaderFile",
         "title": "新しいシェーダーを作成",
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.manageTrust",
+        "title": "このフォルダを信頼する",
         "category": "DxLib"
       }
     ],

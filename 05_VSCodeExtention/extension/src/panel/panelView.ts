@@ -1,8 +1,7 @@
-import * as os from 'os';
-import * as path from 'path';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { collectEnvironment, EnvironmentStatus, getConfig } from '../env/environment';
-import { CreateProjectArgs } from '../project/createProject';
+import { CreateProjectArgs, defaultCreateLocation } from '../project/createProject';
 import { SaveTemplateArgs } from '../project/saveAsTemplate';
 import { listTemplates, TemplateInfo } from '../project/templates';
 import { NewShaderArgs, SHADER_TEMPLATES } from '../shader/compileShaders';
@@ -31,7 +30,7 @@ type WebviewMessage =
 	| { command: 'saveAsTemplate'; args: SaveTemplateArgs }
 	| { command: string };
 
-function toState(env: EnvironmentStatus, templates: TemplateInfo[]): PanelState {
+function toState(env: EnvironmentStatus, templates: TemplateInfo[], defaultLocation: string): PanelState {
 	let vsLabel: string;
 	switch (env.vs.state) {
 		case 'ok':
@@ -62,7 +61,7 @@ function toState(env: EnvironmentStatus, templates: TemplateInfo[]): PanelState 
 		isDxLibProject: env.isDxLibProject,
 		templates: templates.map((t) => ({ id: t.id, name: t.name, description: t.description, builtin: t.builtin })),
 		shaderKinds: SHADER_TEMPLATES.map((t) => ({ id: t.id, label: t.label, description: t.description, suffix: t.suffix })),
-		defaultLocation: env.project ? path.dirname(env.project.path) : os.homedir(),
+		defaultLocation,
 	};
 }
 
@@ -89,9 +88,14 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		if (!this.view) {
 			return;
 		}
+		if (!vscode.workspace.isTrusted) {
+			// 制限モード: 環境の検出(外部プロセスの起動を含む)もせず、信頼の案内だけを出す
+			void this.view.webview.postMessage({ type: 'restricted' });
+			return;
+		}
 		const env = await collectEnvironment();
 		const templates = listTemplates(this.context, getConfig<string>('templatesPath', ''));
-		void this.view.webview.postMessage({ type: 'status', state: toState(env, templates) });
+		void this.view.webview.postMessage({ type: 'status', state: toState(env, templates, defaultCreateLocation(this.context)) });
 	}
 
 	private async openForm(form: FormName, location?: string): Promise<void> {
@@ -120,8 +124,15 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 			case 'refresh':
 				await this.refresh();
 				return;
+			case 'openCreateForm':
+				// 最新の状態(前回の作成先など)を取り直してからフォームを開く
+				await this.showCreateForm();
+				return;
 			case 'browseLocation': {
-				const picked = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: '作成先にする' });
+				// 入力欄の場所(無ければ前回の作成先)からフォルダ選択を始める
+				const current = (m as { current?: string }).current;
+				const start = current && fs.existsSync(current) ? current : defaultCreateLocation(this.context);
+				const picked = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: '作成先にする', defaultUri: vscode.Uri.file(start) });
 				if (picked?.[0]) {
 					void this.view?.webview.postMessage({ type: 'location', path: picked[0].fsPath });
 				}
@@ -174,11 +185,20 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 	.tpl small { display: block; opacity: 0.7; }
 	.hint { opacity: 0.7; font-size: 11px; margin-top: 3px; }
 	.error { color: var(--vscode-errorForeground); margin-top: 6px; }
-	#form, #shader-form, #template-form { display: none; }
+	#form, #shader-form, #template-form, #restricted { display: none; }
+	#restricted p { line-height: 1.5; margin: 6px 0; }
 	.hidden { display: none !important; }
 </style>
 </head>
 <body>
+	<div id="restricted">
+		<h2>制限モード</h2>
+		<p>このフォルダは「制限モード」で開かれています。VSCode がまだこのフォルダを信頼していないため、ビルド・実行・コード補完などは止まっています。</p>
+		<p>自分で作ったプロジェクトなら、下のボタンから「信頼する」を選んでください。開き直さなくても、そのまま使えるようになります。</p>
+		<button class="big" data-cmd="manageTrust">このフォルダを信頼する</button>
+		<div class="hint">ボタンを押すと開く画面の「Trust」(信頼する)を押します。プロジェクトを作る場所(親フォルダ)を、その画面の下の「Add Folder」(フォルダーの追加)で信頼済みにしておくと、同じ場所に作るプロジェクトでは次から聞かれません。</div>
+	</div>
+
 	<div id="main">
 		<h2>環境</h2>
 		<div class="row"><span id="vs-mark"></span><span class="text" id="vs-label">確認中…</span><span id="vs-actions"></span></div>
@@ -247,13 +267,13 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 	document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => vscode.postMessage({ command: b.dataset.cmd })));
 
 	function showScreen(name) {
-		for (const id of ['main', 'form', 'shader-form', 'template-form']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
+		for (const id of ['main', 'form', 'shader-form', 'template-form', 'restricted']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
 	}
 
 	// --- 新規プロジェクト作成 -------------------------------------------------
-	$('btn-open-form').addEventListener('click', () => openCreateForm());
+	$('btn-open-form').addEventListener('click', () => vscode.postMessage({ command: 'openCreateForm' }));
 	$('btn-cancel').addEventListener('click', () => showScreen('main'));
-	$('btn-browse').addEventListener('click', () => vscode.postMessage({ command: 'browseLocation' }));
+	$('btn-browse').addEventListener('click', () => vscode.postMessage({ command: 'browseLocation', current: $('f-location').value.trim() }));
 	$('btn-create').addEventListener('click', () => {
 		const name = $('f-name').value.trim();
 		const location = $('f-location').value.trim();
@@ -267,8 +287,9 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 
 	function openCreateForm(location) {
 		showScreen('form');
+		// 開くたびに初期値(前回の作成先)を入れ直す。右クリックから開いたときはそのフォルダ。
 		if (location) { $('f-location').value = location; }
-		else if (!$('f-location').value && state) { $('f-location').value = state.defaultLocation; }
+		else if (state) { $('f-location').value = state.defaultLocation; }
 		renderTemplates();
 	}
 
@@ -370,7 +391,7 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		$('sdk-path').textContent = s.sdk.path || '';
 		$('sdk-path').title = s.sdk.path || '';
 
-		const cpp = { missing: ['ng', '✗', 'C/C++ 拡張が無効か未インストールです'], preparing: ['wait', '…', 'C/C++ 拡張: 準備中'], ready: ['ok', '✓', 'C/C++ 拡張'], unresponsive: ['warn', '!', 'C/C++ 拡張が応答しません'] }[s.cpptools] || ['wait', '?', 'C/C++ 拡張'];
+		const cpp = { missing: ['ng', '✗', 'C/C++ 拡張が無効か未インストールです'], preparing: ['wait', '…', 'C/C++ 拡張: 準備中(.cpp を開くと完了)'], ready: ['ok', '✓', 'C/C++ 拡張'], unresponsive: ['warn', '!', 'C/C++ 拡張が応答しません'] }[s.cpptools] || ['wait', '?', 'C/C++ 拡張'];
 		mark($('cpp-mark'), cpp[0], cpp[1]); $('cpp-label').textContent = cpp[2];
 		buttons($('cpp-actions'), s.cpptools === 'missing' ? [['拡張機能を開く', 'openCpptools']] : []);
 
@@ -398,7 +419,11 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 
 	window.addEventListener('message', (e) => {
 		const m = e.data;
-		if (m.type === 'status') {
+		if (m.type === 'restricted') {
+			showScreen('restricted');
+		} else if (m.type === 'status') {
+			// 信頼された直後は制限モードの画面から通常の画面に戻す
+			if ($('restricted').style.display === 'block') { showScreen('main'); }
 			state = m.state;
 			render();
 		} else if (m.type === 'openForm') {

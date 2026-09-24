@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfig, SDK_FIX_HINT, sdkProblem } from '../env/environment';
@@ -57,7 +58,45 @@ export async function createProject(context: vscode.ExtensionContext, args: Crea
 		fs.mkdirSync(path.join(dest, 'src'), { recursive: true });
 	}
 	writeProjectFiles(dest, args.name);
+	// 次に作るときの作成先の初期値にする
+	recordLastLocation(context, args.location);
 	return dest;
+}
+
+/**
+ * 前回の作成先の記録ファイル(拡張機能の保存フォルダ。PC ごと)。
+ * globalState は VSCode が後でまとめてディスクに書くので、すぐに終了すると残らないことがある。
+ * その場でファイルに書き、窓や再起動をまたいで確実に残す。
+ */
+function lastLocationFile(context: vscode.ExtensionContext): string {
+	return path.join(context.globalStorageUri.fsPath, 'last-create-location.txt');
+}
+
+function recordLastLocation(context: vscode.ExtensionContext, location: string): void {
+	try {
+		fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+		fs.writeFileSync(lastLocationFile(context), location, 'utf8');
+	} catch {
+		// 記録できなくても作成自体は成功している。初期値が従来どおりになるだけ。
+	}
+}
+
+/**
+ * 作成先の初期値。前回プロジェクトを作った場所。記録が無いかフォルダが無くなっていたら、
+ * 開いているプロジェクトの親フォルダ、それも無ければホームフォルダ。
+ */
+export function defaultCreateLocation(context: vscode.ExtensionContext): string {
+	let last: string | undefined;
+	try {
+		last = fs.readFileSync(lastLocationFile(context), 'utf8').trim();
+	} catch {
+		last = undefined;
+	}
+	if (last && fs.existsSync(last)) {
+		return last;
+	}
+	const folder = vscode.workspace.workspaceFolders?.[0];
+	return folder ? path.dirname(folder.uri.fsPath) : os.homedir();
 }
 
 /** .vscode 一式、.clang-format、.gitignore を書く。既存プロジェクトへの追加にも使う。 */
@@ -72,14 +111,14 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 				config: 'debug',
 				label: 'DxLib: Debug ビルド',
 				group: { kind: 'build', isDefault: true },
-				problemMatcher: ['$msCompile'],
+				problemMatcher: [], // ビルドエラーの赤線は拡張が付ける(DESIGN.md 6 章)
 			},
 			{
 				type: 'dxlib',
 				config: 'release',
 				label: 'DxLib: Release ビルド',
 				group: 'build',
-				problemMatcher: ['$msCompile'],
+				problemMatcher: [], // ビルドエラーの赤線は拡張が付ける(DESIGN.md 6 章)
 			},
 		],
 	};
@@ -96,7 +135,7 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 				stopAtEntry: false,
 				cwd: '${workspaceFolder}',
 				environment: [],
-				externalConsole: false,
+				console: 'internalConsole',
 				preLaunchTask: 'DxLib: Debug ビルド',
 			},
 			{
@@ -108,7 +147,7 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 				stopAtEntry: false,
 				cwd: '${workspaceFolder}',
 				environment: [],
-				externalConsole: false,
+				console: 'internalConsole',
 				preLaunchTask: 'DxLib: Release ビルド',
 			},
 		],
@@ -141,6 +180,12 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 		'C_Cpp.default.configurationProvider': CONFIG_PROVIDER_ID,
 	};
 
+	// .cpp を開くと VSCode が「C/C++ Extension Pack」を勧めてくるのを止める。
+	// Pack には CMake Tools などが入るが、このツールは cl.exe を直接呼ぶので要らない。
+	const extensions = {
+		unwantedRecommendations: ['ms-vscode.cpptools-extension-pack'],
+	};
+
 	const clangFormat = [
 		'BasedOnStyle: Microsoft',
 		'UseTab: Always',
@@ -162,6 +207,7 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 	writeText(path.join(projectDir, '.vscode', 'launch.json'), JSON.stringify(launch, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'c_cpp_properties.json'), JSON.stringify(cppProperties, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'settings.json'), JSON.stringify(settings, null, '\t') + '\n');
+	writeText(path.join(projectDir, '.vscode', 'extensions.json'), JSON.stringify(extensions, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.clang-format'), clangFormat);
 	if (!fs.existsSync(path.join(projectDir, '.gitignore'))) {
 		writeText(path.join(projectDir, '.gitignore'), gitignore);

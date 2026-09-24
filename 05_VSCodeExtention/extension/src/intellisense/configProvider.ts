@@ -13,6 +13,7 @@ import { getConfig } from '../env/environment';
 import { intelliSenseState } from '../env/cpptools';
 import { inspectSdk } from '../env/sdk';
 import { detectVisualStudio } from '../env/vswhere';
+import { ensureShadowHeaders } from './shadowHeaders';
 
 const PROVIDER_ID = 'mahirocreative.dxlib-devenv';
 
@@ -25,6 +26,11 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 	readonly extensionId = PROVIDER_ID;
 	private api: CppToolsApi | undefined;
 	private cached: { config: SourceFileConfiguration; at: number } | undefined;
+	/** C/C++ 拡張へ最後に渡した設定と時刻(自動検証用)。 */
+	lastProvided: { at: number; includePath: string[] } | undefined;
+
+	/** @param storageDir 拡張機能の保存フォルダ(ヘッダーの写しを置く) */
+	constructor(private readonly storageDir: string) {}
 
 	async canProvideConfiguration(uri: vscode.Uri): Promise<boolean> {
 		return /\.(c|cc|cpp|cxx|h|hpp|hxx|inl)$/i.test(uri.fsPath);
@@ -33,6 +39,7 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 	async provideConfigurations(uris: vscode.Uri[]): Promise<SourceFileConfigurationItem[]> {
 		intelliSenseState.set('ready');
 		const configuration = await this.baseConfiguration();
+		this.lastProvided = { at: Date.now(), includePath: configuration.includePath };
 		return uris.map((uri) => ({ uri, configuration }));
 	}
 
@@ -87,7 +94,8 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 		const std = getConfig<string>('build.cppStandard', 'c++20', folder);
 		const includePath: string[] = [];
 		if (sdk?.ok) {
-			includePath.push(sdk.path);
+			// C/C++ 拡張には、UTF-8 に変換して説明の位置を直した写しを読ませる(作れなければ元の SDK)
+			includePath.push(ensureShadowHeaders(this.storageDir, sdk.path) ?? sdk.path);
 		}
 		if (folder) {
 			includePath.push(path.join(folder.uri.fsPath, 'src'));
