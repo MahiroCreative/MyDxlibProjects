@@ -11,16 +11,16 @@
 // 使わない要素も消さず、並び順も変えないこと(ずれるとテクスチャ座標に別の値が入る)。
 // 3D(DrawPolygon3DToShader)では並びが違うので、「ピクセルシェーダー(3D)」の雛形を使うこと。
 
-Texture2D    g_Texture : register(t0);	// SetUseTextureToShader(0, ...) で指定した画像
+Texture2D g_Texture : register(t0); // SetUseTextureToShader(0, ...) で指定した画像
 SamplerState g_Sampler : register(s0);
 
 struct PS_INPUT
 {
-	float4 Position   : SV_POSITION;	// 画面上の位置
-	float4 Diffuse    : COLOR0;			// 頂点の色(dif)
-	float4 Specular   : COLOR1;			// 頂点のスペキュラー色(spc)
-	float2 TexCoords0 : TEXCOORD0;		// テクスチャ座標(u, v)
-	float2 TexCoords1 : TEXCOORD1;		// サブテクスチャ座標(su, sv)
+	float4 Position   : SV_POSITION; // 画面上の位置
+	float4 Diffuse    : COLOR0;      // 頂点の色(dif)
+	float4 Specular   : COLOR1;      // 頂点のスペキュラー色(spc)
+	float2 TexCoords0 : TEXCOORD0;   // テクスチャ座標(u, v)
+	float2 TexCoords1 : TEXCOORD1;   // サブテクスチャ座標(su, sv)
 };
 
 float4 main(PS_INPUT input) : SV_TARGET0

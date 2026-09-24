@@ -280,6 +280,122 @@ exports.run = async function () {
 		return { ok, detail: ok ? '整形された' : after.replace(/\n/g, ' ⏎ ').slice(0, 300) };
 	});
 
+	// --- 同梱のテンプレートは、保存時の整形で 1 文字も変わらない(DESIGN.md 10 章) ---
+	// C/C++ 拡張は、直す所が無いと空の配列ではなく undefined を返し、「応答しない」と区別できない。
+	// そこで、必ず直される行(探り)を末尾に足して整形させ、比べるときは探りの行を除く。
+	const PROBE = 'int   fmt_probe  ;';
+	const withProbe = (text) => text.replace(/\s*$/, '') + '\r\n\r\n' + PROBE + '\r\n';
+	const withoutProbe = (text) => text.replace(/\r?\n\r?\n[^\n]*fmt_probe[^\n]*\r?\n?$/, '\r\n');
+	// 整形器の結果(編集)を文書に当てた後の文字列を返す。整形器が応答しないときは undefined。
+	const formattedText = async (uri) => {
+		const d = await vscode.workspace.openTextDocument(uri);
+		await vscode.window.showTextDocument(d);
+		const edits = await waitFor(async () => (await vscode.commands.executeCommand('vscode.executeFormatDocumentProvider', uri, { tabSize: 4, insertSpaces: false })) || undefined, 20000, 1000);
+		if (!edits) {
+			return undefined;
+		}
+		let text = d.getText();
+		const sorted = [...edits].sort((a, b) => d.offsetAt(b.range.start) - d.offsetAt(a.range.start));
+		for (const e of sorted) {
+			text = text.slice(0, d.offsetAt(e.range.start)) + e.newText + text.slice(d.offsetAt(e.range.end));
+		}
+		return { before: d.getText(), after: text, edits: edits.length };
+	};
+	// 探りの行が直されたこと(= 整形器がこのファイルで動いた)と、探り以外が変わらないことを確かめる
+	const unchangedExceptProbe = async (uri) => {
+		const f = await formattedText(uri);
+		if (!f) {
+			return { ok: false, detail: '整形器が応答しない' };
+		}
+		if (!/^int fmt_probe;\r?$/m.test(f.after)) {
+			return { ok: false, detail: `探りの行が直されていない(整形器が動いていない): ${f.after.slice(-60)}` };
+		}
+		const before = withoutProbe(f.before);
+		const after = withoutProbe(f.after);
+		return before === after ? { ok: true, detail: '変化なし' } : { ok: false, detail: firstDiff(before, after) || '末尾が変わった' };
+	};
+	const firstDiff = (a, b) => {
+		const la = a.split(/\r?\n/);
+		const lb = b.split(/\r?\n/);
+		const i = la.findIndex((l, k) => l !== lb[k]);
+		return i < 0 ? '' : `${i + 1} 行目: ${JSON.stringify(la[i])} → ${JSON.stringify(lb[i])}`;
+	};
+	const closeAndRemove = async (files) => {
+		await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+		for (const f of files) {
+			fs.rmSync(f, { force: true });
+		}
+	};
+
+	await r.step('整形: C++ の最小テンプレートは、どの長さのプロジェクト名でも整形で変わらない', async () => {
+		const tpl = fs.readFileSync(path.join(ext.extensionPath, 'templates', 'minimal', 'src', 'main.cpp'), 'utf8').replace(/^﻿/, '');
+		const files = [];
+		const details = [];
+		let ok = true;
+		try {
+			// 対照: 崩した C++ は整形で変わる(整形器が本当に動いていることの確認)
+			const messy = path.join(proj, 'src', 'FmtMessy.cpp');
+			files.push(messy);
+			fs.writeFileSync(messy, '﻿int f(){\nreturn 0;}\n', 'utf8');
+			const m = await formattedText(vscode.Uri.file(messy));
+			const messyOk = !!m && m.after !== m.before;
+			ok = ok && messyOk;
+			details.push(`対照(崩した C++ は変わる)=${messyOk}`);
+			for (const name of ['A', 'MyGame', 'VeryLongProjectName_0123456789']) {
+				const file = path.join(proj, 'src', `FmtCheck_${name}.cpp`);
+				files.push(file);
+				fs.writeFileSync(file, '﻿' + withProbe(tpl.split('__PROJECT_NAME__').join(name)), 'utf8');
+				const res = await unchangedExceptProbe(vscode.Uri.file(file));
+				ok = ok && res.ok;
+				details.push(`${name}: ${res.detail}`);
+			}
+		} finally {
+			await closeAndRemove(files);
+		}
+		return { ok, detail: details.join(' / ') };
+	});
+
+	await r.step('整形: シェーダーの雛形 3 種は整形で変わらない', async () => {
+		const kinds = [
+			{ kindId: '2d-ps', file: 'FmtAPS.hlsl', name: 'FmtA' },
+			{ kindId: '3d-ps', file: 'FmtBPS.hlsl', name: 'FmtB' },
+			{ kindId: '3d-vs', file: 'FmtCVS.hlsl', name: 'FmtC' },
+		];
+		const files = [];
+		const details = [];
+		let ok = true;
+		try {
+			// 対照: 崩した HLSL は整形で変わる
+			const messy = path.join(proj, 'shaders', 'FmtMessyPS.hlsl');
+			files.push(messy);
+			fs.writeFileSync(messy, '﻿float4 main() : SV_TARGET {\nreturn 0;}\n', 'utf8');
+			const m = await formattedText(vscode.Uri.file(messy));
+			const messyOk = !!m && m.after !== m.before;
+			ok = ok && messyOk;
+			details.push(`対照(崩した HLSL は変わる)=${messyOk}`);
+			for (const k of kinds) {
+				await vscode.commands.executeCommand('dxlib.newShaderFile', { kindId: k.kindId, name: k.name });
+				const file = path.join(proj, 'shaders', k.file);
+				files.push(file);
+				if (!fs.existsSync(file)) {
+					ok = false;
+					details.push(`${k.file}: 作成されない`);
+					continue;
+				}
+				// 作成したファイルは VSCode が開いて中身を覚えているので、書き換えずに、探りの行を足した写しを別名で作る
+				const probeFile = file.replace(/\.hlsl$/, '_Probe.hlsl');
+				files.push(probeFile);
+				fs.writeFileSync(probeFile, '﻿' + withProbe(fs.readFileSync(file, 'utf8').replace(/^﻿/, '')), 'utf8');
+				const res = await unchangedExceptProbe(vscode.Uri.file(probeFile));
+				ok = ok && res.ok;
+				details.push(`${k.file}: ${res.detail}`);
+			}
+		} finally {
+			await closeAndRemove(files);
+		}
+		return { ok, detail: details.join(' / ') };
+	});
+
 	// --- リファレンス・定義の作成・ワークロード追加(phase2_steps_ref_def_workload.js) ---
 	await require('./phase2_steps_ref_def_workload')(r, { api, proj });
 

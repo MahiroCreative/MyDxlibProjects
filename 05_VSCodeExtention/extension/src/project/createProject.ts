@@ -10,6 +10,44 @@ export const PROJECT_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export const PLACEHOLDER = '__PROJECT_NAME__';
 export const CONFIG_PROVIDER_ID = 'mahirocreative.dxlib-devenv';
 
+/**
+ * プロジェクトに書く .clang-format(DESIGN.md 10 章)。C++ と HLSL で共通。
+ * タブは字下げだけに使い、揃えは空白にする(タブと空白が混ざらない)。
+ * HLSL のセマンティクスの `:` は、clang-format にはビットフィールドに見えるので AlignConsecutiveBitFields で揃う。
+ * 同梱のテンプレートは、この設定で整形しても変わらない形で書く。
+ */
+export const CLANG_FORMAT = [
+	'BasedOnStyle: Microsoft',
+	'UseTab: ForIndentation',
+	'IndentWidth: 4',
+	'TabWidth: 4',
+	'BreakBeforeBraces: Allman',
+	'ColumnLimit: 0',
+	'AllowShortFunctionsOnASingleLine: Empty',
+	'AllowShortIfStatementsOnASingleLine: WithoutElse',
+	'PointerAlignment: Left',
+	'SortIncludes: false',
+	'NamespaceIndentation: All',
+	'AlignConsecutiveBitFields: Consecutive',
+	'',
+].join('\n');
+
+/** 当初の版が書いていた .clang-format。これと完全に同じなら、開いたときに CLANG_FORMAT に書き換える。 */
+export const CLANG_FORMAT_V1 = [
+	'BasedOnStyle: Microsoft',
+	'UseTab: Always',
+	'IndentWidth: 4',
+	'TabWidth: 4',
+	'BreakBeforeBraces: Allman',
+	'ColumnLimit: 0',
+	'AllowShortFunctionsOnASingleLine: Empty',
+	'AllowShortIfStatementsOnASingleLine: WithoutElse',
+	'PointerAlignment: Left',
+	'SortIncludes: false',
+	'NamespaceIndentation: All',
+	'',
+].join('\n');
+
 export interface CreateProjectArgs {
 	name: string;
 	location: string;
@@ -186,21 +224,6 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 		unwantedRecommendations: ['ms-vscode.cpptools-extension-pack'],
 	};
 
-	const clangFormat = [
-		'BasedOnStyle: Microsoft',
-		'UseTab: Always',
-		'IndentWidth: 4',
-		'TabWidth: 4',
-		'BreakBeforeBraces: Allman',
-		'ColumnLimit: 0',
-		'AllowShortFunctionsOnASingleLine: Empty',
-		'AllowShortIfStatementsOnASingleLine: WithoutElse',
-		'PointerAlignment: Left',
-		'SortIncludes: false',
-		'NamespaceIndentation: All',
-		'',
-	].join('\n');
-
 	const gitignore = ['build/', 'Log.txt', '*.pdb', '*.ilk', '*.obj', '.vs/', ''].join('\n');
 
 	writeText(path.join(projectDir, '.vscode', 'tasks.json'), JSON.stringify(tasks, null, '\t') + '\n');
@@ -208,7 +231,7 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 	writeText(path.join(projectDir, '.vscode', 'c_cpp_properties.json'), JSON.stringify(cppProperties, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'settings.json'), JSON.stringify(settings, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'extensions.json'), JSON.stringify(extensions, null, '\t') + '\n');
-	writeText(path.join(projectDir, '.clang-format'), clangFormat);
+	writeText(path.join(projectDir, '.clang-format'), CLANG_FORMAT);
 	if (!fs.existsSync(path.join(projectDir, '.gitignore'))) {
 		writeText(path.join(projectDir, '.gitignore'), gitignore);
 	}

@@ -110,6 +110,9 @@ async function phase8(common, mainExtDir, userData, project, work) {
 		t.problemMatcher = ['$msCompile'];
 	}
 	fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, '\t') + '\n');
+	// .clang-format も当初の版(UseTab: Always)に戻す(DESIGN.md 10 章)
+	const clangFormatV1 = ['BasedOnStyle: Microsoft', 'UseTab: Always', 'IndentWidth: 4', 'TabWidth: 4', 'BreakBeforeBraces: Allman', 'ColumnLimit: 0', 'AllowShortFunctionsOnASingleLine: Empty', 'AllowShortIfStatementsOnASingleLine: WithoutElse', 'PointerAlignment: Left', 'SortIncludes: false', 'NamespaceIndentation: All', ''];
+	fs.writeFileSync(path.join(project, '.clang-format'), clangFormatV1.join('\r\n'));
 	console.log('[runTest] 段階 8(C/C++ Extension Pack あり)');
 	await runTests({
 		...common,

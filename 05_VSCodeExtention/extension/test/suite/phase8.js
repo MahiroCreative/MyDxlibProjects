@@ -49,6 +49,13 @@ exports.run = async function () {
 		const migrated = await waitFor(() => read().every((pm) => Array.isArray(pm) && pm.length === 0), 10000);
 		return { ok: !!migrated, detail: JSON.stringify(read()) };
 	});
+
+	// runTest.js が .clang-format を当初の版(UseTab: Always、CRLF)に戻してから開いている
+	await r.step('当初の版の .clang-format は、開いたときに今の形(UseTab: ForIndentation)に直る', async () => {
+		const read = () => fs.readFileSync(path.join(proj, '.clang-format'), 'utf8');
+		const migrated = await waitFor(() => /^UseTab: ForIndentation$/m.test(read()) && /^AlignConsecutiveBitFields: Consecutive$/m.test(read()) && !/UseTab: Always/.test(read()), 10000);
+		return { ok: !!migrated, detail: read().replace(/\r?\n/g, ' / ') };
+	});
 	const sdk = vscode.workspace.getConfiguration('dxlib').get('sdkPath');
 
 	await r.step('Debug ビルドが通る', async () => {

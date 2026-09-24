@@ -158,6 +158,11 @@ DxLib 3.24f のソースで確認した事実:
 - ホバー: SDK の `DxLib.h`(CP932)を 1 回解析し、`extern ... Name( ... ) ; // コメント` を関数名で索引。宣言 3 件 + 残りはリンク(`dxlib.showAllDeclarations`)。
 - リファレンス: `help/dxfunc.html` の `href="...#RnNm">Name</a>` を索引にして既定ブラウザで開く。
 - 整形: C++ は C/C++ 拡張の clang-format。HLSL(`.hlsl`/`.fx`)は C/C++ 拡張が同梱している clang-format.exe を借用し(`<cpptools>/LLVM/bin/clang-format.exe`。新しいバイナリは配らない)、`DocumentFormattingEditProvider` として拡張機能自身が登録する。プロジェクト直下の `.clang-format` を C++ と共通で使う(`-style=file` はカレントディレクトリから上向きに探すので、実行時のカレントを対象ファイルのフォルダにする)。`register(t0)` や `: SV_POSITION` のセマンティクスも、clang-format には C++ の三項演算子・ビットフィールド相当として扱われ、実機で崩れずに整形されることを確認済み(2026-09-23)。`settings.json` の `"[hlsl]"` に既定整形器として明示する。
+- `.clang-format` の中身(`createProject.ts`): `BasedOnStyle: Microsoft`、`UseTab: ForIndentation`、`IndentWidth: 4`、`TabWidth: 4`、`BreakBeforeBraces: Allman`、`ColumnLimit: 0`、`AllowShortFunctionsOnASingleLine: Empty`、`AllowShortIfStatementsOnASingleLine: WithoutElse`、`PointerAlignment: Left`、`SortIncludes: false`、`NamespaceIndentation: All`、`AlignConsecutiveBitFields: Consecutive`。
+  - **タブは字下げだけ、揃えは空白(`UseTab: ForIndentation`、2026-09-24 変更)。** 当初の `UseTab: Always` は行末コメントの揃えにもタブを使い、端数を空白で埋めるので、タブと空白が混ざった(例 `POSITION1; // spos` と `NORMAL0;		// norm` が並ぶ)。
+  - **HLSL のセマンティクスの `:` は縦に揃える(`AlignConsecutiveBitFields`)。** clang-format には `float3 Position : POSITION0;` がビットフィールドに見えるので、この設定で揃う。C++ ではビットフィールドにしか効かない。宣言や `=` の自動揃え(`AlignConsecutiveDeclarations`/`Assignments`)は使わない(生徒が書いた行が、隣の行の編集で勝手に動くため)。
+  - **同梱のテンプレート(C++ の main.cpp、シェーダー雛形 3 種)は「整形しても 1 文字も変わらない」形で書く。** 最初の保存で雛形が崩れる不具合があった(2026-09-24 のクリック確認で発見。4 章の #12 と関連)。手で揃えた空白・タブは整形で消えるので使わない。`__PROJECT_NAME__` を含む行には行末コメントを付けない(置換で行の長さが変わり、揃えがずれるため。コメントは前の行に書く)。段階 2 で、名前の長さを変えて整形し、変化が無いことを確かめる。
+  - 既存プロジェクトの移行: `.clang-format` が当初の内容(`UseTab: Always` の版)と完全に同じなら、開いたときに今の内容に書き換えて通知する。手で直してあれば触らない。
 
 ## 11. 同時インストール(`extensionPack`)
 
@@ -266,15 +271,15 @@ DxLib 3.24f のソースで確認した事実:
 - インストール済みの VSCode を別プロファイル(検証用の user-data と拡張フォルダ)で起動し、拡張機能を実際に動かす。
 - 実行: `node test/runTest.js <作業フォルダ> <SDK フォルダ>`(`npm test` は環境変数 `DXLIB_SDK` を使う)。
 - 段階 1: 環境検出、プロジェクト作成、名前の検査、生成物(BOM・置換・パス非記載)。
-- 段階 2: dxlib タスク一覧、Debug/Release ビルド、エラーの問題パネル表示、DxLib ホバー、IntelliSense(問い合わせ到達・赤波線 0)、シェーダーコンパイル、絵文字の拒否、HLSL の保存時整形(タブ・Allman ブレース)、リファレンスを開く(既知/未知の関数名)、定義を作成コマンドの呼び出し、C++ ワークロード追加(導入済み分岐)、テンプレートとして保存 → 一覧反映、デバッグ実行(Log.txt がプロジェクト直下にできること)。
+- 段階 2: dxlib タスク一覧、Debug/Release ビルド、エラーの問題パネル表示、DxLib ホバー、IntelliSense(問い合わせ到達・赤波線 0)、シェーダーコンパイル、絵文字の拒否、HLSL の保存時整形(タブ・Allman ブレース)、同梱テンプレートが整形で変わらないこと(C++ はプロジェクト名 3 通り、シェーダー 3 種。崩したファイルが変わる対照付き)、リファレンスを開く(既知/未知の関数名)、定義を作成コマンドの呼び出し、C++ ワークロード追加(導入済み分岐)、テンプレートとして保存 → 一覧反映、デバッグ実行(Log.txt がプロジェクト直下にできること)。
 - 段階 2 には「新しいシェーダー」「テンプレートとして保存」を `dxlib.newShaderFile` / `dxlib.saveAsTemplate` に直接引数を渡して呼ぶ検証を含む(12.1 のフォーム化後は、これが webview のボタン送信と同じ経路)。引数なし呼び出し(フォームを開く側)が例外を出さないことの確認、名前や種類の検証エラー、同名拒否、テンプレートフォルダ未設定時の案内も含む。
 - 段階 4: シェーダー雛形を DxLib 上で実際に描画して画素の色で判定する(`test/shader-runtime/`。9.1 参照)。
 - 段階 3: パネルの見た目のスクリーンショット撮影(`test/screenshot.ps1`。UserDataDir で対象の Code.exe ウィンドウを特定し、.NET の `System.Drawing` だけで撮る。新しいツールは使わない)。通常時のパネル、新規プロジェクト作成フォーム、新しいシェーダーフォーム、テンプレートとして保存フォームの 4 枚。合否は判定せず、撮った画像を人(Claude)が見て確認する運用。
 - ダイアログを伴う操作(`showInformationMessage` / `showWarningMessage` / `showErrorMessage` / `showOpenDialog`)は、テスト内で一時的に差し替えて自動応答させ、`finally` で必ず元に戻す。フォーム化(12.1)後は `showInputBox` / `showQuickPick` の差し替えは不要になった(直接引数で呼べるため)。
 - 段階 6: C/C++ 拡張が DxLib 拡張より後から入る順番(17.3)。C/C++ 拡張の無い拡張フォルダで起動し、動いている間に `code --install-extension` で入れる。late(15 秒後の警告 → 回復 → ファイル未オープンで誤報しない → 開くと ✓)と soon(警告が出ない)の 2 回起動。`--phase6-only` でこの段階だけ走らせられる。
 - 2026-09-23 に全項目 OK(段階 1: 16 / 段階 2: 33 / 段階 3: 6 / 段階 4: 11 / 段階 5: 7 = 73 項目)。
-- 2026-09-24 に全項目 OK(段階 1: 20 / 段階 2: 51 / 段階 3: 8 / 段階 4: 11 / 段階 5: 7 / 段階 6-late: 11 / 6-soon: 6 / 段階 7: 7 / 段階 8: 7 = 128 項目。約 23 分)。
-- 段階 8: C/C++ Extension Pack(CMake Tools を含む)を実際にインストールした拡張フォルダで、ビルド・補完の設定の出どころ・赤波線・ホバー・デバッグ実行(8 章)。
+- 2026-09-24 夜に全項目 OK(段階 1: 20 / 段階 2: 53 / 段階 3: 8 / 段階 4: 11 / 段階 5: 7 / 段階 6-late: 11 / 6-soon: 6 / 段階 7: 7 / 段階 8: 8 = 131 項目。約 25 分。整形の修正後)。
+- 段階 8: C/C++ Extension Pack(CMake Tools を含む)を実際にインストールした拡張フォルダで、ビルド・補完の設定の出どころ・赤波線・ホバー・デバッグ実行(8 章)。以前の版の tasks.json と .clang-format の移行(6・10 章)。
 - 注意: 「SDK の移動」の再問い合わせの確認は、「切り替え後の最初の問い合わせ」ではなく「新しいパスを含む問い合わせ」を待つ。直前に main.cpp を開いた反応の問い合わせが先に届き、古い設定を拾って NG になったことがある(2026-09-24)。作成後の開き方(8 章)は、`vscode.openFolder` の呼び出しを横取りして `forceNewWindow` を記録する形で、段階 1(フォルダ無し → false)と段階 2(プロジェクトを開いている → true)の両方を確かめる。実際に開くと検証中の窓が置き換わるため。2 台目の PC(VS 2022 と 2026 の両方あり)。段階 6 は修正前のコードで NG になることも確認済み。
 - 注意: Claude Code など VSCode 拡張の中から実行すると `ELECTRON_RUN_AS_NODE=1` が引き継がれるので、runTest.js で消している。
 - 注意: C/C++ 拡張のような非同期に追加編集を行うコマンドをテストするときは、コマンドの Promise 解決後もファイル操作を試みる可能性があるため、後始末は「対象ファイルのパターン一致で掃除」「エディタを閉じてから削除」を徹底する。守らないと次のテスト(ビルドやデバッグ実行)に残骸が持ち越り、原因の分かりにくい失敗(VSCode の確認ダイアログなど)につながる。
