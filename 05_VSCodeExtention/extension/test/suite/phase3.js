@@ -67,14 +67,21 @@ exports.run = async function () {
 		return { ok: same(d, parent), detail: `${d}(期待: ${parent})` };
 	});
 
-	await r.step('スクリーンショット: 新しいシェーダーフォーム', async () => {
+	await r.step('スクリーンショット: エクスプローラーの「DxLib」欄(ビルド・実行・シェーダー・テンプレート)', async () => {
+		await vscode.commands.executeCommand('dxlib.showProjectView');
+		await sleep(2500);
+		const s = screenshot('explorer-dxlib-view');
+		return { ok: s.ok, detail: s.output };
+	});
+
+	await r.step('スクリーンショット: 新しいシェーダーフォーム(エクスプローラーの欄)', async () => {
 		await api.showNewShaderForm();
 		await sleep(1500);
 		const s = screenshot('panel-shader-form');
 		return { ok: s.ok, detail: s.output };
 	});
 
-	await r.step('スクリーンショット: テンプレートとして保存フォーム', async () => {
+	await r.step('スクリーンショット: テンプレートとして保存フォーム(エクスプローラーの欄)', async () => {
 		await api.showSaveTemplateForm();
 		await sleep(1500);
 		const s = screenshot('panel-template-form');

@@ -2,12 +2,11 @@ import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { collectEnvironment, EnvironmentStatus, getConfig } from '../env/environment';
 import { CreateProjectArgs, defaultCreateLocation } from '../project/createProject';
-import { SaveTemplateArgs } from '../project/saveAsTemplate';
 import { listTemplates, TemplateInfo } from '../project/templates';
-import { NewShaderArgs, SHADER_TEMPLATES } from '../shader/compileShaders';
+import { BASE_CSS, makeNonce } from './webviewCommon';
 
-/** どのフォームを開くか。'create' | 'shader' | 'template' */
-type FormName = 'create' | 'shader' | 'template';
+/** どのフォームを開くか。プロジェクトの操作のフォームはエクスプローラーの「DxLib」欄(projectView.ts)。 */
+type FormName = 'create';
 
 /** Webview へ渡す状態(JSON にできる形)。 */
 interface PanelState {
@@ -18,7 +17,6 @@ interface PanelState {
 	project?: { name: string; path: string };
 	isDxLibProject: boolean;
 	templates: { id: string; name: string; description: string; builtin: boolean }[];
-	shaderKinds: { id: string; label: string; description: string; suffix: string }[];
 	defaultLocation: string;
 }
 
@@ -26,8 +24,6 @@ type WebviewMessage =
 	| { command: 'refresh' }
 	| { command: 'browseLocation' }
 	| { command: 'create'; args: CreateProjectArgs }
-	| { command: 'newShaderFile'; args: NewShaderArgs }
-	| { command: 'saveAsTemplate'; args: SaveTemplateArgs }
 	| { command: string };
 
 function toState(env: EnvironmentStatus, templates: TemplateInfo[], defaultLocation: string): PanelState {
@@ -60,7 +56,6 @@ function toState(env: EnvironmentStatus, templates: TemplateInfo[], defaultLocat
 		project: env.project,
 		isDxLibProject: env.isDxLibProject,
 		templates: templates.map((t) => ({ id: t.id, name: t.name, description: t.description, builtin: t.builtin })),
-		shaderKinds: SHADER_TEMPLATES.map((t) => ({ id: t.id, label: t.label, description: t.description, suffix: t.suffix })),
 		defaultLocation,
 	};
 }
@@ -109,16 +104,6 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		await this.openForm('create', location);
 	}
 
-	/** 「新しいシェーダー」フォームを開く。 */
-	async showNewShaderForm(): Promise<void> {
-		await this.openForm('shader');
-	}
-
-	/** 「テンプレートとして保存」フォームを開く。 */
-	async showSaveTemplateForm(): Promise<void> {
-		await this.openForm('template');
-	}
-
 	private async onMessage(m: WebviewMessage): Promise<void> {
 		switch (m.command) {
 			case 'refresh':
@@ -141,12 +126,6 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 			case 'create':
 				await vscode.commands.executeCommand('dxlib.createProject', (m as { args: CreateProjectArgs }).args);
 				return;
-			case 'newShaderFile':
-				await vscode.commands.executeCommand('dxlib.newShaderFile', (m as { args: NewShaderArgs }).args);
-				return;
-			case 'saveAsTemplate':
-				await vscode.commands.executeCommand('dxlib.saveAsTemplate', (m as { args: SaveTemplateArgs }).args);
-				return;
 			default:
 				// それ以外は同名の dxlib.* コマンドを呼ぶ(build / run / debug / selectSdk など)
 				await vscode.commands.executeCommand(`dxlib.${m.command}`);
@@ -154,40 +133,16 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 	}
 
 	private html(webview: vscode.Webview): string {
-		const nonce = Array.from({ length: 16 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
+		const nonce = makeNonce();
 		return /* html */ `<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <style>
-	body { font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); padding: 0 8px 12px; }
-	h2 { font-size: 12px; text-transform: none; opacity: 0.8; margin: 14px 0 6px; border-bottom: 1px solid var(--vscode-panel-border); padding-bottom: 3px; }
-	.row { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0; line-height: 1.4; }
-	.row .text { flex: 1; min-width: 0; overflow-wrap: break-word; }
-	.row .path { opacity: 0.7; font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
-	.ok { color: var(--vscode-charts-green, var(--vscode-testing-iconPassed)); }
-	.ng { color: var(--vscode-errorForeground, var(--vscode-testing-iconFailed)); }
-	.warn { color: var(--vscode-testing-iconQueued); }
-	.wait { opacity: 0.7; }
-	button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 4px 10px; border-radius: 2px; cursor: pointer; font-size: 12px; white-space: nowrap; }
-	button:hover { background: var(--vscode-button-hoverBackground); }
-	button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-	button.big { width: 100%; padding: 8px; font-size: 13px; margin: 6px 0; }
-	button:disabled { opacity: 0.45; cursor: not-allowed; }
-	button:disabled:hover { background: var(--vscode-button-background); }
-	.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-	input[type=text] { width: 100%; box-sizing: border-box; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent); padding: 4px 6px; }
-	label { display: block; margin: 8px 0 3px; }
-	.checkbox-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
-	.checkbox-row input { margin: 0; }
-	.tpl { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; }
-	.tpl small { display: block; opacity: 0.7; }
-	.hint { opacity: 0.7; font-size: 11px; margin-top: 3px; }
-	.error { color: var(--vscode-errorForeground); margin-top: 6px; }
-	#form, #shader-form, #template-form, #restricted { display: none; }
+${BASE_CSS}
+	#form, #restricted { display: none; }
 	#restricted p { line-height: 1.5; margin: 6px 0; }
-	.hidden { display: none !important; }
 </style>
 </head>
 <body>
@@ -212,14 +167,8 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		<div class="error hidden" id="create-blocked">DxLib SDK が正しく設定されるまで、プロジェクトは作成できません。上の SDK の「変更」から、正しいフォルダを指定してください。</div>
 		<div id="project-section">
 			<div class="row"><span class="text">現在のプロジェクト: <b id="project-name"></b></span></div>
-			<div class="actions">
-				<button data-cmd="build">ビルド</button>
-				<button data-cmd="run">実行</button>
-				<button data-cmd="debug">デバッグ実行</button>
-				<button class="secondary" data-cmd="compileShaders">シェーダーをコンパイル</button>
-				<button class="secondary" id="btn-open-shader-form">新しいシェーダー</button>
-				<button class="secondary" id="btn-open-template-form">テンプレートとして保存</button>
-			</div>
+			<div class="hint">ビルド・実行・シェーダー・テンプレートとして保存は、エクスプローラーの「DxLib」欄にあります。</div>
+			<div class="actions"><button class="secondary" data-cmd="showProjectView">エクスプローラーの DxLib 欄を開く</button></div>
 		</div>
 		<div id="no-project" class="hidden"><span class="wait" id="no-project-text">プロジェクトのフォルダが開かれていません。</span></div>
 	</div>
@@ -236,29 +185,6 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		<div class="actions"><button id="btn-create">作成</button><button class="secondary" id="btn-cancel">キャンセル</button></div>
 	</div>
 
-	<div id="shader-form">
-		<h2>新しいシェーダーを作成</h2>
-		<label>種類</label>
-		<div id="sf-kinds"></div>
-		<label for="sf-name">名前(英数字と _)</label>
-		<input type="text" id="sf-name" value="MyShader">
-		<div class="hint" id="sf-filename">ファイル名: </div>
-		<div class="error" id="sf-error"></div>
-		<div class="actions"><button id="btn-shader-create">作成</button><button class="secondary" id="btn-shader-cancel">キャンセル</button></div>
-	</div>
-
-	<div id="template-form">
-		<h2>テンプレートとして保存</h2>
-		<label for="tf-name">表示名</label>
-		<input type="text" id="tf-name">
-		<label for="tf-desc">説明(省略可)</label>
-		<input type="text" id="tf-desc">
-		<div class="checkbox-row"><input type="checkbox" id="tf-substitute" checked><label for="tf-substitute" style="margin:0;">プロジェクト名を __PROJECT_NAME__ に戻す</label></div>
-		<div class="hint">別名で新規プロジェクトを作ったとき、ウィンドウタイトルなどがその名前に追従します。</div>
-		<div class="error" id="tf-error"></div>
-		<div class="actions"><button id="btn-template-save">保存</button><button class="secondary" id="btn-template-cancel">キャンセル</button></div>
-	</div>
-
 <script nonce="${nonce}">
 	const vscode = acquireVsCodeApi();
 	const $ = (id) => document.getElementById(id);
@@ -267,7 +193,7 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 	document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => vscode.postMessage({ command: b.dataset.cmd })));
 
 	function showScreen(name) {
-		for (const id of ['main', 'form', 'shader-form', 'template-form', 'restricted']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
+		for (const id of ['main', 'form', 'restricted']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
 	}
 
 	// --- 新規プロジェクト作成 -------------------------------------------------
@@ -305,68 +231,6 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 			row.appendChild(r); row.appendChild(txt); box.appendChild(row);
 		});
 		if (state.templates.length === 0) { box.textContent = 'テンプレートがありません。'; }
-	}
-
-	// --- 新しいシェーダー ------------------------------------------------------
-	$('btn-open-shader-form').addEventListener('click', () => openShaderForm());
-	$('btn-shader-cancel').addEventListener('click', () => showScreen('main'));
-	$('btn-shader-create').addEventListener('click', () => {
-		const name = $('sf-name').value.trim();
-		const picked = document.querySelector('input[name=sfkind]:checked');
-		if (!picked) { $('sf-error').textContent = '種類を選んでください。'; return; }
-		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) { $('sf-error').textContent = '名前は英数字とアンダースコアだけで、先頭は英字か _ にしてください。'; return; }
-		$('sf-error').textContent = '';
-		showScreen('main');
-		vscode.postMessage({ command: 'newShaderFile', args: { kindId: picked.value, name } });
-	});
-
-	function openShaderForm() {
-		showScreen('shader-form');
-		$('sf-error').textContent = '';
-		renderShaderKinds();
-		updateShaderFilenamePreview();
-	}
-
-	function renderShaderKinds() {
-		const box = $('sf-kinds'); box.innerHTML = '';
-		if (!state) return;
-		state.shaderKinds.forEach((k, i) => {
-			const row = document.createElement('label'); row.className = 'tpl';
-			const r = document.createElement('input'); r.type = 'radio'; r.name = 'sfkind'; r.value = k.id; if (i === 0) r.checked = true;
-			r.addEventListener('change', updateShaderFilenamePreview);
-			const txt = document.createElement('span'); txt.textContent = k.label;
-			const small = document.createElement('small'); small.textContent = k.description;
-			txt.appendChild(small);
-			row.appendChild(r); row.appendChild(txt); box.appendChild(row);
-		});
-	}
-
-	function updateShaderFilenamePreview() {
-		if (!state) return;
-		const picked = document.querySelector('input[name=sfkind]:checked');
-		const kind = state.shaderKinds.find((k) => picked && k.id === picked.value);
-		const name = $('sf-name').value.trim() || '(名前)';
-		$('sf-filename').textContent = 'ファイル名: ' + name + (kind ? kind.suffix : '') + '.hlsl';
-	}
-	$('sf-name').addEventListener('input', updateShaderFilenamePreview);
-
-	// --- テンプレートとして保存 -------------------------------------------------
-	$('btn-open-template-form').addEventListener('click', () => openTemplateForm());
-	$('btn-template-cancel').addEventListener('click', () => showScreen('main'));
-	$('btn-template-save').addEventListener('click', () => {
-		const name = $('tf-name').value.trim();
-		const description = $('tf-desc').value.trim();
-		const substitute = $('tf-substitute').checked;
-		if (!name) { $('tf-error').textContent = '名前を入力してください。'; return; }
-		$('tf-error').textContent = '';
-		showScreen('main');
-		vscode.postMessage({ command: 'saveAsTemplate', args: { name, description, substitute } });
-	});
-
-	function openTemplateForm() {
-		showScreen('template-form');
-		$('tf-error').textContent = '';
-		if (state && state.project && !$('tf-name').value) { $('tf-name').value = state.project.name; }
 	}
 
 	function mark(el, cls, text) { el.className = cls; el.textContent = text; }
@@ -414,7 +278,6 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		$('create-blocked').classList.toggle('hidden', s.sdk.ok);
 		if (!s.sdk.ok && $('form').style.display === 'block') { showScreen('main'); }
 		if ($('form').style.display === 'block') { renderTemplates(); }
-		if ($('shader-form').style.display === 'block') { renderShaderKinds(); updateShaderFilenamePreview(); }
 	}
 
 	window.addEventListener('message', (e) => {
@@ -427,9 +290,7 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 			state = m.state;
 			render();
 		} else if (m.type === 'openForm') {
-			if (m.form === 'shader') { openShaderForm(); }
-			else if (m.form === 'template') { openTemplateForm(); }
-			else { openCreateForm(m.location); }
+			openCreateForm(m.location);
 		} else if (m.type === 'location') {
 			$('f-location').value = m.path;
 		}

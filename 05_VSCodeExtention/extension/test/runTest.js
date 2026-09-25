@@ -20,6 +20,7 @@ const CODE_EXE = path.join(CODE_DIR, 'Code.exe');
 const CODE_CLI = path.join(CODE_DIR, 'bin', 'code.cmd');
 
 async function main() {
+	const startedAt = Date.now();
 	const work = path.resolve(process.argv[2]);
 	const sdk = process.argv[3];
 	const only6 = process.argv[4] === '--phase6-only';
@@ -63,6 +64,7 @@ async function main() {
 		} else {
 			await phase8(common, extDir, userData, project, work);
 		}
+		checkDisposeErrors(work, startedAt);
 		console.log('[runTest] 完了');
 		return;
 	}
@@ -89,7 +91,43 @@ async function main() {
 	await phase7(common, extDir, project, work, sdk);
 	await phase8(common, extDir, userData, project, work);
 
+	checkDisposeErrors(work, startedAt);
 	console.log('[runTest] 完了');
+}
+
+/**
+ * この回に起動した検証用 VSCode の exthost.log に、DxLib 拡張の後片づけ(dispose)のエラーが無いか(DESIGN.md 7 章)。
+ * 以前は窓を閉じるたびに、設定プロバイダーと C/C++ 拡張の API が互いに dispose を呼び合って失敗していた。
+ * 窓を閉じるときにしか起きず、各段階の検証の中では見えないので、全部終わってからログで確かめる。
+ */
+function checkDisposeErrors(work, startedAt) {
+	const needle = "disposing the subscriptions for extension 'mahirocreative.dxlib-devenv'";
+	const hits = [];
+	let scanned = 0;
+	const walk = (dir) => {
+		for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+			const p = path.join(dir, e.name);
+			if (e.isDirectory()) {
+				walk(p);
+			} else if (e.name === 'exthost.log' && fs.statSync(p).mtimeMs >= startedAt) {
+				scanned++;
+				if (fs.readFileSync(p, 'utf8').includes(needle)) {
+					hits.push(path.relative(work, p));
+				}
+			}
+		}
+	};
+	for (const ud of ['user-data', 'user-data-trust']) {
+		const logs = path.join(work, ud, 'logs');
+		if (fs.existsSync(logs)) {
+			walk(logs);
+		}
+	}
+	const ok = hits.length === 0 && scanned > 0;
+	console.log(`[logs] ${ok ? 'OK' : 'NG'}  窓を閉じたときに DxLib 拡張の後片づけのエラーが出ていない  : 調べたログ ${scanned} 個 / エラーのあったログ ${hits.length} 個 ${hits.slice(0, 3).join(', ')}`);
+	if (!ok) {
+		throw new Error('後片づけのエラーがログに出ています(または調べるログがありません)');
+	}
 }
 
 // 段階 8: C/C++ Extension Pack(CMake Tools を含む)を入れた状態でも動くか。

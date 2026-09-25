@@ -81,6 +81,15 @@ function findCl(installationPath: string): string | undefined {
 
 /** Visual Studio と C++ ワークロードの有無を調べる。 */
 export async function detectVisualStudio(): Promise<VsInfo> {
+	const vs = await detectVisualStudioActual();
+	// 検証用: ワークロードが入っている PC で「ワークロードを追加」の流れを実際に通すため、未導入として扱う(DESIGN.md 4 章)
+	if (process.env.DXLIB_TEST_SIMULATE_NO_WORKLOAD === '1' && vs.state === 'ok') {
+		return { state: 'noWorkload', displayName: vs.displayName, version: vs.version, installationPath: vs.installationPath };
+	}
+	return vs;
+}
+
+async function detectVisualStudioActual(): Promise<VsInfo> {
 	const withTools = await query(['-latest', '-requires', VC_TOOLS_COMPONENT]);
 	if (withTools.length > 0 && withTools[0].installationPath) {
 		const e = withTools[0];

@@ -60,8 +60,13 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 		return null;
 	}
 
+	/**
+	 * C/C++ 拡張の API はここでは閉じない。API は register() で context.subscriptions に入れてあり、そちらで閉じる。
+	 * C/C++ 拡張は API を閉じるときに登録済みのプロバイダーの dispose() を呼ぶので、ここで API を閉じると
+	 * 互いに呼び合って終わらない(窓を閉じるたびに Maximum call stack size exceeded になっていた)。
+	 */
 	dispose(): void {
-		this.api?.dispose();
+		this.api = undefined;
 	}
 
 	/** SDK や VS の設定が変わったときに C/C++ 拡張へ再問い合わせを促す。 */

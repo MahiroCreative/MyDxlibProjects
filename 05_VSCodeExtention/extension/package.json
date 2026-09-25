@@ -48,6 +48,14 @@
           "id": "dxlib.panel",
           "name": "DxLib"
         }
+      ],
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "dxlib.projectView",
+          "name": "DxLib",
+          "when": "dxlib.isProject && isWorkspaceTrusted"
+        }
       ]
     },
     "commands": [
@@ -95,7 +103,7 @@
       },
       {
         "command": "dxlib.compileShaders",
-        "title": "シェーダーをコンパイル",
+        "title": "シェーダーをすべてコンパイル",
         "category": "DxLib",
         "enablement": "isWorkspaceTrusted"
       },
@@ -151,6 +159,12 @@
         "command": "dxlib.manageTrust",
         "title": "このフォルダを信頼する",
         "category": "DxLib"
+      },
+      {
+        "command": "dxlib.compileShaderFile",
+        "title": "このシェーダーをコンパイル",
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted"
       }
     ],
     "keybindings": [
@@ -178,11 +192,30 @@
           "command": "dxlib.createProject",
           "when": "explorerResourceIsFolder",
           "group": "dxlib@1"
+        },
+        {
+          "command": "dxlib.newShaderFile",
+          "when": "explorerResourceIsFolder && dxlib.isProject && resourcePath in dxlib.shaderFolders",
+          "group": "dxlib@2"
+        },
+        {
+          "command": "dxlib.compileShaders",
+          "when": "explorerResourceIsFolder && dxlib.isProject && resourcePath in dxlib.shaderFolders",
+          "group": "dxlib@3"
+        },
+        {
+          "command": "dxlib.compileShaderFile",
+          "when": "!explorerResourceIsFolder && dxlib.isProject && resourceExtname =~ /^\\.(hlsl|fx)$/i",
+          "group": "dxlib@1"
         }
       ],
       "commandPalette": [
         {
           "command": "dxlib.showAllDeclarations",
+          "when": "false"
+        },
+        {
+          "command": "dxlib.compileShaderFile",
           "when": "false"
         }
       ]

@@ -210,9 +210,9 @@ exports.run = async function () {
 
 	await r.step('新しいシェーダー: 3 種類の雛形からファイルができ、そのままコンパイルが通る', async () => {
 		const kinds = [
-			{ kindId: '2d-ps', name: 'NewA', file: 'NewAPS.hlsl', out: 'NewAPS.pso' },
-			{ kindId: '3d-ps', name: 'NewB', file: 'NewBPS.hlsl', out: 'NewBPS.pso' },
-			{ kindId: '3d-vs', name: 'NewC', file: 'NewCVS.hlsl', out: 'NewCVS.vso' },
+			{ kindId: '2d-ps', name: 'NewA', file: 'NewA_2DPS.hlsl', out: 'NewA_2DPS.pso' },
+			{ kindId: '3d-ps', name: 'NewB', file: 'NewB_3DPS.hlsl', out: 'NewB_3DPS.pso' },
+			{ kindId: '3d-vs', name: 'NewC', file: 'NewC_3DVS.hlsl', out: 'NewC_3DVS.vso' },
 		];
 		for (const k of kinds) {
 			await vscode.commands.executeCommand('dxlib.newShaderFile', { kindId: k.kindId, name: k.name });
@@ -250,9 +250,98 @@ exports.run = async function () {
 		} finally {
 			vscode.window.showErrorMessage = orig;
 		}
-		fs.rmSync(path.join(proj, 'shaders', 'DupTestPS.hlsl'), { force: true });
+		fs.rmSync(path.join(proj, 'shaders', 'DupTest_2DPS.hlsl'), { force: true });
 		return { ok: !!msg && msg.includes('既にあります'), detail: msg || 'エラーが出なかった' };
 	});
+
+	// ファイル名に 2D/3D が入る(2026-09-25 ユーザー決定)。以前は両方 <名前>PS.hlsl で、2 つ目が同名で拒否されていた。
+	await r.step('新しいシェーダー: 同じ名前でも 2D 用と 3D 用のピクセルシェーダーを両方作れる', async () => {
+		let msg;
+		const orig = vscode.window.showErrorMessage;
+		vscode.window.showErrorMessage = async (m) => {
+			msg = m;
+			return undefined;
+		};
+		try {
+			await vscode.commands.executeCommand('dxlib.newShaderFile', { kindId: '2d-ps', name: 'Both' });
+			await vscode.commands.executeCommand('dxlib.newShaderFile', { kindId: '3d-ps', name: 'Both' });
+		} finally {
+			vscode.window.showErrorMessage = orig;
+		}
+		await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+		const files = ['Both_2DPS.hlsl', 'Both_3DPS.hlsl'].map((f) => path.join(proj, 'shaders', f));
+		const made = files.map((f) => fs.existsSync(f));
+		files.forEach((f) => fs.rmSync(f, { force: true }));
+		return { ok: made.every(Boolean) && !msg, detail: `Both_2DPS=${made[0]} Both_3DPS=${made[1]} エラー=${msg || 'なし'}` };
+	});
+
+	// --- エクスプローラーの右クリック(DESIGN.md 3.1 章)。VSCode がメニューから渡すのと同じ引数で呼ぶ ---
+	// 前の項目で shaders に TestPS.hlsl と TestVS.hlsl がある
+	{
+		const sdir = path.join(proj, 'shaders');
+		const bin = path.join(sdir, 'bin');
+		const outOf = (name) => path.join(bin, name);
+		const clearBin = () => fs.rmSync(bin, { recursive: true, force: true });
+		const captureWarn = async (fn) => {
+			const warns = [];
+			const ow = vscode.window.showWarningMessage;
+			vscode.window.showWarningMessage = async (m) => (warns.push(m), undefined);
+			try {
+				await fn();
+			} finally {
+				vscode.window.showWarningMessage = ow;
+			}
+			return warns;
+		};
+
+		await r.step('右クリック「このシェーダーをコンパイル」: 選んだ 1 本だけがコンパイルされる', async () => {
+			clearBin();
+			const uri = vscode.Uri.file(path.join(sdir, 'TestPS.hlsl'));
+			await vscode.commands.executeCommand('dxlib.compileShaderFile', uri, [uri]);
+			const ps = fs.existsSync(outOf('TestPS.pso'));
+			const vs = fs.existsSync(outOf('TestVS.vso'));
+			return { ok: ps && !vs, detail: `TestPS.pso=${ps} TestVS.vso=${vs}(できないのが正しい)` };
+		});
+
+		await r.step('右クリック「このシェーダーをコンパイル」: 複数選ぶと選んだものが全部コンパイルされる', async () => {
+			clearBin();
+			const a = vscode.Uri.file(path.join(sdir, 'TestPS.hlsl'));
+			const b = vscode.Uri.file(path.join(sdir, 'TestVS.hlsl'));
+			await vscode.commands.executeCommand('dxlib.compileShaderFile', a, [a, b]);
+			const ps = fs.existsSync(outOf('TestPS.pso'));
+			const vs = fs.existsSync(outOf('TestVS.vso'));
+			return { ok: ps && vs, detail: `TestPS.pso=${ps} TestVS.vso=${vs}` };
+		});
+
+		await r.step('右クリック「このシェーダーをコンパイル」: シェーダーのフォルダの外のファイルは案内だけで何もしない', async () => {
+			clearBin();
+			const outside = path.join(proj, 'src', 'Outside_2DPS.hlsl');
+			fs.copyFileSync(path.join(sdir, 'TestPS.hlsl'), outside);
+			const uri = vscode.Uri.file(outside);
+			let warns;
+			try {
+				warns = await captureWarn(() => vscode.commands.executeCommand('dxlib.compileShaderFile', uri, [uri]));
+			} finally {
+				fs.rmSync(outside, { force: true });
+			}
+			const made = fs.existsSync(outOf('Outside_2DPS.pso'));
+			return { ok: !made && warns.some((m) => m.includes('中のファイルだけコンパイルできます')), detail: `pso=${made} / ${warns.join(' / ')}` };
+		});
+
+		await r.step('右クリック「新しいシェーダーを作成」: フォルダから呼ぶとファイルは作らずフォームを開く(エラーなし)', async () => {
+			const before = fs.readdirSync(sdir).filter((f) => f.endsWith('.hlsl')).sort().join(',');
+			let err;
+			const oe = vscode.window.showErrorMessage;
+			vscode.window.showErrorMessage = async (m) => ((err = m), undefined);
+			try {
+				await vscode.commands.executeCommand('dxlib.newShaderFile', vscode.Uri.file(sdir));
+			} finally {
+				vscode.window.showErrorMessage = oe;
+			}
+			const after = fs.readdirSync(sdir).filter((f) => f.endsWith('.hlsl')).sort().join(',');
+			return { ok: before === after && !err, detail: `ファイルの増減なし=${before === after} エラー=${err || 'なし'}(フォームが開いたことはスクリーンショットで確認)` };
+		});
+	}
 
 	// --- HLSL の自動整形(clang-format を C/C++ 拡張から借用) ----------------
 	await r.step('HLSL ファイルの保存時整形(タブ・Allman ブレース)', async () => {
@@ -357,9 +446,9 @@ exports.run = async function () {
 
 	await r.step('整形: シェーダーの雛形 3 種は整形で変わらない', async () => {
 		const kinds = [
-			{ kindId: '2d-ps', file: 'FmtAPS.hlsl', name: 'FmtA' },
-			{ kindId: '3d-ps', file: 'FmtBPS.hlsl', name: 'FmtB' },
-			{ kindId: '3d-vs', file: 'FmtCVS.hlsl', name: 'FmtC' },
+			{ kindId: '2d-ps', file: 'FmtA_2DPS.hlsl', name: 'FmtA' },
+			{ kindId: '3d-ps', file: 'FmtB_3DPS.hlsl', name: 'FmtB' },
+			{ kindId: '3d-vs', file: 'FmtC_3DVS.hlsl', name: 'FmtC' },
 		];
 		const files = [];
 		const details = [];

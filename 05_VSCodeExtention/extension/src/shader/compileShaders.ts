@@ -63,11 +63,17 @@ function toCp932(text: string): { bytes: Buffer; badChar?: { line: number; ch: s
 	return { bytes };
 }
 
+/** シェーダーのフォルダ(設定 dxlib.shader.sourceDir。既定 shaders)。 */
+export function shaderSourceDir(folder: vscode.WorkspaceFolder): string {
+	return path.join(folder.uri.fsPath, getConfig<string>('shader.sourceDir', 'shaders', folder));
+}
+
 /**
  * プロジェクトのシェーダーを SDK 付属の ShaderCompiler.exe でコンパイルする。
  * ShaderCompiler は CP932 のソースしか読めないので、一時フォルダに変換して渡す。
+ * only を渡すと、そのファイルだけをコンパイルする(エクスプローラーの右クリック。シェーダーのフォルダの中のものに限る)。
  */
-export async function compileShaders(output: vscode.OutputChannel): Promise<void> {
+export async function compileShaders(output: vscode.OutputChannel, only?: string[]): Promise<void> {
 	const folder = currentFolder();
 	if (!folder) {
 		void vscode.window.showWarningMessage('プロジェクトのフォルダが開かれていません。');
@@ -79,12 +85,28 @@ export async function compileShaders(output: vscode.OutputChannel): Promise<void
 		return;
 	}
 
-	const srcDir = path.join(folder.uri.fsPath, getConfig<string>('shader.sourceDir', 'shaders', folder));
+	const srcDir = shaderSourceDir(folder);
 	const outDir = path.join(folder.uri.fsPath, getConfig<string>('shader.outputDir', 'shaders/bin', folder));
 	const vsTarget = getConfig<string>('shader.vertexTarget', 'vs_4_0', folder);
 	const psTarget = getConfig<string>('shader.pixelTarget', 'ps_4_0', folder);
 
-	const sources = listFiles(srcDir, SOURCE_EXTS);
+	let sources = listFiles(srcDir, SOURCE_EXTS);
+	if (only) {
+		// include はシェーダーのフォルダから探すので、その外のファイルはコンパイルしない
+		const inside = (f: string): boolean => {
+			const rel = path.relative(srcDir, f);
+			return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+		};
+		const outside = only.filter((f) => !inside(f));
+		if (outside.length > 0) {
+			void vscode.window.showWarningMessage(`シェーダーのフォルダ(${path.relative(folder.uri.fsPath, srcDir)})の中のファイルだけコンパイルできます: ${outside.map((f) => path.basename(f)).join(', ')}`);
+		}
+		const wanted = new Set(only.filter(inside).map((f) => path.resolve(f).toLowerCase()));
+		sources = sources.filter((f) => wanted.has(path.resolve(f).toLowerCase()));
+		if (sources.length === 0) {
+			return;
+		}
+	}
 	if (sources.length === 0) {
 		void vscode.window.showWarningMessage(`シェーダーが見つかりません: ${srcDir}`);
 		return;
@@ -155,9 +177,9 @@ export async function compileShaders(output: vscode.OutputChannel): Promise<void
 
 /** 新しいシェーダーの雛形(resources/shaders)。DxLib 3.24f の D3D11 で描画まで確認済み(2026-09-23)。 */
 export const SHADER_TEMPLATES = [
-	{ id: '2d-ps', label: 'ピクセルシェーダー(2D)', description: 'DrawPrimitive2DToShader 用', file: 'PixelShader2D.hlsl', suffix: 'PS' },
-	{ id: '3d-ps', label: 'ピクセルシェーダー(3D)', description: 'DrawPolygon3DToShader 用', file: 'PixelShader3D.hlsl', suffix: 'PS' },
-	{ id: '3d-vs', label: '頂点シェーダー(3D)', description: 'DrawPolygon3DToShader 用。2D では使われない', file: 'VertexShader.hlsl', suffix: 'VS' },
+	{ id: '2d-ps', label: 'ピクセルシェーダー(2D)', description: 'DrawPrimitive2DToShader 用', file: 'PixelShader2D.hlsl', suffix: '_2DPS' },
+	{ id: '3d-ps', label: 'ピクセルシェーダー(3D)', description: 'DrawPolygon3DToShader 用', file: 'PixelShader3D.hlsl', suffix: '_3DPS' },
+	{ id: '3d-vs', label: '頂点シェーダー(3D)', description: 'DrawPolygon3DToShader 用。2D では使われない', file: 'VertexShader.hlsl', suffix: '_3DVS' },
 ] as const;
 
 export type ShaderTemplateInfo = (typeof SHADER_TEMPLATES)[number];

@@ -16,6 +16,8 @@ public class DxLibWin32 {
 	[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 	[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 	[DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+	[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+	[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint f, UIntPtr e);
 	public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 }
 "@
@@ -40,8 +42,20 @@ foreach ($c in $candidates) {
 if (-not $target) { throw "No process with a visible window was found" }
 
 $hwnd = $target.MainWindowHandle
-[DxLibWin32]::ShowWindow($hwnd, 9) | Out-Null   # SW_RESTORE
-[DxLibWin32]::SetForegroundWindow($hwnd) | Out-Null
+# Windows ignores SetForegroundWindow from a background process. Without the test window
+# in front, CopyFromScreen captured whatever was there (the user's own VSCode, 2026-09-25).
+# Same approach as test/ui/ui.ps1: tap ALT only when not yet in front, then ESC to leave the menu bar.
+for ($i = 0; $i -lt 10; $i++) {
+	if ([DxLibWin32]::GetForegroundWindow() -eq $hwnd) { break }
+	[DxLibWin32]::ShowWindow($hwnd, 9) | Out-Null   # SW_RESTORE
+	[DxLibWin32]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [DxLibWin32]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+	[DxLibWin32]::SetForegroundWindow($hwnd) | Out-Null
+	Start-Sleep -Milliseconds 150
+	[DxLibWin32]::keybd_event(0x1B, 0, 0, [UIntPtr]::Zero); [DxLibWin32]::keybd_event(0x1B, 0, 2, [UIntPtr]::Zero)
+	Start-Sleep -Milliseconds 100
+}
+# Refuse to capture rather than capture someone else's screen.
+if ([DxLibWin32]::GetForegroundWindow() -ne $hwnd) { throw "The test window could not be brought to the front; not capturing" }
 Start-Sleep -Milliseconds 400
 
 $rect = New-Object DxLibWin32+RECT

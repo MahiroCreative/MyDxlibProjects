@@ -12,10 +12,11 @@ import { detectVisualStudio, installerSetupPath, workloadInstallArgs } from './e
 import { invalidateDxLibIndex, registerDxLibHover } from './hover/dxlibHover';
 import { DxLibConfigurationProvider } from './intellisense/configProvider';
 import { DxLibPanelProvider } from './panel/panelView';
+import { DxLibProjectViewProvider } from './panel/projectView';
 import { createProject, CreateProjectArgs, defaultCreateLocation } from './project/createProject';
 import { saveAsTemplateWork, SaveTemplateArgs } from './project/saveAsTemplate';
 import { listTemplates, TemplateInfo } from './project/templates';
-import { compileShaders, createShaderFile, NewShaderArgs } from './shader/compileShaders';
+import { compileShaders, createShaderFile, NewShaderArgs, shaderSourceDir } from './shader/compileShaders';
 import { buildStartProcessScript, launchElevated } from './util/exec';
 
 const DEBUG_LAUNCH_NAME = 'DxLib: デバッグ実行 (Debug)';
@@ -87,6 +88,31 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 		configProvider,
 		// ビルドエラーの赤線(直し始めたら消す)
 		new BuildDiagnostics((task) => buildLogPathOfTask(context, task)),
+	);
+
+	// エクスプローラーの「DxLib」欄(DESIGN.md 3.1 章)。プロジェクトの操作とそのフォームはここ。
+	const projectView = new DxLibProjectViewProvider(context);
+	context.subscriptions.push(vscode.window.registerWebviewViewProvider(DxLibProjectViewProvider.viewType, projectView));
+
+	// 欄と右クリックのメニューの表示条件。dxlib.isProject: DxLib プロジェクトを開いているか。
+	// dxlib.shaderFolders: シェーダーのフォルダのパス(when の「resourcePath in ...」で使う。ドライブ文字の大小の両方)。
+	const updateContext = (): void => {
+		const folder = currentFolder();
+		const isProject = !!folder && isDxLibProject(folder);
+		void vscode.commands.executeCommand('setContext', 'dxlib.isProject', isProject);
+		const folders: Record<string, true> = {};
+		if (folder && isProject) {
+			const dir = shaderSourceDir(folder);
+			folders[dir] = true;
+			folders[dir.charAt(0).toLowerCase() + dir.slice(1)] = true;
+			folders[dir.charAt(0).toUpperCase() + dir.slice(1)] = true;
+		}
+		void vscode.commands.executeCommand('setContext', 'dxlib.shaderFolders', folders);
+	};
+	updateContext();
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(updateContext),
+		vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration('dxlib.shader') && updateContext()),
 	);
 
 	// 以前の版で作ったプロジェクトの設定を今の形に直す
@@ -294,8 +320,21 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 
 	register('dxlib.compileShaders', () => compileShaders(output));
 
+	// エクスプローラーの右クリック「このシェーダーをコンパイル」。複数選択のときは 2 つ目の引数に全部が来る。
+	register('dxlib.compileShaderFile', async (arg?: unknown, all?: unknown) => {
+		const uris = (Array.isArray(all) && all.length > 0 ? all : [arg]).filter((u): u is vscode.Uri => u instanceof vscode.Uri);
+		if (uris.length === 0) {
+			void vscode.window.showWarningMessage('エクスプローラーでシェーダーのファイルを右クリックして使ってください。');
+			return;
+		}
+		await compileShaders(output, uris.map((u) => u.fsPath));
+	});
+
+	register('dxlib.showProjectView', () => vscode.commands.executeCommand(`${DxLibProjectViewProvider.viewType}.focus`));
+
 	register('dxlib.newShaderFile', async (arg?: unknown) => {
-		const args = arg as NewShaderArgs | undefined;
+		// エクスプローラーの右クリックからはフォルダの Uri が来る。そのときはフォームを開く。
+		const args = arg instanceof vscode.Uri ? undefined : (arg as NewShaderArgs | undefined);
 		if (args) {
 			const result = await createShaderFile(context.extensionPath, args);
 			if (!result.ok) {
@@ -303,7 +342,6 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 				return;
 			}
 			await vscode.window.showTextDocument(vscode.Uri.file(result.file as string));
-			await panel.refresh();
 			return;
 		}
 		// 引数なし(コマンドパレット等からの呼び出し): フォームを開く前に、開く意味があるかだけ確認する。
@@ -311,7 +349,7 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			void vscode.window.showWarningMessage('プロジェクトのフォルダが開かれていません。');
 			return;
 		}
-		await panel.showNewShaderForm();
+		await projectView.showNewShaderForm();
 	});
 
 	register('dxlib.saveAsTemplate', async (arg?: unknown) => {
@@ -323,7 +361,7 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 				return;
 			}
 			void vscode.window.showInformationMessage(`テンプレートとして保存しました(${result.count} ファイル): ${result.dest}`);
-			await panel.refresh();
+			await panel.refresh(); // パネルの作成フォームのテンプレート一覧を更新
 			return;
 		}
 		// 引数なし: フォームを開く前に、開いても使えない状態(フォルダ未指定)を先に案内する。
@@ -340,7 +378,7 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			}
 			return;
 		}
-		await panel.showSaveTemplateForm();
+		await projectView.showSaveTemplateForm();
 	});
 
 	register('dxlib.createDefinition', async () => {
@@ -410,8 +448,8 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 		listTemplates: () => listTemplates(context, getConfig<string>('templatesPath', '')),
 		defaultCreateLocation: () => defaultCreateLocation(context),
 		showCreateForm: (location) => panel.showCreateForm(location),
-		showNewShaderForm: () => panel.showNewShaderForm(),
-		showSaveTemplateForm: () => panel.showSaveTemplateForm(),
+		showNewShaderForm: () => projectView.showNewShaderForm(),
+		showSaveTemplateForm: () => projectView.showSaveTemplateForm(),
 		workloadInstallArgs,
 		buildStartProcessScript,
 	};
