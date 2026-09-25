@@ -5,7 +5,8 @@
 //   段階 6: C/C++ 拡張が DxLib 拡張より後から入る順番
 //   段階 7: 制限モード(信頼されていないフォルダ)
 //   段階 8: C/C++ Extension Pack(CMake Tools を含む)を入れた状態
-// 使い方: node test/runTest.js <作業フォルダ> <SDK フォルダ> [--phase6-only | --phase7-only | --phase8-only]
+//   段階 9: Visual Studio で作ったプロジェクトを開く
+// 使い方: node test/runTest.js <作業フォルダ> <SDK フォルダ> [--phase3-only | --phase6-only | --phase7-only | --phase8-only | --phase9-only]
 //   --phaseN-only は、全段階を 1 回通した作業フォルダでその段階だけを走らせる
 const fs = require('fs');
 const path = require('path');
@@ -26,6 +27,9 @@ async function main() {
 	const only6 = process.argv[4] === '--phase6-only';
 	const only7 = process.argv[4] === '--phase7-only';
 	const only8 = process.argv[4] === '--phase8-only';
+	// 見た目だけの修正(Webview の HTML・CSS、文言)の確認用。スクリーンショットを撮るだけ(HANDOFF.md 3 章)
+	const only3 = process.argv[4] === '--phase3-only';
+	const only9 = process.argv[4] === '--phase9-only';
 	const extDev = path.resolve(__dirname, '..');
 	const userData = path.join(work, 'user-data');
 	const extDir = path.join(work, 'extensions');
@@ -53,11 +57,21 @@ async function main() {
 	const baseArgs = ['--user-data-dir', userData, '--extensions-dir', extDir, '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust'];
 
 	const project = path.join(projects, 'TestGame');
-	if (only6 || only7 || only8) {
+	if (only9) {
+		await phase9(common, baseArgs, projects, sdk);
+		checkDisposeErrors(work, startedAt);
+		console.log('[runTest] 完了');
+		return;
+	}
+	if (only3 || only6 || only7 || only8) {
 		if (!fs.existsSync(project)) {
-			throw new Error('段階 6〜8 だけを走らせるには、先に全段階を 1 回通して TestGame を作っておく');
+			throw new Error('段階 3・6〜8 だけを走らせるには、先に全段階を 1 回通して TestGame を作っておく');
 		}
-		if (only6) {
+		if (only3) {
+			console.log('[runTest] 段階 3(見た目のスクリーンショット)');
+			common.extensionTestsEnv.DXLIB_TEST_PHASE3_ONLY = '1';
+			await runTests({ ...common, extensionTestsPath: path.join(__dirname, 'suite', 'phase3.js'), launchArgs: [...baseArgs, project] });
+		} else if (only6) {
 			await phase6(common, userData, project, work);
 		} else if (only7) {
 			await phase7(common, extDir, project, work, sdk);
@@ -90,6 +104,7 @@ async function main() {
 	await phase6(common, userData, project, work);
 	await phase7(common, extDir, project, work, sdk);
 	await phase8(common, extDir, userData, project, work);
+	await phase9(common, baseArgs, projects, sdk);
 
 	checkDisposeErrors(work, startedAt);
 	console.log('[runTest] 完了');
@@ -130,6 +145,19 @@ function checkDisposeErrors(work, startedAt) {
 	}
 }
 
+// 段階 9: Visual Studio で作ったプロジェクトを開く(DESIGN.md 6.1 章)。
+// VS 2026 の空のプロジェクトと同じ形の試験用プロジェクト(test/fixtures/VsGame)を作業フォルダに写し、
+// DxLib の場所(__DXLIB_DIR__)を SDK に置き換えてから開く。
+async function phase9(common, baseArgs, projects, sdk) {
+	const dest = path.join(projects, 'VsGame');
+	fs.rmSync(dest, { recursive: true, force: true });
+	fs.cpSync(path.join(__dirname, 'fixtures', 'VsGame'), dest, { recursive: true });
+	const vcx = path.join(dest, 'VsGame.vcxproj');
+	fs.writeFileSync(vcx, fs.readFileSync(vcx, 'utf8').split('__DXLIB_DIR__').join(sdk), 'utf8');
+	console.log('[runTest] 段階 9(Visual Studio で作ったプロジェクト)');
+	await runTests({ ...common, extensionTestsPath: path.join(__dirname, 'suite', 'phase9.js'), launchArgs: [...baseArgs, dest] });
+}
+
 // 段階 8: C/C++ Extension Pack(CMake Tools を含む)を入れた状態でも動くか。
 // 生徒が VSCode のおすすめに従って入れてしまった場合を想定する。
 async function phase8(common, mainExtDir, userData, project, work) {
@@ -148,9 +176,18 @@ async function phase8(common, mainExtDir, userData, project, work) {
 		t.problemMatcher = ['$msCompile'];
 	}
 	fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, '\t') + '\n');
-	// .clang-format も当初の版(UseTab: Always)に戻す(DESIGN.md 10 章)
-	const clangFormatV1 = ['BasedOnStyle: Microsoft', 'UseTab: Always', 'IndentWidth: 4', 'TabWidth: 4', 'BreakBeforeBraces: Allman', 'ColumnLimit: 0', 'AllowShortFunctionsOnASingleLine: Empty', 'AllowShortIfStatementsOnASingleLine: WithoutElse', 'PointerAlignment: Left', 'SortIncludes: false', 'NamespaceIndentation: All', ''];
-	fs.writeFileSync(path.join(project, '.clang-format'), clangFormatV1.join('\r\n'));
+	// .clang-format も以前の版(2026-09-24 版。AccessModifierOffset なし)に戻す(DESIGN.md 10 章)
+	const clangFormatV2 = ['BasedOnStyle: Microsoft', 'UseTab: ForIndentation', 'IndentWidth: 4', 'TabWidth: 4', 'BreakBeforeBraces: Allman', 'ColumnLimit: 0', 'AllowShortFunctionsOnASingleLine: Empty', 'AllowShortIfStatementsOnASingleLine: WithoutElse', 'PointerAlignment: Left', 'SortIncludes: false', 'NamespaceIndentation: All', 'AlignConsecutiveBitFields: Consecutive', ''];
+	fs.writeFileSync(path.join(project, '.clang-format'), clangFormatV2.join('\r\n'));
+	// settings.json も以前の形(C/C++ 拡張の ▶ を消す設定なし)に戻す(DESIGN.md 3.2 章)
+	const settingsFile = path.join(project, '.vscode', 'settings.json');
+	const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+	delete settings['C_Cpp.debugShortcut'];
+	fs.writeFileSync(settingsFile, JSON.stringify(settings, null, '\t') + '\n');
+	// MSBuild 用のファイルが無い、cl.exe 時代のプロジェクトにする(DESIGN.md 6 章)
+	for (const f of ['TestGame.vcxproj', 'TestGame.sln', 'dxlib.props']) {
+		fs.rmSync(path.join(project, f), { force: true });
+	}
 	console.log('[runTest] 段階 8(C/C++ Extension Pack あり)');
 	await runTests({
 		...common,

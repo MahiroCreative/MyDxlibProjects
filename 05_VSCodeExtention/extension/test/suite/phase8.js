@@ -50,11 +50,25 @@ exports.run = async function () {
 		return { ok: !!migrated, detail: JSON.stringify(read()) };
 	});
 
-	// runTest.js が .clang-format を当初の版(UseTab: Always、CRLF)に戻してから開いている
-	await r.step('当初の版の .clang-format は、開いたときに今の形(UseTab: ForIndentation)に直る', async () => {
+	// runTest.js が .clang-format を以前の版(2026-09-24 版、CRLF)に戻してから開いている
+	await r.step('以前の版の .clang-format は、開いたときに今の形(AccessModifierOffset: -4 あり)に直る', async () => {
 		const read = () => fs.readFileSync(path.join(proj, '.clang-format'), 'utf8');
-		const migrated = await waitFor(() => /^UseTab: ForIndentation$/m.test(read()) && /^AlignConsecutiveBitFields: Consecutive$/m.test(read()) && !/UseTab: Always/.test(read()), 10000);
+		const migrated = await waitFor(() => /^UseTab: ForIndentation$/m.test(read()) && /^AccessModifierOffset: -4$/m.test(read()), 10000);
 		return { ok: !!migrated, detail: read().replace(/\r?\n/g, ' / ') };
+	});
+
+	// runTest.js が .vcxproj・.sln・dxlib.props を消してから開いている(cl.exe 時代のプロジェクト)
+	await r.step('以前の版のプロジェクト(.vcxproj なし)は、開いたときに .vcxproj・.sln・dxlib.props ができる', async () => {
+		const files = ['TestGame.vcxproj', 'TestGame.sln', 'dxlib.props'];
+		const made = await waitFor(() => files.every((f) => fs.existsSync(path.join(proj, f))), 10000);
+		return { ok: !!made, detail: files.map((f) => `${f}=${fs.existsSync(path.join(proj, f))}`).join(' ') };
+	});
+
+	// runTest.js が settings.json から C_Cpp.debugShortcut を消してから開いている
+	await r.step('以前の版の settings.json には、開いたときに C/C++ 拡張の ▶ を消す設定が足される', async () => {
+		const read = () => JSON.parse(fs.readFileSync(path.join(proj, '.vscode', 'settings.json'), 'utf8'));
+		const migrated = await waitFor(() => read()['C_Cpp.debugShortcut'] === false, 10000);
+		return { ok: !!migrated, detail: `C_Cpp.debugShortcut=${read()['C_Cpp.debugShortcut']}` };
 	});
 	const sdk = vscode.workspace.getConfiguration('dxlib').get('sdkPath');
 

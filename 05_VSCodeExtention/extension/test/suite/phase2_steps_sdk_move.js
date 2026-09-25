@@ -153,16 +153,16 @@ module.exports = async function (r, { api, proj, waitTaskEnd }) {
 			return { ok: env.sdk && env.sdk.ok && env.sdk.version === '3.24f' && samePath(env.sdkPath, sdkB), detail: `ok=${env.sdk && env.sdk.ok} ver=${env.sdk && env.sdk.version} / ${msgs.join(' / ')}` };
 		});
 
-		await r.step('SDK の移動: B で Debug ビルドが通る(ビルド用 bat も B を指す)', async () => {
+		await r.step('SDK の移動: B で Debug ビルドが通る(MSBuild が読む dxlib.props も B を指す)', async () => {
 			fs.rmSync(exe, { force: true });
 			const res = await buildDebug();
-			const batDir = path.join(process.env.DXLIB_USER_DATA_DIR, 'User', 'globalStorage', 'mahirocreative.dxlib-devenv', 'build');
-			const bat = fs.readdirSync(batDir).find((n) => n.startsWith('TestGame_') && n.endsWith('_debug.bat'));
-			const text = bat ? fs.readFileSync(path.join(batDir, bat), 'utf8') : '';
+			// SDK の場所は dxlib.props に書く(DESIGN.md 6 章)。Visual Studio で開いたときも同じ場所を使う
+			const props = path.join(proj, 'dxlib.props');
+			const text = fs.existsSync(props) ? fs.readFileSync(props, 'utf8') : '';
 			// 「変更」から保存されるパスはドライブ文字が小文字のことがあるので、大文字小文字を無視して比べる
-			const m = text.match(/^set "SDK=(.*)"\r?$/m);
+			const m = text.match(/<DxLibDir>(.*)<\/DxLibDir>/);
 			const pointsB = !!m && samePath(m[1], sdkB);
-			return { ok: res.exitCode === 0 && fs.existsSync(exe) && pointsB, detail: `${JSON.stringify(res)} exe=${fs.existsSync(exe)} bat が B を指す=${pointsB}` };
+			return { ok: res.exitCode === 0 && fs.existsSync(exe) && pointsB, detail: `${JSON.stringify(res)} exe=${fs.existsSync(exe)} dxlib.props が B を指す=${pointsB}` };
 		});
 
 		await r.step('SDK の移動: B でシェーダーのコンパイルが通る', async () => {

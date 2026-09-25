@@ -1,20 +1,26 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { currentFolder, projectExeName } from '../env/environment';
+import { CppFileKind, KIND_LABEL } from '../project/newFiles';
 import { SaveTemplateArgs } from '../project/saveAsTemplate';
 import { NewShaderArgs, SHADER_TEMPLATES } from '../shader/compileShaders';
 import { BASE_CSS, makeNonce } from './webviewCommon';
 
 /**
  * エクスプローラーの「DxLib」欄(DESIGN.md 3.1 章)。
- * プロジェクトの操作(ビルド・実行・デバッグ実行・シェーダー・テンプレート保存)のボタンと、
- * 「新しいシェーダー」「テンプレートとして保存」のフォームを置く。
+ * ソースコード(.cpp・.h・クラスの作成)・シェーダー(作成・すべてコンパイル)・テンプレート保存のボタンと、
+ * 「C++ のファイルを作成」「新しいシェーダー」「テンプレートとして保存」のフォームを置く。
+ * ファイルの作成は、右クリック・見出しのボタンから呼んでも、この欄のフォームで名前を聞く(DESIGN.md 3.2 章。
+ * 画面上部の入力欄は生徒が UI と認識しにくいので使わない)。ビルド・実行・デバッグ実行はエディタ右上。
  * DxLib プロジェクトを開いていて信頼されているときだけ表示される(package.json の when)。
  */
 export class DxLibProjectViewProvider implements vscode.WebviewViewProvider {
 	static readonly viewType = 'dxlib.projectView';
 	private view: vscode.WebviewView | undefined;
 	/** 欄がまだ作られていないうちに頼まれたフォーム。作られたら開く。 */
-	private pendingForm: 'shader' | 'template' | undefined;
+	private pendingForm: FormRequest | undefined;
+	/** 最後に頼まれたフォーム(検証用)。 */
+	lastFormRequest: FormRequest | undefined;
 
 	constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -33,25 +39,33 @@ export class DxLibProjectViewProvider implements vscode.WebviewViewProvider {
 		};
 	}
 
-	private async openForm(form: 'shader' | 'template'): Promise<void> {
+	private async openForm(request: FormRequest): Promise<void> {
 		// 欄を表示する(エクスプローラーを開き、欄を展開してフォーカス)。
 		// 欄の中身は隠れている間に作り直されることがあり、そのとき送った指示は届かない。
 		// 欄から「開いた」(formOpened)が返るまで持っておき、作り直されたら(ready)改めて送る。
-		this.pendingForm = form;
+		this.pendingForm = request;
+		this.lastFormRequest = request;
 		await vscode.commands.executeCommand(`${DxLibProjectViewProvider.viewType}.focus`);
 		if (this.view?.visible) {
-			void this.view.webview.postMessage({ type: 'openForm', form, state: this.state() });
+			void this.view.webview.postMessage({ type: 'openForm', ...request, state: this.state() });
 		}
 	}
 
 	/** 「新しいシェーダー」フォームを開く。 */
 	async showNewShaderForm(): Promise<void> {
-		await this.openForm('shader');
+		await this.openForm({ form: 'shader' });
 	}
 
 	/** 「テンプレートとして保存」フォームを開く。 */
 	async showSaveTemplateForm(): Promise<void> {
-		await this.openForm('template');
+		await this.openForm({ form: 'template' });
+	}
+
+	/** 「C++ のファイルを作成」フォームを開く(.cpp・.h・クラス)。folder は作る場所。 */
+	async showCppForm(kind: CppFileKind, folder: string): Promise<void> {
+		const project = currentFolder();
+		const place = project ? path.relative(project.uri.fsPath, folder) || '.' : folder;
+		await this.openForm({ form: 'cpp', kind, title: `${KIND_LABEL[kind]}を作成`, folder, place });
 	}
 
 	private async onMessage(m: { command: string; args?: unknown }): Promise<void> {
@@ -59,12 +73,19 @@ export class DxLibProjectViewProvider implements vscode.WebviewViewProvider {
 			case 'ready':
 				void this.view?.webview.postMessage({ type: 'status', state: this.state() });
 				if (this.pendingForm) {
-					void this.view?.webview.postMessage({ type: 'openForm', form: this.pendingForm, state: this.state() });
+					void this.view?.webview.postMessage({ type: 'openForm', ...this.pendingForm, state: this.state() });
 				}
 				return;
 			case 'formOpened':
 				this.pendingForm = undefined;
 				return;
+			case 'newCppFiles': {
+				// フォームの送信。コマンドに名前と場所を渡すと作る(newFiles.ts)
+				const a = m.args as { kind: CppFileKind; name: string; folder: string };
+				const id = a.kind === 'cpp' ? 'dxlib.newCppSource' : a.kind === 'h' ? 'dxlib.newHeader' : 'dxlib.newClass';
+				await vscode.commands.executeCommand(id, { name: a.name, folder: a.folder });
+				return;
+			}
 			case 'newShaderFile':
 				await vscode.commands.executeCommand('dxlib.newShaderFile', m.args as NewShaderArgs);
 				return;
@@ -75,11 +96,11 @@ export class DxLibProjectViewProvider implements vscode.WebviewViewProvider {
 				await this.showNewShaderForm();
 				return;
 			case 'openTemplateForm':
-				// テンプレートフォルダの確認などは、コマンドの入口(引数なし)で行う
+				// プロジェクトが開いているかの確認は、コマンドの入口(引数なし)で行う
 				await vscode.commands.executeCommand('dxlib.saveAsTemplate');
 				return;
 			default:
-				// build / run / debug / compileShaders
+				// newCppSource / newHeader / newClass / addShader(引数なし = フォームを開く)/ compileShaders
 				await vscode.commands.executeCommand(`dxlib.${m.command}`);
 		}
 	}
@@ -94,27 +115,48 @@ export class DxLibProjectViewProvider implements vscode.WebviewViewProvider {
 <style>
 ${BASE_CSS}
 	body { padding-top: 4px; }
+	/* 見出しを左、ボタンを右に並べる(3 行に収める) */
+	.rows { display: grid; grid-template-columns: max-content 1fr; column-gap: 8px; row-gap: 6px; align-items: center; margin-top: 6px; }
+	.row-label { font-size: 11px; opacity: 0.8; white-space: nowrap; }
+	.row-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+	/* 欄の幅が狭くても 1 行に収まるよう、ボタンの左右の余白を少し詰める */
+	.row-buttons button { padding: 4px 7px; }
 	h2:first-child { margin-top: 4px; }
-	#shader-form, #template-form { display: none; }
+	#shader-form, #template-form, #cpp-form { display: none; }
+	/* C++ のファイルの作成: 小さい欄に収まるよう、名前とボタンを 1 行に並べる */
+	.form-title { font-size: 12px; font-weight: 600; margin: 6px 0 4px; }
+	.inline-row { display: flex; gap: 4px; align-items: center; }
+	.inline-row input { flex: 1; min-width: 60px; margin: 0; }
 </style>
 </head>
 <body>
 	<div id="main">
-		<h2>ビルド・実行</h2>
-		<div class="actions">
-			<button data-cmd="build">ビルド</button>
-			<button data-cmd="run">実行</button>
-			<button data-cmd="debug">デバッグ実行</button>
+		<!-- ビルド・実行・デバッグ実行はエディタ右上、ファイルの追加は右クリックと見出しのボタンにもある(DESIGN.md 3.1・3.2 章)。
+		     欄は小さく、拡張からは広げられないので、見出しを行の左に置いて 3 行に収める。 -->
+		<div class="rows">
+			<div class="row-label">ソースコード</div>
+			<div class="row-buttons">
+				<button data-cmd="newCppSource" title="C++ ソース (.cpp) を作成">.cpp</button>
+				<button data-cmd="newHeader" title="ヘッダー (.h) を作成">.h</button>
+				<button data-cmd="newClass" title="クラス (.h と .cpp の組) を作成">クラス</button>
+			</div>
+			<div class="row-label">シェーダー</div>
+			<div class="row-buttons">
+				<button data-cmd="addShader" title="シェーダーを作成(shaders に作る)">作成</button>
+				<button data-cmd="compileShaders" title="shaders のシェーダーをすべてコンパイル">すべてコンパイル</button>
+			</div>
+			<div class="row-label">テンプレート</div>
+			<div class="row-buttons">
+				<button id="btn-open-template-form" title="今開いているプロジェクトをテンプレートとして保存">保存</button>
+			</div>
 		</div>
-		<h2>シェーダー</h2>
-		<div class="actions">
-			<button class="secondary" id="btn-open-shader-form">新しいシェーダー</button>
-			<button class="secondary" data-cmd="compileShaders">すべてコンパイル</button>
-		</div>
-		<h2>テンプレート</h2>
-		<div class="actions">
-			<button class="secondary" id="btn-open-template-form">テンプレートとして保存</button>
-		</div>
+	</div>
+
+	<div id="cpp-form">
+		<div class="form-title" id="cf-title"></div>
+		<div class="inline-row"><input type="text" id="cf-name" placeholder="名前(例: Player)"><button id="btn-cpp-create">作成</button><button class="secondary" id="btn-cpp-cancel">キャンセル</button></div>
+		<div class="hint" id="cf-file"></div>
+		<div class="error" id="cf-error"></div>
 	</div>
 
 	<div id="shader-form">
@@ -148,11 +190,42 @@ ${BASE_CSS}
 	document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => vscode.postMessage({ command: b.dataset.cmd })));
 
 	function showScreen(name) {
-		for (const id of ['main', 'shader-form', 'template-form']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
+		for (const id of ['main', 'shader-form', 'template-form', 'cpp-form']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
 	}
 
-	// --- 新しいシェーダー ------------------------------------------------------
-	$('btn-open-shader-form').addEventListener('click', () => vscode.postMessage({ command: 'openShaderForm' }));
+	// --- C++ のファイルの作成(.cpp・.h・クラス) ----------------------------------
+	let cpp = { kind: 'cpp', folder: '', place: '' };
+	const NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+	function cppFiles(name) {
+		const n = name || '(名前)';
+		const dir = cpp.place === '.' ? '' : cpp.place + String.fromCharCode(92); // 「¥」の区切り(テンプレート文字列の中なので文字コードで書く)
+		if (cpp.kind === 'cpp') { return dir + n + '.cpp'; }
+		if (cpp.kind === 'h') { return dir + n + '.h'; }
+		return dir + n + '.h と ' + dir + n + '.cpp';
+	}
+	function updateCppPreview() { $('cf-file').textContent = '作る場所: ' + cppFiles($('cf-name').value.trim()); }
+	function openCppForm(m) {
+		cpp = { kind: m.kind, folder: m.folder, place: m.place };
+		$('cf-title').textContent = m.title;
+		$('cf-name').value = '';
+		$('cf-error').textContent = '';
+		showScreen('cpp-form');
+		updateCppPreview();
+		$('cf-name').focus();
+	}
+	function submitCpp() {
+		const name = $('cf-name').value.trim();
+		if (!NAME_RE.test(name)) { $('cf-error').textContent = '名前は英数字とアンダースコアだけで、先頭は英字か _ にしてください。'; return; }
+		$('cf-error').textContent = '';
+		showScreen('main');
+		vscode.postMessage({ command: 'newCppFiles', args: { kind: cpp.kind, name, folder: cpp.folder } });
+	}
+	$('cf-name').addEventListener('input', updateCppPreview);
+	$('cf-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { submitCpp(); } else if (e.key === 'Escape') { showScreen('main'); } });
+	$('btn-cpp-create').addEventListener('click', submitCpp);
+	$('btn-cpp-cancel').addEventListener('click', () => showScreen('main'));
+
+	// --- 新しいシェーダー(欄の [作成]・右クリック・見出しのボタンから開く) ---------
 	$('btn-shader-cancel').addEventListener('click', () => showScreen('main'));
 	$('btn-shader-create').addEventListener('click', () => {
 		const name = $('sf-name').value.trim();
@@ -215,7 +288,7 @@ ${BASE_CSS}
 		const m = e.data;
 		if (m.state) { state = m.state; }
 		if (m.type === 'openForm') {
-			if (m.form === 'shader') { openShaderForm(); } else { openTemplateForm(); }
+			if (m.form === 'shader') { openShaderForm(); } else if (m.form === 'cpp') { openCppForm(m); } else { openTemplateForm(); }
 			vscode.postMessage({ command: 'formOpened' });
 		}
 	});
@@ -225,3 +298,9 @@ ${BASE_CSS}
 </html>`;
 	}
 }
+
+/** 欄に開くフォーム。cpp のときは種類と作る場所(folder は絶対パス、place はプロジェクトからの相対の表示用)。 */
+export type FormRequest =
+	| { form: 'shader' }
+	| { form: 'template' }
+	| { form: 'cpp'; kind: CppFileKind; title: string; folder: string; place: string };

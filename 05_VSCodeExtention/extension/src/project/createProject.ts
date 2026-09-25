@@ -4,7 +4,8 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfig, SDK_FIX_HINT, sdkProblem } from '../env/environment';
 import { copyProjectTree, isEmptyDir, writeText } from '../util/fsx';
-import { findTemplate } from './templates';
+import { ensureProjectFiles } from '../build/vcxproj';
+import { addRecentTemplate, findTemplate, templateSourceDir } from './templates';
 
 export const PROJECT_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export const PLACEHOLDER = '__PROJECT_NAME__';
@@ -14,7 +15,8 @@ export const CONFIG_PROVIDER_ID = 'mahirocreative.dxlib-devenv';
  * プロジェクトに書く .clang-format(DESIGN.md 10 章)。C++ と HLSL で共通。
  * タブは字下げだけに使い、揃えは空白にする(タブと空白が混ざらない)。
  * HLSL のセマンティクスの `:` は、clang-format にはビットフィールドに見えるので AlignConsecutiveBitFields で揃う。
- * 同梱のテンプレートは、この設定で整形しても変わらない形で書く。
+ * `public:` などは class と同じ位置(Microsoft の既定 -2 だと空白 2 個の字下げになり、タブと混ざる)。
+ * 同梱のテンプレートと「ファイルを追加」の雛形は、この設定で整形しても変わらない形で書く。
  */
 export const CLANG_FORMAT = [
 	'BasedOnStyle: Microsoft',
@@ -29,11 +31,12 @@ export const CLANG_FORMAT = [
 	'SortIncludes: false',
 	'NamespaceIndentation: All',
 	'AlignConsecutiveBitFields: Consecutive',
+	'AccessModifierOffset: -4',
 	'',
 ].join('\n');
 
-/** 当初の版が書いていた .clang-format。これと完全に同じなら、開いたときに CLANG_FORMAT に書き換える。 */
-export const CLANG_FORMAT_V1 = [
+/** 当初の版が書いていた .clang-format(UseTab: Always)。 */
+const CLANG_FORMAT_V1 = [
 	'BasedOnStyle: Microsoft',
 	'UseTab: Always',
 	'IndentWidth: 4',
@@ -47,6 +50,12 @@ export const CLANG_FORMAT_V1 = [
 	'NamespaceIndentation: All',
 	'',
 ].join('\n');
+
+/** 2026-09-24 の版が書いていた .clang-format(AccessModifierOffset なし)。 */
+const CLANG_FORMAT_V2 = CLANG_FORMAT.replace('AccessModifierOffset: -4\n', '');
+
+/** 以前にこの拡張が書いた .clang-format。どれかと完全に同じなら、開いたときに CLANG_FORMAT に書き換える(手で直したものは触らない)。 */
+export const OLD_CLANG_FORMATS = [CLANG_FORMAT_V1, CLANG_FORMAT_V2];
 
 export interface CreateProjectArgs {
 	name: string;
@@ -78,20 +87,29 @@ export async function createProject(context: vscode.ExtensionContext, args: Crea
 	if (!args.location || !fs.existsSync(args.location)) {
 		throw new Error('作成先のフォルダが存在しません。');
 	}
-	const template = findTemplate(context, getConfig<string>('templatesPath', ''), args.templateId);
+	const template = findTemplate(context, args.templateId);
 	if (!template) {
-		throw new Error('テンプレートが見つかりません。');
+		throw new Error('テンプレートが見つかりません(テンプレートファイルが移動・削除されたか、テンプレートのファイルではありません)。');
 	}
 	const dest = path.join(args.location, args.name);
 	if (!isEmptyDir(dest)) {
 		throw new Error(`フォルダが既に存在します: ${dest}`);
 	}
 
-	const replaceAll = (s: string): string => s.split(PLACEHOLDER).join(args.name);
-	copyProjectTree(template.dir, dest, {
-		renameEntry: replaceAll,
-		transformText: (text) => replaceAll(text),
-	});
+	// テンプレートファイル(.dxtemplate)は一時フォルダに展開してから、同梱テンプレートと同じ手順でコピー・置換する
+	const source = templateSourceDir(template);
+	try {
+		const replaceAll = (s: string): string => s.split(PLACEHOLDER).join(args.name);
+		copyProjectTree(source.dir, dest, {
+			renameEntry: replaceAll,
+			transformText: (text) => replaceAll(text),
+		});
+	} finally {
+		source.cleanup();
+	}
+	if (!template.builtin) {
+		addRecentTemplate(context, template.source);
+	}
 	if (!fs.existsSync(path.join(dest, 'src'))) {
 		fs.mkdirSync(path.join(dest, 'src'), { recursive: true });
 	}
@@ -137,8 +155,26 @@ export function defaultCreateLocation(context: vscode.ExtensionContext): string 
 	return folder ? path.dirname(folder.uri.fsPath) : os.homedir();
 }
 
-/** .vscode 一式、.clang-format、.gitignore を書く。既存プロジェクトへの追加にも使う。 */
-export function writeProjectFiles(projectDir: string, projectName: string): void {
+/** Visual Studio で作ったプロジェクトを使えるようにするとき(DESIGN.md 6.1 章)。exe と作業フォルダは MSBuild に聞いた値。 */
+export interface VsProjectFiles {
+	vcxproj: string;
+	platform: string;
+	debug: { exe: string; cwd: string };
+	release: { exe: string; cwd: string };
+}
+
+/** プロジェクトのフォルダの中なら ${workspaceFolder} からの形にする(フォルダを動かしても使えるように)。 */
+function inWorkspace(projectDir: string, p: string): string {
+	const rel = path.relative(projectDir, p);
+	return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? `\${workspaceFolder}/${rel.replace(/\\/g, '/')}` : p;
+}
+
+/**
+ * .vscode 一式、.clang-format、.gitignore を書く。既存プロジェクトへの追加にも使う。
+ * vs を渡したとき(Visual Studio で作ったプロジェクト)は、生徒のコードの書き方を変えないよう .clang-format・.gitignore を書かず、
+ * 保存時の整形も切り、この拡張の .vcxproj も作らない(DESIGN.md 6.1 章)。
+ */
+export function writeProjectFiles(projectDir: string, projectName: string, vs?: VsProjectFiles): void {
 	const cppStandard = getConfig<string>('build.cppStandard', 'c++20');
 
 	const tasks = {
@@ -168,10 +204,10 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 				name: 'DxLib: デバッグ実行 (Debug)',
 				type: 'cppvsdbg',
 				request: 'launch',
-				program: `\${workspaceFolder}/build/Debug/${projectName}.exe`,
+				program: vs ? inWorkspace(projectDir, vs.debug.exe) : `\${workspaceFolder}/build/Debug/${projectName}.exe`,
 				args: [],
 				stopAtEntry: false,
-				cwd: '${workspaceFolder}',
+				cwd: vs ? inWorkspace(projectDir, vs.debug.cwd) : '${workspaceFolder}',
 				environment: [],
 				console: 'internalConsole',
 				preLaunchTask: 'DxLib: Debug ビルド',
@@ -180,10 +216,10 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 				name: 'DxLib: 実行 (Release)',
 				type: 'cppvsdbg',
 				request: 'launch',
-				program: `\${workspaceFolder}/build/Release/${projectName}.exe`,
+				program: vs ? inWorkspace(projectDir, vs.release.exe) : `\${workspaceFolder}/build/Release/${projectName}.exe`,
 				args: [],
 				stopAtEntry: false,
-				cwd: '${workspaceFolder}',
+				cwd: vs ? inWorkspace(projectDir, vs.release.cwd) : '${workspaceFolder}',
 				environment: [],
 				console: 'internalConsole',
 				preLaunchTask: 'DxLib: Release ビルド',
@@ -197,14 +233,14 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 			{
 				name: 'DxLib',
 				configurationProvider: CONFIG_PROVIDER_ID,
-				intelliSenseMode: 'windows-msvc-x64',
+				intelliSenseMode: vs && vs.platform !== 'x64' ? 'windows-msvc-x86' : 'windows-msvc-x64',
 				cStandard: 'c17',
 				cppStandard: cppStandard === 'c++latest' ? 'c++23' : cppStandard,
 			},
 		],
 	};
 
-	const settings = {
+	const settings: Record<string, unknown> = {
 		// BOM 付き UTF-8。BOM が無いと cl.exe が CP932 として読み、日本語コメントで壊れる。
 		'files.encoding': 'utf8bom',
 		'files.eol': '\n',
@@ -216,7 +252,15 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 		'[hlsl]': { 'editor.defaultFormatter': 'mahirocreative.dxlib-devenv' },
 		'files.associations': { '*.fx': 'hlsl', '*.hlsli': 'hlsl' },
 		'C_Cpp.default.configurationProvider': CONFIG_PROVIDER_ID,
+		// C/C++ 拡張がエディタ右上に出す ▶(C/C++ ファイルの実行)を消す。DxLib 拡張のビルド・実行と紛らわしい(DESIGN.md 3.2 章)
+		'C_Cpp.debugShortcut': false,
 	};
+	if (vs) {
+		// その .vcxproj をそのまま MSBuild でビルドする。生徒のコードの書き方は変えない(DESIGN.md 6.1 章)
+		settings['dxlib.vsProject'] = vs.vcxproj;
+		settings['dxlib.vsPlatform'] = vs.platform;
+		settings['editor.formatOnSave'] = false;
+	}
 
 	// .cpp を開くと VSCode が「C/C++ Extension Pack」を勧めてくるのを止める。
 	// Pack には CMake Tools などが入るが、このツールは cl.exe を直接呼ぶので要らない。
@@ -224,15 +268,21 @@ export function writeProjectFiles(projectDir: string, projectName: string): void
 		unwantedRecommendations: ['ms-vscode.cpptools-extension-pack'],
 	};
 
-	const gitignore = ['build/', 'Log.txt', '*.pdb', '*.ilk', '*.obj', '.vs/', ''].join('\n');
+	// dxlib.props は PC ごとの SDK の場所なので入れない(DESIGN.md 6 章)
+	const gitignore = ['build/', 'Log.txt', '*.pdb', '*.ilk', '*.obj', '.vs/', '*.vcxproj.user', 'dxlib.props', ''].join('\n');
 
 	writeText(path.join(projectDir, '.vscode', 'tasks.json'), JSON.stringify(tasks, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'launch.json'), JSON.stringify(launch, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'c_cpp_properties.json'), JSON.stringify(cppProperties, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'settings.json'), JSON.stringify(settings, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'extensions.json'), JSON.stringify(extensions, null, '\t') + '\n');
+	if (vs) {
+		return;
+	}
 	writeText(path.join(projectDir, '.clang-format'), CLANG_FORMAT);
 	if (!fs.existsSync(path.join(projectDir, '.gitignore'))) {
 		writeText(path.join(projectDir, '.gitignore'), gitignore);
 	}
+	// MSBuild / Visual Studio 用のファイル(.vcxproj・.sln・dxlib.props。DESIGN.md 6 章)
+	ensureProjectFiles(projectDir, projectName, getConfig<string>('sdkPath', ''), cppStandard);
 }

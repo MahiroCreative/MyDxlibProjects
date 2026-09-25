@@ -72,12 +72,6 @@
         "enablement": "isWorkspaceTrusted"
       },
       {
-        "command": "dxlib.selectTemplatesDir",
-        "title": "テンプレートフォルダを指定",
-        "category": "DxLib",
-        "enablement": "isWorkspaceTrusted"
-      },
-      {
         "command": "dxlib.createProject",
         "title": "新規プロジェクト作成",
         "category": "DxLib",
@@ -87,19 +81,22 @@
         "command": "dxlib.build",
         "title": "ビルド (Debug)",
         "category": "DxLib",
-        "enablement": "isWorkspaceTrusted"
+        "enablement": "isWorkspaceTrusted",
+        "icon": "$(tools)"
       },
       {
         "command": "dxlib.run",
         "title": "実行",
         "category": "DxLib",
-        "enablement": "isWorkspaceTrusted"
+        "enablement": "isWorkspaceTrusted",
+        "icon": "$(play)"
       },
       {
         "command": "dxlib.debug",
         "title": "デバッグ実行",
         "category": "DxLib",
-        "enablement": "isWorkspaceTrusted"
+        "enablement": "isWorkspaceTrusted",
+        "icon": "$(debug-alt)"
       },
       {
         "command": "dxlib.compileShaders",
@@ -165,6 +162,35 @@
         "title": "このシェーダーをコンパイル",
         "category": "DxLib",
         "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.newCppSource",
+        "title": "C++ ソース (.cpp) を追加...",
+        "icon": "$(file-code)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.newHeader",
+        "title": "ヘッダー (.h) を追加...",
+        "icon": "$(file-text)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.newClass",
+        "title": "クラス (.h と .cpp) を追加...",
+        "icon": "$(symbol-class)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.addShader",
+        "title": "シェーダーを追加...",
+        "icon": "$(symbol-color)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.adoptVsProject",
+        "title": "Visual Studio のプロジェクトを DxLib 拡張で使えるようにする",
+        "enablement": "isWorkspaceTrusted"
       }
     ],
     "keybindings": [
@@ -189,14 +215,9 @@
       ],
       "explorer/context": [
         {
-          "command": "dxlib.createProject",
-          "when": "explorerResourceIsFolder",
-          "group": "dxlib@1"
-        },
-        {
-          "command": "dxlib.newShaderFile",
-          "when": "explorerResourceIsFolder && dxlib.isProject && resourcePath in dxlib.shaderFolders",
-          "group": "dxlib@2"
+          "submenu": "dxlib.explorerNew",
+          "when": "explorerResourceIsFolder && dxlib.isProject && (resourcePath in dxlib.cppFolders || resourcePath in dxlib.shaderFolders)",
+          "group": "navigation@10"
         },
         {
           "command": "dxlib.compileShaders",
@@ -217,6 +238,67 @@
         {
           "command": "dxlib.compileShaderFile",
           "when": "false"
+        }
+      ],
+      "dxlib.explorerNew": [
+        {
+          "command": "dxlib.newCppSource",
+          "when": "resourcePath in dxlib.cppFolders",
+          "group": "1_cpp@1"
+        },
+        {
+          "command": "dxlib.newHeader",
+          "when": "resourcePath in dxlib.cppFolders",
+          "group": "1_cpp@2"
+        },
+        {
+          "command": "dxlib.newClass",
+          "when": "resourcePath in dxlib.cppFolders",
+          "group": "1_cpp@3"
+        },
+        {
+          "command": "dxlib.addShader",
+          "when": "resourcePath in dxlib.shaderFolders",
+          "group": "2_shader@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "dxlib.newCppSource",
+          "when": "view == workbench.explorer.fileView && dxlib.isProject",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dxlib.newHeader",
+          "when": "view == workbench.explorer.fileView && dxlib.isProject",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dxlib.newClass",
+          "when": "view == workbench.explorer.fileView && dxlib.isProject",
+          "group": "navigation@3"
+        },
+        {
+          "command": "dxlib.addShader",
+          "when": "view == workbench.explorer.fileView && dxlib.isProject",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "dxlib.build",
+          "when": "dxlib.isProject",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dxlib.run",
+          "when": "dxlib.isProject",
+          "group": "navigation@2"
+        },
+        {
+          "command": "dxlib.debug",
+          "when": "dxlib.isProject",
+          "group": "navigation@3"
         }
       ]
     },
@@ -246,12 +328,6 @@
           "default": "",
           "scope": "machine",
           "description": "DxLib SDK の「プロジェクトに追加すべきファイル_VC用」フォルダの絶対パス。"
-        },
-        "dxlib.templatesPath": {
-          "type": "string",
-          "default": "",
-          "scope": "machine",
-          "description": "外部テンプレートフォルダ。直下のサブフォルダがテンプレートとして一覧に出ます。"
         },
         "dxlib.visualStudioDownloadUrl": {
           "type": "string",
@@ -293,6 +369,22 @@
           "default": "ps_4_0",
           "scope": "resource",
           "description": "ピクセルシェーダーのターゲット(ShaderCompiler の /T)。"
+        },
+        "dxlib.vsProject": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Visual Studio で作ったプロジェクトの .vcxproj(フォルダからの名前)。DxLib パネルの「DxLib 拡張で使えるようにする」が書きます。"
+        },
+        "dxlib.vsPlatform": {
+          "type": "string",
+          "default": "x64",
+          "enum": [
+            "x64",
+            "Win32"
+          ],
+          "scope": "resource",
+          "description": "Visual Studio で作ったプロジェクトをビルドするプラットフォーム。"
         }
       }
     },
@@ -327,6 +419,12 @@
             }
           }
         ]
+      }
+    ],
+    "submenus": [
+      {
+        "id": "dxlib.explorerNew",
+        "label": "DxLib"
       }
     ]
   },

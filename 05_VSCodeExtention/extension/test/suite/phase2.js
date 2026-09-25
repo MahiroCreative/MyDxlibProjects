@@ -67,6 +67,23 @@ exports.run = async function () {
 		return { ok: res.exitCode === 0 && fs.existsSync(exe), detail: `${JSON.stringify(res)} exe=${fs.existsSync(exe)}` };
 	});
 
+	// MSBuild は変更したファイルだけをコンパイルし直す(DESIGN.md 6 章)。
+	// 1 回目のビルドのログには main.cpp のコンパイルが出て、変更なしの 2 回目には出ないことを見る
+	const buildLog = (config) => {
+		const dir = path.join(process.env.DXLIB_USER_DATA_DIR, 'User', 'globalStorage', 'mahirocreative.dxlib-devenv', 'build');
+		const f = fs.existsSync(dir) ? fs.readdirSync(dir).find((n) => n.startsWith('TestGame_') && n.endsWith(`_${config}.log`)) : undefined;
+		return f ? fs.readFileSync(path.join(dir, f), 'utf8') : '';
+	};
+	await r.step('MSBuild: 1 回目は main.cpp をコンパイルし、変更なしで 2 回目にビルドするとコンパイルし直さない', async () => {
+		const first = buildLog('debug');
+		const res = await waitTaskEnd(vscode.commands.executeCommand('dxlib.build'), 180000);
+		const second = buildLog('debug');
+		const compiledFirst = /^\s*main\.cpp\s*$/m.test(first);
+		const compiledSecond = /^\s*main\.cpp\s*$/m.test(second);
+		const ok = res.exitCode === 0 && compiledFirst && !compiledSecond && second.includes('TestGame.vcxproj ->');
+		return { ok, detail: `1 回目にコンパイル=${compiledFirst} 2 回目にコンパイル=${compiledSecond} 2 回目のログ=${JSON.stringify(second.slice(-200))}` };
+	});
+
 	await r.step('Release ビルド', async () => {
 		const tasks = await vscode.tasks.fetchTasks({ type: 'dxlib' });
 		const t = tasks.find((x) => x.definition.config === 'release');
@@ -485,104 +502,14 @@ exports.run = async function () {
 		return { ok, detail: details.join(' / ') };
 	});
 
+	// --- ファイルを追加(phase2_steps_new_files.js。DESIGN.md 3.2 章) ---
+	await require('./phase2_steps_new_files')(r, { api, proj, withProbe, unchangedExceptProbe, closeAndRemove, waitTaskEnd });
+
 	// --- リファレンス・定義の作成・ワークロード追加(phase2_steps_ref_def_workload.js) ---
 	await require('./phase2_steps_ref_def_workload')(r, { api, proj });
 
-	// --- テンプレートとして保存(パネル内フォーム相当。webview と同じく dxlib.saveAsTemplate に引数で渡す) ---
-	const templatesDir = path.join(process.env.DXLIB_TEST_WORK, 'templates');
-
-	await r.step('テンプレートとして保存: テンプレートフォルダ未設定なら案内が出てフォームは開かない', async () => {
-		await vscode.workspace.getConfiguration('dxlib').update('templatesPath', '', vscode.ConfigurationTarget.Global);
-		let msg;
-		const orig = vscode.window.showWarningMessage;
-		vscode.window.showWarningMessage = async (m) => {
-			msg = m;
-			return undefined;
-		};
-		try {
-			await vscode.commands.executeCommand('dxlib.saveAsTemplate');
-		} finally {
-			vscode.window.showWarningMessage = orig;
-		}
-		return { ok: !!msg && msg.includes('テンプレートフォルダが設定されていません'), detail: msg || '案内が出なかった' };
-	});
-
-	fs.mkdirSync(templatesDir, { recursive: true });
-	await vscode.workspace.getConfiguration('dxlib').update('templatesPath', templatesDir, vscode.ConfigurationTarget.Global);
-
-	await r.step('テンプレートとして保存: 名前が空ならエラーで弾かれる', async () => {
-		let msg;
-		const orig = vscode.window.showErrorMessage;
-		vscode.window.showErrorMessage = async (m) => {
-			msg = m;
-			return undefined;
-		};
-		try {
-			await vscode.commands.executeCommand('dxlib.saveAsTemplate', { name: '', description: '', substitute: true });
-		} finally {
-			vscode.window.showErrorMessage = orig;
-		}
-		return { ok: !!msg && msg.includes('名前を入力'), detail: msg || 'エラーが出なかった' };
-	});
-
-	await r.step('テンプレートとして保存: 引数なしで呼ぶとパネルのフォームが開く(例外なし)', async () => {
-		await vscode.commands.executeCommand('dxlib.saveAsTemplate');
-		return { ok: true, detail: '例外なし(フォームが開いたことはスクリーンショットで別途確認)' };
-	});
-
-	await r.step('テンプレートとして保存', async () => {
-		await vscode.commands.executeCommand('dxlib.saveAsTemplate', {
-			name: 'TestSavedTemplate',
-			description: 'テストで保存したテンプレート',
-			substitute: true,
-		});
-
-		const dest = path.join(templatesDir, 'TestSavedTemplate');
-		const tj = path.join(dest, 'template.json');
-		const mainCopy = path.join(dest, 'src', 'main.cpp');
-		if (!fs.existsSync(tj) || !fs.existsSync(mainCopy)) {
-			return { ok: false, detail: `template.json=${fs.existsSync(tj)} main.cpp=${fs.existsSync(mainCopy)}` };
-		}
-		const meta = JSON.parse(fs.readFileSync(tj, 'utf8'));
-		const body = fs.readFileSync(mainCopy, 'utf8');
-		const hasVscode = fs.existsSync(path.join(dest, '.vscode'));
-		const ok = meta.name === 'TestSavedTemplate' && meta.description.includes('テスト') && body.includes('__PROJECT_NAME__') && !body.includes('TestGame') && !hasVscode;
-		return { ok, detail: `name=${meta.name} placeholder=${body.includes('__PROJECT_NAME__')} .vscode 同梱=${hasVscode}` };
-	});
-
-	await r.step('テンプレートとして保存: 同じ名前は拒否される', async () => {
-		let msg;
-		const orig = vscode.window.showErrorMessage;
-		vscode.window.showErrorMessage = async (m) => {
-			msg = m;
-			return undefined;
-		};
-		try {
-			await vscode.commands.executeCommand('dxlib.saveAsTemplate', { name: 'TestSavedTemplate', description: '', substitute: true });
-		} finally {
-			vscode.window.showErrorMessage = orig;
-		}
-		return { ok: !!msg && msg.includes('既にあります'), detail: msg || 'エラーが出なかった' };
-	});
-
-	await r.step('保存したテンプレートが一覧に出る(フォルダ名順)', async () => {
-		const list = api.listTemplates();
-		const names = list.map((t) => t.name);
-		const found = list.find((t) => t.id === 'ext:TestSavedTemplate');
-		return { ok: !!found && names.includes('最小'), detail: names.join(', ') };
-	});
-
-	await r.step('保存したテンプレートから別名のプロジェクトを作れる(往復)', async () => {
-		const loc = path.join(process.env.DXLIB_TEST_WORK, 'roundtrip');
-		fs.rmSync(loc, { recursive: true, force: true });
-		fs.mkdirSync(loc, { recursive: true });
-		const dir = await api.createProject({ name: 'RoundTrip', location: loc, templateId: 'ext:TestSavedTemplate' });
-		const main = fs.readFileSync(path.join(dir, 'src', 'main.cpp'));
-		const text = main.toString('utf8');
-		const bom = main[0] === 0xef && main[1] === 0xbb && main[2] === 0xbf;
-		const ok = bom && text.includes('RoundTrip') && !text.includes('__PROJECT_NAME__') && !text.includes('TestGame') && fs.existsSync(path.join(dir, '.vscode', 'tasks.json'));
-		return { ok, detail: `BOM=${bom} RoundTrip=${text.includes('RoundTrip')} 残り=${text.includes('__PROJECT_NAME__') || text.includes('TestGame')}` };
-	});
+	// --- テンプレート(zip ファイル 1 つ = 1 テンプレート。phase2_steps_templates.js。DESIGN.md 8 章) ---
+	await require('./phase2_steps_templates')(r, { api });
 
 	// --- 作成後の開き方(2026-09-24 ユーザー決定)。フォルダを開いている窓なら新しい窓で開く ---
 	await r.step('作成後の開き方: プロジェクトを開いている窓からなら、新しい窓で開く(今の作業を閉じない)', async () => {

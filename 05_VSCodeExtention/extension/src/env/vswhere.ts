@@ -13,6 +13,8 @@ export interface VsInfo {
 	vcvarsall?: string;
 	/** IntelliSense 用の cl.exe(Hostx64\x64)。 */
 	clPath?: string;
+	/** ビルドに使う MSBuild.exe(DESIGN.md 6 章)。 */
+	msbuild?: string;
 }
 
 /** C++ によるデスクトップ開発ワークロードに含まれる MSVC ツールセットのコンポーネント ID。 */
@@ -64,6 +66,12 @@ async function query(extraArgs: string[]): Promise<VswhereEntry[]> {
 	}
 }
 
+/** Visual Studio 2019 以降の MSBuild(<VS>\MSBuild\Current\Bin\MSBuild.exe)。 */
+function findMsbuild(installationPath: string): string | undefined {
+	const p = path.join(installationPath, 'MSBuild', 'Current', 'Bin', 'MSBuild.exe');
+	return fs.existsSync(p) ? p : undefined;
+}
+
 function findCl(installationPath: string): string | undefined {
 	const msvc = path.join(installationPath, 'VC', 'Tools', 'MSVC');
 	if (!fs.existsSync(msvc)) {
@@ -102,6 +110,7 @@ async function detectVisualStudioActual(): Promise<VsInfo> {
 			installationPath: ip,
 			vcvarsall: fs.existsSync(vcvarsall) ? vcvarsall : undefined,
 			clPath: findCl(ip),
+			msbuild: findMsbuild(ip),
 		};
 	}
 	const any = await query(['-latest']);

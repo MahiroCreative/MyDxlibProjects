@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import {
@@ -13,6 +14,7 @@ import { getConfig } from '../env/environment';
 import { intelliSenseState } from '../env/cpptools';
 import { inspectSdk } from '../env/sdk';
 import { detectVisualStudio } from '../env/vswhere';
+import { queryVsProject, vsProjectOf } from '../build/vsProject';
 import { ensureShadowHeaders } from './shadowHeaders';
 
 const PROVIDER_ID = 'mahirocreative.dxlib-devenv';
@@ -27,7 +29,7 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 	private api: CppToolsApi | undefined;
 	private cached: { config: SourceFileConfiguration; at: number } | undefined;
 	/** C/C++ 拡張へ最後に渡した設定と時刻(自動検証用)。 */
-	lastProvided: { at: number; includePath: string[] } | undefined;
+	lastProvided: { at: number; includePath: string[]; defines: string[] } | undefined;
 
 	/** @param storageDir 拡張機能の保存フォルダ(ヘッダーの写しを置く) */
 	constructor(private readonly storageDir: string) {}
@@ -39,7 +41,7 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 	async provideConfigurations(uris: vscode.Uri[]): Promise<SourceFileConfigurationItem[]> {
 		intelliSenseState.set('ready');
 		const configuration = await this.baseConfiguration();
-		this.lastProvided = { at: Date.now(), includePath: configuration.includePath };
+		this.lastProvided = { at: Date.now(), includePath: configuration.includePath, defines: configuration.defines };
 		return uris.map((uri) => ({ uri, configuration }));
 	}
 
@@ -96,6 +98,15 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 		const vs = await detectVisualStudio();
 		const sdk = inspectSdk(getConfig<string>('sdkPath', '') || undefined);
 		const folder = vscode.workspace.workspaceFolders?.[0];
+		// Visual Studio で作ったプロジェクトは、その .vcxproj の設定を MSBuild に聞いて渡す(DESIGN.md 6.1 章)
+		const vsp = vsProjectOf(folder);
+		if (vsp && vs.msbuild) {
+			const config = await this.vsProjectConfiguration(vs.msbuild, vsp.vcxproj, vsp.platform, vs.clPath, sdk?.ok ? sdk.path : undefined);
+			if (config) {
+				this.cached = { config, at: Date.now() };
+				return config;
+			}
+		}
 		const std = getConfig<string>('build.cppStandard', 'c++20', folder);
 		const includePath: string[] = [];
 		if (sdk?.ok) {
@@ -113,6 +124,40 @@ export class DxLibConfigurationProvider implements CustomConfigurationProvider {
 			compilerPath: vs.clPath,
 		};
 		this.cached = { config, at: Date.now() };
+		return config;
+	}
+
+	/** .vcxproj ごとに、更新日時が変わるまで聞いた結果を使い回す(MSBuild の起動は 1〜2 秒かかる)。 */
+	private vsCache: { key: string; config: SourceFileConfiguration } | undefined;
+
+	private async vsProjectConfiguration(msbuild: string, vcxproj: string, platform: string, clPath: string | undefined, sdkPath: string | undefined): Promise<SourceFileConfiguration | undefined> {
+		let mtime = 0;
+		try {
+			mtime = fs.statSync(vcxproj).mtimeMs;
+		} catch {
+			return undefined;
+		}
+		const key = `${vcxproj}|${mtime}|${platform}|${sdkPath ?? ''}`;
+		if (this.vsCache?.key === key) {
+			return this.vsCache.config;
+		}
+		const info = await queryVsProject(msbuild, vcxproj, 'Debug', platform);
+		if (!info) {
+			return undefined;
+		}
+		const same = (a: string, b: string): boolean => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+		// DxLib パネルの SDK と同じ場所なら、UTF-8 にして説明の位置を直した写しを読ませる(7 章)
+		const includePath = info.includeDirs.map((d) => (sdkPath && same(d, sdkPath) ? (ensureShadowHeaders(this.storageDir, sdkPath) ?? d) : d));
+		includePath.push(path.dirname(vcxproj));
+		const std = /^stdcpp(\d+)$/.exec(info.languageStandard);
+		const config: SourceFileConfiguration = {
+			includePath,
+			defines: platform === 'x64' ? info.defines : [...info.defines, 'WIN32'],
+			intelliSenseMode: platform === 'x64' ? 'windows-msvc-x64' : 'windows-msvc-x86',
+			standard: (std ? `c++${std[1]}` : info.languageStandard === 'stdcpplatest' ? 'c++23' : 'c++14') as SourceFileConfiguration['standard'],
+			compilerPath: clPath,
+		};
+		this.vsCache = { key, config };
 		return config;
 	}
 }

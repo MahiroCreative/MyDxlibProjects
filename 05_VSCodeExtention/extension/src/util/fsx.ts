@@ -5,7 +5,10 @@ import * as path from 'path';
 const EXCLUDED_DIRS = new Set(['.vscode', '.git', '.vs', 'build', 'bin', 'obj', 'x64', 'x86', 'Debug', 'Release', 'node_modules']);
 
 /** コピーで除外するファイル名。 */
-const EXCLUDED_FILES = new Set(['Log.txt', 'template.json']);
+const EXCLUDED_FILES = new Set(['Log.txt', 'template.json', 'dxlib.props']);
+
+/** コピーで除外するファイルの拡張子。MSBuild / Visual Studio 用のファイルは、作るときにその名前で作り直す(DESIGN.md 6 章)。 */
+const EXCLUDED_FILE_RE = /\.(sln|vcxproj|vcxproj\.filters|vcxproj\.user)$/i;
 
 /** 内容の置換対象にするテキストファイルの拡張子。 */
 const TEXT_EXTS = new Set(['.cpp', '.c', '.h', '.hpp', '.inl', '.hlsl', '.hlsli', '.fx', '.fxh', '.txt', '.md', '.json', '.ini', '.csv', '.xml']);
@@ -58,7 +61,7 @@ export function copyProjectTree(src: string, dst: string, options: CopyOptions =
 				}
 				walk(srcPath, dstPath, relPath);
 			} else if (entry.isFile()) {
-				if (EXCLUDED_FILES.has(entry.name)) {
+				if (EXCLUDED_FILES.has(entry.name) || EXCLUDED_FILE_RE.test(entry.name)) {
 					continue;
 				}
 				if (options.transformText && isTextFile(entry.name)) {

@@ -4,15 +4,17 @@ import * as vscode from 'vscode';
 import { CppToolsState, cpptoolsInstalled, intelliSenseState } from './cpptools';
 import { inspectSdk, SdkInfo } from './sdk';
 import { detectVisualStudio, VsInfo } from './vswhere';
+import { findVsProject } from '../build/vsProject';
 
 export interface EnvironmentStatus {
 	vs: VsInfo;
 	sdkPath: string;
 	sdk: SdkInfo | undefined;
 	cpptools: CppToolsState;
-	templatesPath: string;
 	/** 開いているフォルダ(最初のワークスペースフォルダ。DxLib プロジェクトとは限らない)。 */
 	project?: { name: string; path: string };
+	/** DxLib プロジェクトではないが、Visual Studio で作ったプロジェクト(.vcxproj)があるとき、その名前(DESIGN.md 6.1 章)。 */
+	vsProject?: string;
 	/** 開いているフォルダが、このツールで作った(dxlib タスクを持つ)DxLib プロジェクトかどうか。 */
 	isDxLibProject: boolean;
 }
@@ -79,15 +81,14 @@ export async function collectEnvironment(): Promise<EnvironmentStatus> {
 	const sdkPath = getConfig<string>('sdkPath', '');
 	const sdk = inspectSdk(sdkPath || undefined);
 	const cpptools: CppToolsState = cpptoolsInstalled() ? intelliSenseState.get() : 'missing';
-	const templatesPath = getConfig<string>('templatesPath', '');
 	const folder = currentFolder();
 	return {
 		vs,
 		sdkPath,
 		sdk,
 		cpptools,
-		templatesPath,
 		project: folder ? { name: projectExeName(folder), path: folder.uri.fsPath } : undefined,
 		isDxLibProject: folder ? isDxLibProject(folder) : false,
+		vsProject: folder && !isDxLibProject(folder) ? findVsProject(folder.uri.fsPath) : undefined,
 	};
 }

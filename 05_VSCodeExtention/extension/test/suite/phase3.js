@@ -48,10 +48,15 @@ exports.run = async function () {
 
 	const lastLoc = path.join(process.env.DXLIB_TEST_WORK, 'last-location');
 	const same = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
-	await r.step('作成先の初期値: 起動し直しても、前回(段階 2)の作成先が残っている', async () => {
-		const d = api.defaultCreateLocation();
-		return { ok: same(d, lastLoc), detail: d };
-	});
+	// 段階 3 だけを流すとき(--phase3-only)は、直前が段階 2 ではない(段階 6〜8 が作成先を変えている)ので確かめない
+	if (process.env.DXLIB_TEST_PHASE3_ONLY === '1') {
+		console.log('[phase3] --  作成先の初期値の確認は、段階 3 だけを流すときは対象外');
+	} else {
+		await r.step('作成先の初期値: 起動し直しても、前回(段階 2)の作成先が残っている', async () => {
+			const d = api.defaultCreateLocation();
+			return { ok: same(d, lastLoc), detail: d };
+		});
+	}
 
 	await r.step('スクリーンショット: 新規プロジェクト作成フォーム(作成先は前回の場所)', async () => {
 		await api.showCreateForm();
@@ -78,6 +83,13 @@ exports.run = async function () {
 		await api.showNewShaderForm();
 		await sleep(1500);
 		const s = screenshot('panel-shader-form');
+		return { ok: s.ok, detail: s.output };
+	});
+
+	await r.step('スクリーンショット: クラスの作成フォーム(エクスプローラーの欄。名前とボタンが 1 行)', async () => {
+		await vscode.commands.executeCommand('dxlib.newClass');
+		await sleep(1500);
+		const s = screenshot('panel-cpp-form');
 		return { ok: s.ok, detail: s.output };
 	});
 

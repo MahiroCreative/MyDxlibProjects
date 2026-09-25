@@ -3,7 +3,9 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { BuildDiagnostics } from './build/buildDiagnostics';
 import { buildLogPathOfTask, DxLibTaskProvider, runBuild, TASK_TYPE } from './build/taskProvider';
+import { adoptVsProject, AdoptArgs } from './project/adoptVs';
 import { migrateProject } from './project/migrate';
+import { listCppFolders, registerNewFileCommands } from './project/newFiles';
 import { CPPTOOLS_ID, cpptoolsInstalled, intelliSenseState, warnIfCpptoolsMissing } from './env/cpptools';
 import { registerHlslFormatter } from './format/hlslFormatter';
 import { collectEnvironment, currentFolder, getConfig, isDxLibProject, SDK_FIX_HINT, sdkProblem, setGlobalConfig } from './env/environment';
@@ -12,10 +14,10 @@ import { detectVisualStudio, installerSetupPath, workloadInstallArgs } from './e
 import { invalidateDxLibIndex, registerDxLibHover } from './hover/dxlibHover';
 import { DxLibConfigurationProvider } from './intellisense/configProvider';
 import { DxLibPanelProvider } from './panel/panelView';
-import { DxLibProjectViewProvider } from './panel/projectView';
+import { DxLibProjectViewProvider, FormRequest } from './panel/projectView';
 import { createProject, CreateProjectArgs, defaultCreateLocation } from './project/createProject';
-import { saveAsTemplateWork, SaveTemplateArgs } from './project/saveAsTemplate';
-import { listTemplates, TemplateInfo } from './project/templates';
+import { defaultTemplateFile, saveAsTemplateWork, SaveTemplateArgs } from './project/saveAsTemplate';
+import { listTemplates, TEMPLATE_EXT, TemplateInfo } from './project/templates';
 import { compileShaders, createShaderFile, NewShaderArgs, shaderSourceDir } from './shader/compileShaders';
 import { buildStartProcessScript, launchElevated } from './util/exec';
 
@@ -35,6 +37,10 @@ export interface DxLibTestApi {
 	showCreateForm: (location?: string) => Promise<void>;
 	showNewShaderForm: () => Promise<void>;
 	showSaveTemplateForm: () => Promise<void>;
+	/** 最後に欄に頼まれたフォーム(ファイル作成の入口がフォームを開いたかの確認用)。 */
+	lastFormRequest: () => FormRequest | undefined;
+	/** 作成フォームの「テンプレートファイル (.dxtemplate) を選ぶ」でそのファイルを選んだのと同じ(ダイアログを除く)。 */
+	pickTemplateZip: (file: string) => Promise<boolean>;
 	workloadInstallArgs: typeof workloadInstallArgs;
 	buildStartProcessScript: typeof buildStartProcessScript;
 }
@@ -75,6 +81,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<DxLibT
 		showCreateForm: (location) => (trustedApi ?? notYet()).showCreateForm(location),
 		showNewShaderForm: () => (trustedApi ?? notYet()).showNewShaderForm(),
 		showSaveTemplateForm: () => (trustedApi ?? notYet()).showSaveTemplateForm(),
+		lastFormRequest: () => (trustedApi ?? notYet()).lastFormRequest(),
+		pickTemplateZip: (file) => (trustedApi ?? notYet()).pickTemplateZip(file),
 		workloadInstallArgs,
 		buildStartProcessScript,
 	};
@@ -108,11 +116,35 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			folders[dir.charAt(0).toUpperCase() + dir.slice(1)] = true;
 		}
 		void vscode.commands.executeCommand('setContext', 'dxlib.shaderFolders', folders);
+		// dxlib.cppFolders: src とその下のすべてのフォルダ(右クリックの「DxLib」メニューの C++ の項目を出す場所)
+		const cppFolders: Record<string, true> = {};
+		if (folder && isProject) {
+			for (const dir of listCppFolders(folder)) {
+				cppFolders[dir] = true;
+				cppFolders[dir.charAt(0).toLowerCase() + dir.slice(1)] = true;
+				cppFolders[dir.charAt(0).toUpperCase() + dir.slice(1)] = true;
+			}
+		}
+		void vscode.commands.executeCommand('setContext', 'dxlib.cppFolders', cppFolders);
 	};
 	updateContext();
+	// src の下のフォルダが増えたり消えたりしたら作り直す(まとめて 1 回)
+	let contextTimer: NodeJS.Timeout | undefined;
+	const updateContextSoon = (): void => {
+		if (contextTimer) {
+			clearTimeout(contextTimer);
+		}
+		contextTimer = setTimeout(updateContext, 300);
+	};
+	// src の下(Visual Studio で作ったプロジェクトはフォルダ全体。DESIGN.md 6.1 章)のフォルダが増えたり消えたりしたら作り直す
+	const srcWatcher = vscode.workspace.createFileSystemWatcher('**/*', false, true, false);
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeWorkspaceFolders(updateContext),
 		vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration('dxlib.shader') && updateContext()),
+		srcWatcher,
+		srcWatcher.onDidCreate(updateContextSoon),
+		srcWatcher.onDidDelete(updateContextSoon),
+		{ dispose: () => contextTimer && clearTimeout(contextTimer) },
 	);
 
 	// 以前の版で作ったプロジェクトの設定を今の形に直す
@@ -215,26 +247,23 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 				configProvider.invalidate();
 				void panel.refresh();
 			}
+			// SDK の場所・C++ 規格を変えたら、dxlib.props・.vcxproj を合わせる(Visual Studio で開いたときも同じになるように。DESIGN.md 6 章)
+			if (e.affectsConfiguration('dxlib.sdkPath') || e.affectsConfiguration('dxlib.build.cppStandard')) {
+				migrate();
+			}
 		}),
 		vscode.workspace.onDidChangeWorkspaceFolders(() => void panel.refresh()),
 	);
 
-	// ステータスバーの「▶ 実行」
-	const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
-	statusItem.text = '$(play) DxLib 実行';
-	statusItem.tooltip = 'ビルドして実行(デバッグなし)';
-	statusItem.command = 'dxlib.run';
-	context.subscriptions.push(statusItem);
-	const updateStatusItem = (): void => {
-		const folder = currentFolder();
-		if (folder && isDxLibProject(folder)) {
-			statusItem.show();
-		} else {
-			statusItem.hide();
-		}
-	};
-	updateStatusItem();
-	context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(updateStatusItem));
+	// ビルド・実行・デバッグ実行はエディタ右上のボタン(package.json の editor/title。DESIGN.md 3.2 章)。
+	// 以前のステータスバーの「▶ DxLib 実行」はやめた。
+
+	// 「ファイルを追加」(.cpp・.h・クラス・シェーダー。DESIGN.md 3.2 章)
+	registerNewFileCommands(
+		context,
+		(kind, folder) => projectView.showCppForm(kind, folder),
+		() => projectView.showNewShaderForm(),
+	);
 
 	const register = (id: string, fn: (...args: unknown[]) => unknown): void => {
 		context.subscriptions.push(vscode.commands.registerCommand(id, fn));
@@ -262,13 +291,6 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			void vscode.window.showWarningMessage(`DxLib ${sdk.version} を設定しましたが、足りないファイルがあります: ${sdk.missing.join(', ')}。正しく設定されるまでプロジェクトは作成できません。`);
 		} else {
 			void vscode.window.showInformationMessage(`DxLib ${sdk.version} を設定しました。`);
-		}
-	});
-
-	register('dxlib.selectTemplatesDir', async () => {
-		const picked = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: 'テンプレートフォルダにする' });
-		if (picked?.[0]) {
-			await setGlobalConfig('templatesPath', picked[0].fsPath);
 		}
 	});
 
@@ -355,13 +377,31 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 	register('dxlib.saveAsTemplate', async (arg?: unknown) => {
 		const args = arg as SaveTemplateArgs | undefined;
 		if (args) {
-			const result = await saveAsTemplateWork(args);
+			if (!args.name?.trim()) {
+				void vscode.window.showErrorMessage('名前を入力してください。');
+				return;
+			}
+			// 保存先は保存するときに決める(Windows のファイル保存ダイアログ。DESIGN.md 8 章)。検証では args.file を渡す
+			let file = args.file;
+			if (!file) {
+				const picked = await vscode.window.showSaveDialog({
+					title: 'テンプレートの保存先',
+					saveLabel: 'テンプレートを保存',
+					defaultUri: vscode.Uri.file(defaultTemplateFile(context, args.name)),
+					filters: { 'DxLib テンプレート': ['dxtemplate'] },
+				});
+				if (!picked) {
+					return; // キャンセル
+				}
+				file = picked.fsPath.toLowerCase().endsWith(TEMPLATE_EXT) ? picked.fsPath : `${picked.fsPath}${TEMPLATE_EXT}`;
+			}
+			const result = await saveAsTemplateWork(context, { ...args, file });
 			if (!result.ok) {
 				void vscode.window.showErrorMessage(result.error ?? '不明なエラーです。');
 				return;
 			}
-			void vscode.window.showInformationMessage(`テンプレートとして保存しました(${result.count} ファイル): ${result.dest}`);
-			await panel.refresh(); // パネルの作成フォームのテンプレート一覧を更新
+			void vscode.window.showInformationMessage(`テンプレートを保存しました(${result.count} ファイル): ${result.file}`);
+			await panel.refresh(); // パネルの作成フォームのテンプレート一覧(最近使ったテンプレート)を更新
 			return;
 		}
 		// 引数なし: フォームを開く前に、開いても使えない状態(フォルダ未指定)を先に案内する。
@@ -369,16 +409,24 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			void vscode.window.showWarningMessage('プロジェクトのフォルダが開かれていません。');
 			return;
 		}
-		const templatesPath = getConfig<string>('templatesPath', '');
-		if (!templatesPath || !fs.existsSync(templatesPath)) {
-			const pick = 'フォルダを指定';
-			const choice = await vscode.window.showWarningMessage('テンプレートフォルダが設定されていません。先に指定してください。', pick);
-			if (choice === pick) {
-				await vscode.commands.executeCommand('dxlib.selectTemplatesDir');
-			}
-			return;
-		}
 		await projectView.showSaveTemplateForm();
+	});
+
+	// Visual Studio で作ったプロジェクトを使えるようにする(DESIGN.md 6.1 章)。検証では { convert } を渡して確認画面を飛ばす
+	register('dxlib.adoptVsProject', async (arg?: unknown) => {
+		const result = await adoptVsProject((arg as AdoptArgs | undefined) ?? {});
+		if (!result.ok) {
+			if (result.error !== 'キャンセルしました。') {
+				void vscode.window.showErrorMessage(result.error ?? '不明なエラーです。');
+			}
+			return result;
+		}
+		configProvider.invalidate();
+		updateContext();
+		await panel.refresh();
+		const conv = result.converted && result.converted.length > 0 ? `(${result.converted.length} 個のファイルを BOM 付き UTF-8 にしました)` : '';
+		void vscode.window.showInformationMessage(`${path.basename(result.vcxproj ?? '')} を DxLib 拡張で使えるようにしました${conv}。ビルド・実行はエディタ右上のボタンからできます。`);
+		return result;
 	});
 
 	register('dxlib.createDefinition', async () => {
@@ -445,11 +493,13 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 		collectEnvironment,
 		intelliSenseState: () => intelliSenseState.get(),
 		lastIntelliSenseQuery: () => configProvider.lastProvided,
-		listTemplates: () => listTemplates(context, getConfig<string>('templatesPath', '')),
+		listTemplates: () => listTemplates(context),
 		defaultCreateLocation: () => defaultCreateLocation(context),
 		showCreateForm: (location) => panel.showCreateForm(location),
 		showNewShaderForm: () => projectView.showNewShaderForm(),
 		showSaveTemplateForm: () => projectView.showSaveTemplateForm(),
+		lastFormRequest: () => projectView.lastFormRequest,
+		pickTemplateZip: (file) => panel.useTemplateZip(file),
 		workloadInstallArgs,
 		buildStartProcessScript,
 	};

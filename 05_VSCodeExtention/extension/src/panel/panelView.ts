@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as vscode from 'vscode';
-import { collectEnvironment, EnvironmentStatus, getConfig } from '../env/environment';
+import { collectEnvironment, EnvironmentStatus } from '../env/environment';
 import { CreateProjectArgs, defaultCreateLocation } from '../project/createProject';
-import { listTemplates, TemplateInfo } from '../project/templates';
+import { addRecentTemplate, listTemplates, readTemplateZip, TemplateInfo } from '../project/templates';
 import { BASE_CSS, makeNonce } from './webviewCommon';
 
 /** どのフォームを開くか。プロジェクトの操作のフォームはエクスプローラーの「DxLib」欄(projectView.ts)。 */
@@ -13,10 +13,11 @@ interface PanelState {
 	vs: { state: string; label: string };
 	sdk: { ok: boolean; label: string; path: string; missing: string[] };
 	cpptools: string;
-	templatesPath: string;
 	project?: { name: string; path: string };
 	isDxLibProject: boolean;
-	templates: { id: string; name: string; description: string; builtin: boolean }[];
+	/** Visual Studio で作ったプロジェクトの .vcxproj の名前(DESIGN.md 6.1 章)。 */
+	vsProject?: string;
+	templates: { id: string; name: string; description: string; builtin: boolean; source: string }[];
 	defaultLocation: string;
 }
 
@@ -52,10 +53,10 @@ function toState(env: EnvironmentStatus, templates: TemplateInfo[], defaultLocat
 		vs: { state: env.vs.state, label: vsLabel },
 		sdk: { ok: !!env.sdk?.ok, label: sdkLabel, path: env.sdkPath, missing: env.sdk?.missing ?? [] },
 		cpptools: env.cpptools,
-		templatesPath: env.templatesPath,
 		project: env.project,
 		isDxLibProject: env.isDxLibProject,
-		templates: templates.map((t) => ({ id: t.id, name: t.name, description: t.description, builtin: t.builtin })),
+		vsProject: env.vsProject,
+		templates: templates.map((t) => ({ id: t.id, name: t.name, description: t.description, builtin: t.builtin, source: t.source })),
 		defaultLocation,
 	};
 }
@@ -89,7 +90,7 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 			return;
 		}
 		const env = await collectEnvironment();
-		const templates = listTemplates(this.context, getConfig<string>('templatesPath', ''));
+		const templates = listTemplates(this.context);
 		void this.view.webview.postMessage({ type: 'status', state: toState(env, templates, defaultCreateLocation(this.context)) });
 	}
 
@@ -97,6 +98,20 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 		await vscode.commands.executeCommand('workbench.view.extension.dxlib');
 		await this.refresh();
 		void this.view?.webview.postMessage({ type: 'openForm', form, location });
+	}
+
+	/** テンプレートファイルを確かめて「最近使ったテンプレート」に入れ、作成フォームで選んだ状態にする(検証からも呼ぶ)。 */
+	async useTemplateZip(file: string): Promise<boolean> {
+		try {
+			readTemplateZip(file);
+		} catch (e) {
+			void vscode.window.showErrorMessage(e instanceof Error ? e.message : String(e));
+			return false;
+		}
+		addRecentTemplate(this.context, file);
+		await this.refresh();
+		void this.view?.webview.postMessage({ type: 'templatePicked', id: `file:${file}` });
+		return true;
 	}
 
 	/** 作成フォームを開く(作成先の初期値を指定できる)。 */
@@ -121,6 +136,22 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 				if (picked?.[0]) {
 					void this.view?.webview.postMessage({ type: 'location', path: picked[0].fsPath });
 				}
+				return;
+			}
+			case 'pickTemplate': {
+				// テンプレートファイルを選ぶ(Windows のファイルを開くダイアログ。手作りの .zip も可)。中身を確かめてから一覧に足して選ぶ
+				const picked = await vscode.window.showOpenDialog({
+					title: 'テンプレートファイルを選ぶ',
+					canSelectFiles: true,
+					canSelectFolders: false,
+					canSelectMany: false,
+					openLabel: 'このテンプレートを使う',
+					filters: { 'DxLib テンプレート': ['dxtemplate', 'zip'] },
+				});
+				if (!picked?.[0]) {
+					return;
+				}
+				await this.useTemplateZip(picked[0].fsPath);
 				return;
 			}
 			case 'create':
@@ -159,7 +190,6 @@ ${BASE_CSS}
 		<div class="row"><span id="vs-mark"></span><span class="text" id="vs-label">確認中…</span><span id="vs-actions"></span></div>
 		<div class="row"><span id="sdk-mark"></span><span class="text"><span id="sdk-label">確認中…</span><span class="path" id="sdk-path"></span></span><button class="secondary" data-cmd="selectSdk">変更</button></div>
 		<div class="row"><span id="cpp-mark"></span><span class="text" id="cpp-label">C/C++ 拡張</span><span id="cpp-actions"></span></div>
-		<div class="row"><span>📁</span><span class="text"><span>テンプレート</span><span class="path" id="tpl-path"></span></span><button class="secondary" data-cmd="selectTemplatesDir">変更</button></div>
 		<div class="actions"><button class="secondary" data-cmd="refresh">再チェック</button><button class="secondary" data-cmd="openSetupGuide">手順を見る</button></div>
 
 		<h2>プロジェクト</h2>
@@ -171,6 +201,11 @@ ${BASE_CSS}
 			<div class="actions"><button class="secondary" data-cmd="showProjectView">エクスプローラーの DxLib 欄を開く</button></div>
 		</div>
 		<div id="no-project" class="hidden"><span class="wait" id="no-project-text">プロジェクトのフォルダが開かれていません。</span></div>
+		<div id="vs-project" class="hidden">
+			<div>Visual Studio のプロジェクトです(<b id="vs-project-name"></b>)。このまま VSCode でビルド・実行・デバッグできるようにします。</div>
+			<div class="hint">.vcxproj はそのまま使います(Visual Studio でも引き続き開けます)。</div>
+			<button class="big" data-cmd="adoptVsProject">DxLib 拡張で使えるようにする</button>
+		</div>
 	</div>
 
 	<div id="form">
@@ -181,6 +216,7 @@ ${BASE_CSS}
 		<div class="row"><input type="text" id="f-location"><button class="secondary" id="btn-browse">参照</button></div>
 		<label>テンプレート</label>
 		<div id="f-templates"></div>
+		<div class="actions"><button class="secondary" id="btn-pick-template" title="授業などで配られたテンプレートファイル(.dxtemplate)を選ぶ">テンプレートファイル (.dxtemplate) を選ぶ...</button></div>
 		<div class="error" id="f-error"></div>
 		<div class="actions"><button id="btn-create">作成</button><button class="secondary" id="btn-cancel">キャンセル</button></div>
 	</div>
@@ -189,6 +225,7 @@ ${BASE_CSS}
 	const vscode = acquireVsCodeApi();
 	const $ = (id) => document.getElementById(id);
 	let state = null;
+	let selectedTemplate = '';
 
 	document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => vscode.postMessage({ command: b.dataset.cmd })));
 
@@ -199,6 +236,7 @@ ${BASE_CSS}
 	// --- 新規プロジェクト作成 -------------------------------------------------
 	$('btn-open-form').addEventListener('click', () => vscode.postMessage({ command: 'openCreateForm' }));
 	$('btn-cancel').addEventListener('click', () => showScreen('main'));
+	$('btn-pick-template').addEventListener('click', () => vscode.postMessage({ command: 'pickTemplate' }));
 	$('btn-browse').addEventListener('click', () => vscode.postMessage({ command: 'browseLocation', current: $('f-location').value.trim() }));
 	$('btn-create').addEventListener('click', () => {
 		const name = $('f-name').value.trim();
@@ -222,12 +260,20 @@ ${BASE_CSS}
 	function renderTemplates() {
 		const box = $('f-templates'); box.innerHTML = '';
 		if (!state) return;
-		state.templates.forEach((t, i) => {
+		// 選んでいたテンプレートは、一覧を作り直しても選んだままにする(無くなっていたら先頭)
+		if (!state.templates.some((t) => t.id === selectedTemplate)) { selectedTemplate = state.templates.length ? state.templates[0].id : ''; }
+		state.templates.forEach((t) => {
 			const row = document.createElement('label'); row.className = 'tpl';
-			const r = document.createElement('input'); r.type = 'radio'; r.name = 'tpl'; r.value = t.id; if (i === 0) r.checked = true;
-			const txt = document.createElement('span'); txt.textContent = t.name;
+			const r = document.createElement('input'); r.type = 'radio'; r.name = 'tpl'; r.value = t.id; r.checked = (t.id === selectedTemplate);
+			r.addEventListener('change', () => { selectedTemplate = t.id; });
+			const txt = document.createElement('span'); txt.textContent = t.builtin ? t.name + '(同梱)' : t.name;
 			const small = document.createElement('small'); small.textContent = t.description;
 			txt.appendChild(small);
+			if (!t.builtin) {
+				// テンプレートファイルは場所も出す(同じ名前のテンプレートを見分けられるように)
+				const where = document.createElement('small'); where.textContent = t.source; where.title = t.source;
+				txt.appendChild(where);
+			}
 			row.appendChild(r); row.appendChild(txt); box.appendChild(row);
 		});
 		if (state.templates.length === 0) { box.textContent = 'テンプレートがありません。'; }
@@ -259,15 +305,21 @@ ${BASE_CSS}
 		mark($('cpp-mark'), cpp[0], cpp[1]); $('cpp-label').textContent = cpp[2];
 		buttons($('cpp-actions'), s.cpptools === 'missing' ? [['拡張機能を開く', 'openCpptools']] : []);
 
-		$('tpl-path').textContent = s.templatesPath || '(未設定。同梱テンプレートのみ)';
-		$('tpl-path').title = s.templatesPath || '';
 
 		if (s.project && s.isDxLibProject) {
 			$('project-section').classList.remove('hidden');
 			$('no-project').classList.add('hidden');
+			$('vs-project').classList.add('hidden');
 			$('project-name').textContent = s.project.name;
+		} else if (s.vsProject) {
+			// Visual Studio で作ったプロジェクト: 使えるようにするボタンを出す(DESIGN.md 6.1 章)
+			$('project-section').classList.add('hidden');
+			$('no-project').classList.add('hidden');
+			$('vs-project').classList.remove('hidden');
+			$('vs-project-name').textContent = s.vsProject;
 		} else {
 			$('project-section').classList.add('hidden');
+			$('vs-project').classList.add('hidden');
 			$('no-project').classList.remove('hidden');
 			$('no-project-text').textContent = s.project
 				? 'このフォルダは DxLib プロジェクトではありません。上の「新規プロジェクト作成」で作るか、既存のプロジェクトのフォルダを開いてください。'
@@ -293,6 +345,10 @@ ${BASE_CSS}
 			openCreateForm(m.location);
 		} else if (m.type === 'location') {
 			$('f-location').value = m.path;
+		} else if (m.type === 'templatePicked') {
+			// 選んだテンプレートファイルを選んだ状態にする(一覧は直前の status で更新済み)
+			selectedTemplate = m.id;
+			if ($('form').style.display === 'block') { renderTemplates(); }
 		}
 	});
 	vscode.postMessage({ command: 'refresh' });

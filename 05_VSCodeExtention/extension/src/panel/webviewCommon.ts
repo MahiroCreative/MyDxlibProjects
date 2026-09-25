@@ -11,7 +11,8 @@ export const BASE_CSS = `
 	.wait { opacity: 0.7; }
 	button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 4px 10px; border-radius: 2px; cursor: pointer; font-size: 12px; white-space: nowrap; }
 	button:hover { background: var(--vscode-button-hoverBackground); }
-	button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+	/* 控えめなボタン(参照・キャンセルなど)も、文字だけに見えないよう枠を付ける(テーマによっては背景が無い) */
+	button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, rgba(128, 128, 128, 0.6))); }
 	button.big { width: 100%; padding: 8px; font-size: 13px; margin: 6px 0; }
 	button:disabled { opacity: 0.45; cursor: not-allowed; }
 	button:disabled:hover { background: var(--vscode-button-background); }

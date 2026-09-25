@@ -47,6 +47,37 @@ exports.run = async function () {
 			const unwanted = ej.unwantedRecommendations || [];
 			return { ok: unwanted.includes('ms-vscode.cpptools-extension-pack'), detail: JSON.stringify(ej) };
 		});
+		await r.step('settings.json で C/C++ 拡張のエディタ右上の ▶ を消している(DxLib のボタンと紛らわしいため)', async () => {
+			const sj = JSON.parse(fs.readFileSync(path.join(dir, '.vscode', 'settings.json'), 'utf8'));
+			return { ok: sj['C_Cpp.debugShortcut'] === false, detail: `C_Cpp.debugShortcut=${sj['C_Cpp.debugShortcut']}` };
+		});
+		await r.step('.clang-format: 揃えは空白、public: は class と同じ位置', async () => {
+			const cf = fs.readFileSync(path.join(dir, '.clang-format'), 'utf8');
+			return { ok: /^UseTab: ForIndentation$/m.test(cf) && /^AccessModifierOffset: -4$/m.test(cf), detail: cf.replace(/\r?\n/g, ' / ') };
+		});
+		await r.step('MSBuild / Visual Studio 用のファイル(TestGame.vcxproj・TestGame.sln・dxlib.props)ができ、SDK の場所が入っている', async () => {
+			const vcx = path.join(dir, 'TestGame.vcxproj');
+			const sln = path.join(dir, 'TestGame.sln');
+			const props = path.join(dir, 'dxlib.props');
+			if (![vcx, sln, props].every((f) => fs.existsSync(f))) {
+				return { ok: false, detail: `vcxproj=${fs.existsSync(vcx)} sln=${fs.existsSync(sln)} props=${fs.existsSync(props)}` };
+			}
+			const v = fs.readFileSync(vcx, 'utf8');
+			const s = fs.readFileSync(sln, 'utf8');
+			const p = fs.readFileSync(props, 'utf8');
+			const sdk = vscode.workspace.getConfiguration('dxlib').get('sdkPath');
+			const guid = (/<ProjectGuid>\{([0-9A-F-]+)\}<\/ProjectGuid>/.exec(v) || [])[1];
+			const ok =
+				v.includes('<DxLibDevEnv>1</DxLibDevEnv>') &&
+				v.includes('src\\**\\*.cpp') &&
+				v.includes('<CharacterSet>MultiByte</CharacterSet>') &&
+				v.includes('/source-charset:.932') &&
+				!!guid &&
+				s.includes(`{${guid}}`) &&
+				p.includes(`<DxLibDir>${sdk}</DxLibDir>`) &&
+				fs.readFileSync(path.join(dir, '.gitignore'), 'utf8').includes('dxlib.props');
+			return { ok, detail: `GUID=${guid} sln に同じ GUID=${!!guid && s.includes(guid)} props の SDK=${p.includes(String(sdk))}` };
+		});
 		r.check('template.json はコピーされない', !fs.existsSync(path.join(dir, 'template.json')));
 		const main = fs.readFileSync(path.join(dir, 'src', 'main.cpp'));
 		r.check('main.cpp は BOM 付き UTF-8', main[0] === 0xef && main[1] === 0xbb && main[2] === 0xbf);

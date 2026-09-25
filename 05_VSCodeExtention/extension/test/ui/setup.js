@@ -23,7 +23,6 @@ fs.writeFileSync(
 	JSON.stringify(
 		{
 			'dxlib.sdkPath': sdk,
-			'dxlib.templatesPath': path.join(work, 'templates'),
 			'security.workspace.trust.enabled': false,
 			'workbench.startupEditor': 'none',
 			'extensions.autoUpdate': 'off',

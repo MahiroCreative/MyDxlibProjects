@@ -17,17 +17,17 @@
 | ツールチェーン | vswhere で検出。プロジェクト側にパスを書かない(タスク種別 `dxlib` を拡張機能が提供) |
 | SDK | 生徒が自分で置き、パネルの「変更」でフォルダ指定。ダウンロード機能は作らない。バージョンを `DxLib.h` から読んで表示 |
 | SDK の運用 | 講師が安定版を指定し、更新は任意。切り替えは指し直すだけ |
-| ビルド | `cl.exe` 直叩きのフルビルド(`/MP`)。必要になったら CMake を検討 |
+| ビルド | **MSBuild で、拡張機能が作る `<名前>.vcxproj` をビルドする**(2026-09-25 ユーザー決定。以前は `cl.exe` 直叩きのフルビルド)。`.vcxproj` は生徒が触らない(ソースは `src\**\*.cpp` のワイルドカードで取り込む)。Visual Studio でもそのまま開ける。6 章 |
 | 文字コード | プロジェクトのソースは BOM 付き UTF-8(`files.encoding: utf8bom`)。cl には `/source-charset:.932 /execution-charset:.932`(BOM のあるファイルは UTF-8、BOM の無い DxLib ヘッダーは CP932 として読まれる)。`/source-charset:utf-8` は DxLib.h の日本語コメントが警告 C4828 の洪水になるので不可。cl の出力は `chcp 65001` で UTF-8 化 |
 | 構成 | Debug: `/Od /MTd /Zi /D_DEBUG` + `/link /DEBUG`。Release: `/O2 /MT /DNDEBUG`。出力は `build\Debug` `build\Release` |
 | lib 選択 | DxLib の自動リンク(`DxDataTypeWin.h` の `#pragma comment(lib)`)に任せる。明示指定しない |
 | デバッグ | C/C++ 拡張の `cppvsdbg`。F5 でビルド → 起動 |
 | IntelliSense | C/C++ 拡張の設定プロバイダー API で、拡張機能が include/defines/compilerPath を動的に渡す |
 | プロジェクト名 | 英数字とアンダースコアのみ(先頭は英字か `_`) |
-| テンプレート | フォルダ 1 つ = 1 テンプレート。`template.json` に名前と説明。同梱は「最小」のみ。授業用・自作は外部テンプレートフォルダ(設定)に置き、フォルダ名順 |
+| テンプレート | **テンプレートファイル(`.dxtemplate`。中身は zip)1 つ = 1 テンプレート**(2026-09-25 ユーザー決定。以前は「フォルダ 1 つ = 1 テンプレート」+ 外部テンプレートフォルダの設定)。中に `template.json`(名前と説明)とプロジェクトのファイル。同梱は「最小」のみ(拡張の中のフォルダ)。授業用・自作は `.dxtemplate` で配り、作成フォームで選ぶ。8 章 |
 | 置換 | `__PROJECT_NAME__` をファイル名と内容の両方で置換 |
 | テンプレートの禁則 | `.vscode`、ビルド成果物、SDK のコピーは無視 |
-| 保存 | 「今開いているプロジェクトをテンプレートとして保存」ボタン |
+| 保存 | エクスプローラーの「DxLib」欄のテンプレートの [保存] → 欄のフォーム(表示名・説明・名前を戻すか)→ 保存先を Windows のファイル保存ダイアログで決める → `.dxtemplate` を書く |
 | シェーダー | Direct3D 11 モード。既定ターゲット `vs_4_0` / `ps_4_0`(プロジェクト設定で変更可)。`.hlsl` と `.fx` を扱い、新規作成は `.hlsl` |
 | シェーダーのコンパイル | SDK 付属 `Tool\ShaderCompiler\ShaderCompiler.exe`。ソースを CP932 に変換してから渡す |
 | 定義の作成 | C/C++ 拡張の「宣言/定義の作成」を右クリック最上段と `Ctrl+Alt+D` に出す |
@@ -36,7 +36,7 @@
 | C/C++ 拡張の状態 | 未導入/無効なら起動時に警告 + パネル赤表示。初回準備中は「準備中…」、応答が無ければ黄色。ただし「応答が無ければ」の 120 秒タイマーは、DxLib プロジェクトを開いていて、かつ C/C++ のファイル(.cpp/.h など)がエディタで開かれているときだけ動く(2026-09-23 修正、2026-09-24 再修正。17.2・17.3 参照)。「準備中」の表示には「.cpp を開くと完了」と添える。C/C++ 拡張が DxLib 拡張より後から入った場合も検知して「準備中」に切り替える。起動時に無くても警告は 15 秒待ってから出す(2026-09-24 修正。17.3 参照) |
 | VS 未導入 | パネルで案内。ワークロード追加はインストーラーをコマンドラインで起動して代行 |
 | 制限モード(ワークスペースの信頼) | `capabilities.untrustedWorkspaces.supported: "limited"`。信頼されていないフォルダでは、パネルに「制限モードです」の案内と [このフォルダを信頼する] ボタンだけを出し、ビルド・タスク・補完・シェーダー・整形などプロセスを動かす機能は起動しない。DxLib のコマンドは `enablement: isWorkspaceTrusted` で信頼されるまで無効。信頼されたら(`onDidGrantWorkspaceTrust`)その場で残りの機能を起動する(開き直し不要)。2026-09-24 追加。17.4 参照 |
-| DxLib プロジェクト判定 | `.vscode/tasks.json` に `dxlib` タスクがあるかで判定(`isDxLibProject`)。無関係なフォルダを開いただけではビルド/実行ボタンとステータスバーの「▶ 実行」を出さない(2026-09-23 追加。当初は「フォルダが開いていれば表示」になっていた不具合を修正) |
+| DxLib プロジェクト判定 | `.vscode/tasks.json` に `dxlib` タスクがあるかで判定(`isDxLibProject`)。無関係なフォルダを開いただけではビルド/実行ボタン(2026-09-25 からはエディタ右上のボタン。3.2 章)を出さない(2026-09-23 追加。当初は「フォルダが開いていれば表示」になっていた不具合を修正) |
 
 ## 2. 利用者の流れ
 
@@ -47,7 +47,7 @@ PC ごとに 1 回:
 
 プロジェクトごと:
 1. パネルの「新規プロジェクト作成」→ 名前・作成先・テンプレートを入力 → 作成。
-2. 生成フォルダが開く。F5 か「▶ 実行」。
+2. 生成フォルダが開く。F5 か、エディタ右上の「実行」。
 
 ## 3. パネルの内容
 
@@ -59,7 +59,6 @@ DxLib
   ✘ C++ によるデスクトップ開発 が未インストール   [ワークロードを追加] [手順を見る]
   ✔ DxLib SDK 3.24f  C:\...\プロジェクトに追加すべきファイル_VC用   [変更]
   … C/C++ 拡張: 準備中
-  テンプレート: C:\...\MyTemplates   [変更]
 ──────────────────────
 [ 新規プロジェクト作成 ]  → パネル内フォーム(名前 / 作成先 / テンプレート)
 ──────────────────────
@@ -75,23 +74,54 @@ DxLib
 EXPLORER
 ▾ MYGAME
   ▸ .vscode
-  ▸ shaders      ← 右クリック:「新しいシェーダーを作成」「シェーダーをすべてコンパイル」
+  ▸ shaders      ← 右クリック:「DxLib」▶「シェーダーを追加...」、「シェーダーをすべてコンパイル」
   ▸ src             .hlsl/.fx を右クリック:「このシェーダーをコンパイル」
 ▾ DXLIB          ← 足した欄(Webview。開閉できる)
-  [ビルド] [実行] [デバッグ実行]
-  シェーダー
-  [新しいシェーダー] [すべてコンパイル]
-  [テンプレートとして保存]
+  ソースコード  [.cpp] [.h] [クラス]
+  シェーダー    [作成] [すべてコンパイル]
+  テンプレート  [保存]
 ```
+
+- **欄の中身は「ソースコード: .cpp・.h・クラス」「シェーダー: 作成・すべてコンパイル」「テンプレート: 保存」だけ(2026-09-25 夜 ユーザー決定)。** ビルド・実行・デバッグ実行はエディタ右上のボタン(3.2 章)に移したので、欄からは外した。**欄は小さく、拡張からは広げられないので、見出しを行の左に置いて 3 行に収める**(ボタンは短い文字にし、`title` で「C++ ソース (.cpp) を作成」などの説明を出す。幅 300px ほどの欄でもスクロールなしで全部見える。段階 3 のスクリーンショットで確認)。作成のボタンは見出しのボタンと同じコマンドを引数なしで呼ぶ(名前は画面上部の入力欄。作る場所は開いているファイルのフォルダ(src の下のとき)、無ければ src。シェーダーは種類を一覧で選ぶ。3.2 章)。欄の中の「新しいシェーダー」フォームは、ボタンからは開かない(`dxlib.newShaderFile` を引数なしで呼んだときだけ)。ボタンはすべて「ビルド」ボタンと同じ塗りつぶし(`button` の既定の色。`secondary` は使わない)にして、押せるものだと分かるようにする(`secondary` はテーマによっては文字だけに見える)。
 
 - 欄(`dxlib.projectView`、エクスプローラーの view container に足す Webview)は、DxLib プロジェクトを開いていて信頼されているときだけ出す(`when: dxlib.isProject && isWorkspaceTrusted`)。`dxlib.isProject` は拡張が `setContext` で設定する(起動時・フォルダの開き直し・設定変更のとき)。
 - 「新しいシェーダー」「テンプレートとして保存」のフォームは、この欄の中で開く(以前は DxLib パネルの中。12.1 の「フォーム化」の形はそのまま)。コマンドを引数なしで呼んだとき・右クリックから呼んだときも、この欄が開いてフォームが出る。
 - 右クリック:
-  - シェーダーのフォルダ(設定 `dxlib.shader.sourceDir`、既定 `shaders`)の上で「新しいシェーダーを作成」「シェーダーをすべてコンパイル」。判定は `resourcePath in dxlib.shaderFolders`(拡張が設定する、シェーダーのフォルダのパスの一覧。ドライブ文字の大文字・小文字の両方を入れる)。
+  - シェーダーのフォルダ(設定 `dxlib.shader.sourceDir`、既定 `shaders`)の上で「シェーダーをすべてコンパイル」。「新しいシェーダー」は右クリックの「DxLib」の中(3.2 章)。判定は `resourcePath in dxlib.shaderFolders`(拡張が設定する、シェーダーのフォルダのパスの一覧。ドライブ文字の大文字・小文字の両方を入れる)。
   - `.hlsl`・`.fx` ファイルの上で「このシェーダーをコンパイル」(`dxlib.compileShaderFile`)。選んだファイルだけをコンパイルする(複数選択も可)。シェーダーのフォルダの外のファイルは「シェーダーのフォルダの中のファイルだけコンパイルできます」と案内して何もしない(include を探す起点がそのフォルダのため)。
   - どれも DxLib プロジェクトのときだけ出す。
 - DxLib パネルからはプロジェクトの操作ボタンを外し、「現在のプロジェクト: 名前」と、エクスプローラーの欄を開くボタンだけを残す。
 - **欄の大きさ(2026-09-25 の試行と結論)。** 欄は最初、Outline・Timeline の下に小さく出る(ボタン 2 段分ほど。フォームはスクロールが要る)。(1) `initialSize` は効かなかった(欄と入れ物が同じ拡張のときだけ効く。エクスプローラーは VSCode 本体のもの)。(2) 「欄は見出しなしのボタンだけ、フォームはエディタのタブ(WebviewPanel)で開き成功したら閉じる」を作って試した(自動検証 140 項目 OK)が、ユーザーが試した結果「戻す」と決めた。今は、フォームを欄の中に出す形のまま。生徒には、必要なら欄の境目を引っぱって広げるよう教える(VSCode が大きさを覚える)。
+- **欄の位置(2026-09-25 の試行と結論)。** ユーザーの希望は「フォルダの一覧 → DxLib → Outline → Timeline」。**拡張からは変えられない**ことが分かった(VSCode 1.139 のコードと実機で確認)。今は Outline・Timeline の下のまま。
+  - `package.json` の欄には順番の指定が無い。エクスプローラーは VSCode 本体の入れ物なので、拡張の欄の順番は常に「無し」(最後)として扱われ、順番の付いた Outline・Timeline より下になる。
+  - `views.moveViewUp` / `views.moveViewDown`(Ctrl+K ↑/↓)は、「フォーカスのある欄」(`focusedView`)をキー操作のときの場所から読む。拡張が `executeCommand` で呼ぶと値が空になり、`Cannot read properties of null (reading 'storageId')` で失敗する。DxLib 欄(Webview)にフォーカスを移しても、Outline・Timeline に `outline.focus`・`timeline.focus` でフォーカスを移しても同じ。しかも `outline.focus` には、Outline を開いてしまう副作用がある。
+  - `vscode.moveViews` は、移す先が今と同じ入れ物だと何もしない。
+  - 順番は、ユーザーが欄の見出しをドラッグで並べ替えたときに VSCode が覚える。欄は `workspace` 指定の無い欄なので、**プロファイル全体で 1 つ**(プロジェクトごとではない)。したがって「1 回ドラッグすれば、以後のどのプロジェクトでもその並び」になる。
+
+### 3.2 ファイルの追加とエディタ右上のボタン(2026-09-25 ユーザー決定)
+
+生徒がよく使うのは「ファイルを足す」操作。ファイルを足すときに見ているエクスプローラーのファイル一覧のそばに置く。ビルド・実行・デバッグは、編集中に目の前にあるエディタの右上に置く。
+
+```
+┌ EXPLORER ─────────────────────────────┐┌ main.cpp ×                 🔨 ▶ 🐞 ⋯ ┐
+│ ▾ MYGAME   [.cpp][.h][class][shader] 📄+ 📁+ ⟳ ⊟ ││                                     │
+│   ▸ shaders   ← 右クリック:「DxLib」▶「新しいシェーダー...」            │
+│   ▾ src       ← 右クリック:「DxLib」▶「C++ ソース (.cpp)」「ヘッダー (.h)」「クラス (.h と .cpp)」 │
+```
+
+- **右クリックの「DxLib」メニュー**(`explorer/context` のサブメニュー `dxlib.explorerNew`):
+  - `src` とその下のフォルダ: 「C++ ソース (.cpp)...」「ヘッダー (.h)...」「クラス (.h と .cpp)...」。右クリックしたフォルダの中に作る。ビルドは `src` の下の `.cpp` だけを対象にするので、`src` の外では出さない。判定は `resourcePath in dxlib.cppFolders`(拡張が設定する、`src` とその下のすべてのフォルダのパスの一覧。フォルダの作成・削除・名前の変更を見て作り直す。ドライブ文字の大文字・小文字の両方を入れる)。
+  - シェーダーのフォルダ: 「新しいシェーダー...」。
+  - どれも DxLib プロジェクトで、信頼されているときだけ。
+- **エクスプローラーの見出しのボタン**(`view/title`、`view == workbench.explorer.fileView`): VSCode 本来の「新しいファイル」ボタンの左に「C++ ソースを追加」「ヘッダーを追加」「クラスを追加」「シェーダーを追加」の 4 つ。VSCode の決まりで、マウスを乗せたときだけ見える(本来のボタンと同じ)。拡張からはエクスプローラーで選んでいるフォルダを読めないので、作る場所は「今エディタで開いているファイルのフォルダ(`src` の下のとき)」、無ければ `src`。シェーダーはシェーダーのフォルダ。
+- **名前の聞き方: エクスプローラーの「DxLib」欄の中のフォーム(2026-09-25 夜 ユーザー決定)。** 画面上部の入力欄(`showInputBox`・`showQuickPick`)は、生徒が UI だと認識できずに混乱するので使わない(ユーザー指摘)。欄のボタン・右クリック・見出しのボタンのどれから呼んでも、欄を開いて(`dxlib.projectView.focus`)フォームを出す。.cpp・.h・クラスは「名前 [____] [作成] [キャンセル]」と作るファイルの場所(例 `src\enemy\Enemy.cpp`)の 1 行ぶん。作る場所は、右クリックならそのフォルダ、それ以外は開いているファイルのフォルダ(src の下のとき)、無ければ src(フォームを開くときに拡張が決めてフォームに渡し、送信で返してもらう)。シェーダーは欄の既存のシェーダーフォーム(種類 3 つのラジオボタンと名前)。名前は英数字と `_`、先頭は英字か `_`(フォームで確かめ、拡張でも確かめる)。同じ名前のファイルがあれば作らずに案内する。
+- **中身の雛形**(BOM 付き UTF-8。保存時の整形で変わらない形。10 章):
+  - `.cpp`: `#include "DxLib.h"`。同じフォルダに同じ名前の `.h` があれば、その `#include` も書く。
+  - `.h`: `#pragma once`。
+  - クラス: `.h` に `#pragma once` とクラスの宣言(コンストラクター・デストラクター)、`.cpp` に `#include "DxLib.h"`・`#include "<名前>.h"` とその定義。
+  - 作ったら開く(クラスは `.h`)。
+- **エディタ右上のボタン**(`editor/title` の `navigation`): 「ビルド」「実行」「デバッグ実行」。DxLib プロジェクトで信頼されているとき、どのファイルを開いていても出す。C/C++ 拡張も同じ場所に自分の ▶(C/C++ ファイルの実行)を出して紛らわしいので、プロジェクトの `settings.json` に `"C_Cpp.debugShortcut": false` を書いて消す(既存プロジェクトは開いたときに足す。6 章の移行と同じ扱い)。
+- **やめたもの**: ステータスバーの「▶ DxLib 実行」(エディタ右上のボタンに置き換え)。フォルダの右クリックの「新規プロジェクト作成」(DxLib パネルから作る)。
 
 ## 4. 環境検出
 
@@ -121,15 +151,39 @@ EXPLORER
 ## 6. ビルド(タスク種別 `dxlib`)
 
 - `tasks.json` には `{ "type": "dxlib", "config": "debug" }` だけ。
-- 拡張機能がビルド用 bat を拡張機能の保存領域に生成して実行する。
+- **MSBuild に切り替えた理由(2026-09-25 ユーザー決定)。** 以前は `cl.exe` を直接呼んで毎回すべてをコンパイルしていた(最初の設計で比べた候補は cl.exe 直叩きと CMake だけで、MSBuild は検討していなかった。プロジェクトファイルを持たずに済むことを優先したと考えられるが、記録は無い)。MSBuild にすると、(1) 変更したファイルだけをコンパイルし直す(試作で、変更なしの 2 回目は 2.0 秒 → 0.3 秒)、(2) Visual Studio でそのまま開いてビルド・デバッグできる(Visual Studio との行き来。6 章の最後)、(3) 拡張機能の無い PC でも Visual Studio でビルドできる。`.vcxproj` はワイルドカード(`src\**\*.cpp`)で書くので、ファイルの一覧を生徒が管理する必要は無い。
+- **プロジェクトに置くファイル**(拡張機能が作る。生徒は触らない):
+  - `<名前>.vcxproj`: Debug/Release の x64。`PlatformToolset` は `$(DefaultPlatformToolset)`(その PC の Visual Studio の標準。2022 なら v143、2026 なら v145)、`WindowsTargetPlatformVersion` は `10.0`(入っている最新の Windows SDK)。`CharacterSet` は `MultiByte`(`UNICODE` を定義しない。以前の cl の指定と同じ)。コンパイルの指定は以前の cl と同じ: 警告レベル 3、`4819` を無視、`stdcpp20`(設定 `dxlib.build.cppStandard`)、並列コンパイル、`/source-charset:.932 /execution-charset:.932`、`_WINDOWS;WIN32`(Debug は `_DEBUG`、Release は `NDEBUG`)、Debug は最適化なし・`/MTd`・デバッグ情報、Release は `/O2`・`/MT`。リンクはサブシステム Windows。インクルードとライブラリの場所は `$(DxLibDir)` と `src`。出力は以前と同じ `build\<構成>\<名前>.exe`、中間ファイルは `build\<構成>\obj\`。ソースは `src\**\*.cpp`、ヘッダーは `src\**\*.h;src\**\*.hpp`。一時フォルダの中に置いたときの警告(MSB8029)は出さない(`IgnoreWarnIntDirInTempDetected`)。
+  - `dxlib.props`: DxLib SDK の場所(`DxLibDir`)だけを書く。PC ごとに違うので `.vcxproj` から分けた。`.vcxproj` は `Exists` のときだけ読む。拡張機能が、プロジェクトを開いたときと SDK の場所を変えたときに書き直す。`.gitignore` に入れ、テンプレートにも入れない。
+  - `<名前>.sln`: Visual Studio でダブルクリックして開くため。
+  - テンプレートとして保存するとき、`*.vcxproj`・`*.vcxproj.*`・`*.sln`・`dxlib.props`・`.vs` は入れない(作るときにその名前で作り直す)。
+- **ビルドの手順**: 拡張機能が、ビルド用 bat を拡張機能の保存領域に書いて実行する(以前と同じ仕組み)。
   1. `chcp 65001`
-  2. `call vcvarsall.bat x64 >nul 2>&1`(stderr の vswhere 警告を抑える)
-  3. `src\**\*.cpp` を列挙
-  4. `cl /nologo /EHsc /MP /W3 /wd4819 /std:c++20 /source-charset:.932 /execution-charset:.932 /D_WINDOWS /DWIN32 <構成> /I <SDK> /I src ... /Fe build\<構成>\<名前>.exe /link /SUBSYSTEM:WINDOWS /LIBPATH:<SDK>`
-- この bat と同じ内容を日本語パスの SDK に対して実行し、警告 0 で exe ができることを確認済み(2026-09-23)。
+  2. `MSBuild.exe <名前>.vcxproj -p:Configuration=<Debug|Release> -p:Platform=x64 -nologo -v:minimal -m -flp:logfile=<ログ>;verbosity=minimal;encoding=utf-8`
+  - MSBuild は vswhere で探す(`-requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe`)。vcvarsall は要らない(MSBuild が自分で環境を整える)。
+  - ビルドの前に、`.vcxproj`・`.sln`・`dxlib.props` が無い・古ければ書き直す(`.vcxproj` は、この拡張が書いた印のあるものだけを書き直す)。
+- ビルドエラーの行は以前の cl と同じ形(`ファイル(行,列): error C3861: 内容`)で、末尾に ` [<名前>.vcxproj]` が付く。赤線を付けるときに取り除く。
+- 以前の版で作ったプロジェクト(`.vcxproj` が無い)は、開いたときに `.vcxproj`・`.sln`・`dxlib.props` を作って通知する(6 章の移行と同じ扱い)。
 - ~~問題マッチャー `$msCompile`。~~ **ビルドエラーの赤線は DxLib 拡張が管理する(2026-09-24 ユーザー決定)。** `$msCompile` で付いた赤線は VSCode が持っていて、拡張からは消せず、エラーを直しても次のビルドまで残っていた(ユーザー指摘)。そこで、タスクの問題マッチャーは使わない(`"problemMatcher": []`)。ビルド用 bat は cl の出力をログファイル(bat と同じ場所の `.log`)にも書き、画面にも出す。タスクが終わったら拡張がログを読み、MSVC の `ファイル(行,列): error Cxxxx: 内容` を自前の DiagnosticCollection(source `cl`)に入れる。ファイルを書き換え始めたら、そのファイルのビルドエラーは消す(入力中の赤線は C/C++ 拡張が出す)。ビルドを始めたら全部消す。リンカーエラー(LNKxxxx)はファイルと行が無いので赤線にせず、画面の出力だけ。
 - 既存プロジェクトの移行: 当初の tasks.json は dxlib タスクに `"problemMatcher": ["$msCompile"]` を書いていた。残っていると VSCode 側の赤線も付いて二重になり、消えない問題も残る。DxLib プロジェクトを開いたとき、dxlib タスクの `problemMatcher` が `[]` でなければ `[]` に書き換え、その旨を通知する。
-- 拡張機能が無い PC ではビルドできない(受け入れ済み)。
+- ~~拡張機能が無い PC ではビルドできない(受け入れ済み)。~~ MSBuild にしたので、拡張機能の無い PC でも Visual Studio で `.sln` を開けばビルドできる(`dxlib.props` が無いときは、Visual Studio のプロジェクトのプロパティで DxLib の場所を指定する)。
+
+### 6.1 Visual Studio で作ったプロジェクトを開く(2026-09-26 ユーザー決定)
+
+生徒が Visual Studio で作った DxLib のプロジェクトを、VSCode でもそのまま使えるようにする。逆向き(この拡張のプロジェクトを Visual Studio で開く)は、6 章の MSBuild 化で `.sln` を開けば使える。
+
+**VS 2026 で作ったプロジェクトの実物で分かったこと(2026-09-26)**: ソース(`.h`)は **BOM なし UTF-8**。ソリューションは新しい `.slnx` 形式。`CharacterSet` は `Unicode`(VS の標準。DxLib の説明ではマルチバイト推奨なので、生徒のプロジェクトはどちらもありえる)。ファイルは 1 つずつ書く(`<ClCompile Include="test.cpp" />`)。`PlatformToolset` は `v145` を直接書く。**BOM なし UTF-8 のソースは MSVC が CP932 として読むので、VS 2026 でビルドしても警告 C4819 が出て、日本語の文字列は化ける**(試験用プロジェクトで C4819 を確認。`/utf-8` はひな形に無い)。
+
+- **見つけ方**: 開いたフォルダが DxLib プロジェクト(dxlib タスクあり)でなく、直下に「この拡張が作った印の無い」`.vcxproj` があれば、Visual Studio のプロジェクトとみなす(複数あれば名前順で最初のもの)。DxLib パネルに「Visual Studio のプロジェクトです(<名前>.vcxproj)」と [DxLib 拡張で使えるようにする] を出す。
+- **使えるようにする**(`dxlib.adoptVsProject`):
+  1. 文字コードを調べる: `.vcxproj` にあるソース・ヘッダーと、フォルダの中の `.cpp`・`.h`・`.hpp` を、英数字だけ・BOM 付き UTF-8・BOM なし UTF-8・それ以外(Shift-JIS とみなす)に分ける。BOM なし UTF-8 か Shift-JIS があれば、「BOM 付き UTF-8 にそろえますか(Visual Studio でもそのまま開けます。日本語の文字列の文字化けと警告 C4819 が直ります)」と聞く(Windows の確認画面。[そろえる] / [そのまま])。そろえるときは Shift-JIS は CP932 として読んで変換する。そのままのときは、VSCode の文字コードの推測(`files.autoGuessEncoding`)を有効にする。
+  2. `.vscode` の一式を書く: `tasks.json`(dxlib タスク)、`launch.json`(exe と作業フォルダは MSBuild に聞いた `TargetPath` と `LocalDebuggerWorkingDirectory`)、`settings.json`(この拡張のプロジェクトと同じ。加えて `dxlib.vsProject`: `.vcxproj` の名前、`dxlib.vsPlatform`: `x64`(無ければ `Win32`))、`c_cpp_properties.json`、`extensions.json`。
+  3. **生徒のコードの書き方は変えない**: `.clang-format` を置かず、保存時の整形も切る(`editor.formatOnSave: false`)。`.gitignore` も書かない。
+  4. `.vcxproj`・`.sln`・`.slnx`・`.filters` は、ファイルを足すとき(下)以外は触らない。この拡張の `.vcxproj`・`.sln`・`dxlib.props` も作らない(6 章の移行もしない)。
+- **ビルド**: その `.vcxproj` を MSBuild でそのままビルドする(`-p:Configuration=<Debug|Release> -p:Platform=<dxlib.vsPlatform>`)。Visual Studio でビルドしたときと同じ結果になる。
+- **補完(IntelliSense)**: MSBuild に `-getItem:ClCompile -getProperty:...` で聞いた値(インクルードの場所、定義(`UNICODE` など)、C++ 規格)を渡す。Visual Studio と同じ解釈になる。インクルードの場所が DxLib パネルの SDK と同じなら、UTF-8 にした写しに差し替える(7 章)。`.vcxproj` が変わったら聞き直す。
+- **ファイルを足す**(3.2 章): C++ のファイルを作れる場所は、`src` ではなくプロジェクトのフォルダの下(ビルド成果物のフォルダ `x64`・`Debug`・`Release`・`.vs` などを除く)。作ったら `.vcxproj` の `ClCompile`/`ClInclude` と `.filters`(同じ種類のファイルが入っているフィルター。無ければフィルターなし)に書き足す。Visual Studio で開くと、そのファイルが見える。
+- 自動検証: 段階 9。VS 2026 の空のプロジェクトと同じ形の試験用プロジェクト(`test/fixtures/VsGame`。Unicode、BOM なし UTF-8 の日本語、ファイルを 1 つずつ書く、`.slnx`)で、見つけ方・使えるようにする・文字コードの変換・ビルド・補完の定義・ファイルを足す・`.vcxproj` を書き換えないことを確かめる。
 
 ## 7. デバッグと IntelliSense
 
@@ -148,9 +202,13 @@ EXPLORER
 - `extensions.json`(2026-09-24 追加): `unwantedRecommendations` に `ms-vscode.cpptools-extension-pack` を入れる。`.cpp` を開くたびに VSCode が「C/C++ Extension Pack を入れますか」と勧めてくるのを止める。Pack には CMake Tools が含まれるが、このツールは cl.exe を直接呼ぶので不要(ユーザーから「うざい」との指摘)。おすすめの通知が実際に止まるかは自動検証できない(検証用の起動では VSCode がおすすめの通知を出さなかった)ので、手動確認で見る。
 - **Pack を入れてしまった場合も動く(段階 8)。** CMake Tools も C/C++ 拡張の設定プロバイダーになれるが、プロジェクトは `configurationProvider` で DxLib 拡張を指名しているので横取りされない。Pack を実際にインストールした拡張フォルダで、ビルド・補完の設定(SDK のインクルードパスを DxLib 拡張が渡す)・赤波線なし・ホバー・デバッグ実行を確かめる(6 項目。2026-09-24 OK)。ほかの任意の拡張との組み合わせは保証しない(配布時の構成で保証し、入れられそうなものだけ個別に確かめる方針)。
 - 開き方(2026-09-24 ユーザー決定): フォルダを何も開いていない窓から作ったときは、その窓で開く(余計な窓を増やさない)。フォルダを開いている窓から作ったときは、新しい窓で開き、元の作業は残す。当初は常に今の窓で開いていて(`forceNewWindow: false`)、開いていた作業が閉じてしまっていた。
-- テンプレート一覧: 同梱 `templates/`(先頭固定)+ 設定 `dxlib.templatesPath` 直下のサブフォルダ(フォルダ名順)。
-- `template.json`: `{ "name": "表示名", "description": "説明" }`。
-- テンプレートとして保存: 現在のフォルダを外部テンプレートフォルダにコピー(禁則除外)、`template.json` を生成、プロジェクト名を `__PROJECT_NAME__` に戻すかを選択。
+- **テンプレートは 1 つのファイル(2026-09-25 ユーザー決定)。** フォルダで持ち歩くのではなく、ファイル 1 つで配ったり持ち歩いたりする(メールや Teams でそのまま渡せる)。**拡張子は `.dxtemplate`**(中身は zip。最初は `.zip` にしたが「zip だと分かりづらい」とユーザーが変更。`.dxt`・`.dxtpl` も候補だったが、生徒に一目で伝わる名前を選んだ)。中を見たいときは名前を `.zip` に変えればエクスプローラーで見られる。Windows の「圧縮 (zip 形式) フォルダー」で手作りしたテンプレートも使えるよう、**選ぶときは `.zip` も受け付ける**(保存は必ず `.dxtemplate`)。zip の直下に `template.json`(`{ "name": "表示名", "description": "説明" }`)とプロジェクトのファイル(`src/`・`shaders/` など)。`template.json` の無いファイルはテンプレートとして受け付けない(「テンプレートのファイルではありません」)。
+- **テンプレートとして保存**: 欄のフォーム(表示名・説明・プロジェクト名を `__PROJECT_NAME__` に戻すか)→ [保存] で **保存先を Windows のファイル保存ダイアログで決める**(ファイル名の初期値は `<表示名>.dxtemplate`、最初の場所は前回の保存先、無ければドキュメント。拡張子を付けずに名前を入れても `.dxtemplate` を付ける)。今のプロジェクトのファイル(禁則除外。`.vscode`・ビルド成果物・SDK のコピー・`Log.txt`・`template.json`)と `template.json` を zip の形式で書く。同じ名前のファイルを選んだときは、ダイアログの上書き確認に従う。保存したら「最近使ったテンプレート」に入れる。
+- **テンプレートからプロジェクトを作る**: 作成フォームのテンプレート欄は「最小(同梱)」「最近使ったテンプレート(表示名・説明・ファイルの場所)」「[テンプレートファイル (.dxtemplate) を選ぶ...]」。ボタンは Windows のファイルを開くダイアログ(`.dxtemplate` と `.zip`)。選んだファイルは中身を確かめてから一覧に足して選んだ状態にする。プロジェクト名は自由に決める(テンプレートの中の `__PROJECT_NAME__` を置換。以前と同じ)。
+- 最近使ったテンプレートは `globalState` に最大 10 件(新しい順)。消えた・読めなくなったファイルは一覧から外す。
+- 作るとき: zip を一時フォルダに展開 → 以前のフォルダのテンプレートと同じ手順でコピー・置換 → 一時フォルダを消す。
+- zip の読み書きは拡張機能の中で行う(Node の `zlib` の deflate と、zip の形式の読み書きを自前で。新しい依存や外部のツールは入れない)。書くのは deflate(方式 8)、読むのは格納(0)と deflate(8)。ファイル名は UTF-8(フラグ 11 番)。Windows の「送る → 圧縮 (zip 形式) フォルダー」で作った zip も読める(段階 2 で確かめる)。暗号化・ZIP64 は扱わない(案内して止める)。
+- 設定 `dxlib.templatesPath`(外部テンプレートフォルダ)と、DxLib パネルの環境欄の「テンプレート [変更]」はやめた。
 
 ## 9. シェーダー
 
@@ -187,11 +245,12 @@ DxLib 3.24f のソースで確認した事実:
 - ホバー: SDK の `DxLib.h`(CP932)を 1 回解析し、`extern ... Name( ... ) ; // コメント` を関数名で索引。宣言 3 件 + 残りはリンク(`dxlib.showAllDeclarations`)。
 - リファレンス: `help/dxfunc.html` の `href="...#RnNm">Name</a>` を索引にして既定ブラウザで開く。
 - 整形: C++ は C/C++ 拡張の clang-format。HLSL(`.hlsl`/`.fx`)は C/C++ 拡張が同梱している clang-format.exe を借用し(`<cpptools>/LLVM/bin/clang-format.exe`。新しいバイナリは配らない)、`DocumentFormattingEditProvider` として拡張機能自身が登録する。プロジェクト直下の `.clang-format` を C++ と共通で使う(`-style=file` はカレントディレクトリから上向きに探すので、実行時のカレントを対象ファイルのフォルダにする)。`register(t0)` や `: SV_POSITION` のセマンティクスも、clang-format には C++ の三項演算子・ビットフィールド相当として扱われ、実機で崩れずに整形されることを確認済み(2026-09-23)。`settings.json` の `"[hlsl]"` に既定整形器として明示する。
-- `.clang-format` の中身(`createProject.ts`): `BasedOnStyle: Microsoft`、`UseTab: ForIndentation`、`IndentWidth: 4`、`TabWidth: 4`、`BreakBeforeBraces: Allman`、`ColumnLimit: 0`、`AllowShortFunctionsOnASingleLine: Empty`、`AllowShortIfStatementsOnASingleLine: WithoutElse`、`PointerAlignment: Left`、`SortIncludes: false`、`NamespaceIndentation: All`、`AlignConsecutiveBitFields: Consecutive`。
+- `.clang-format` の中身(`createProject.ts`): `BasedOnStyle: Microsoft`、`UseTab: ForIndentation`、`IndentWidth: 4`、`TabWidth: 4`、`BreakBeforeBraces: Allman`、`ColumnLimit: 0`、`AllowShortFunctionsOnASingleLine: Empty`、`AllowShortIfStatementsOnASingleLine: WithoutElse`、`PointerAlignment: Left`、`SortIncludes: false`、`NamespaceIndentation: All`、`AlignConsecutiveBitFields: Consecutive`、`AccessModifierOffset: -4`。
   - **タブは字下げだけ、揃えは空白(`UseTab: ForIndentation`、2026-09-24 変更)。** 当初の `UseTab: Always` は行末コメントの揃えにもタブを使い、端数を空白で埋めるので、タブと空白が混ざった(例 `POSITION1; // spos` と `NORMAL0;		// norm` が並ぶ)。
   - **HLSL のセマンティクスの `:` は縦に揃える(`AlignConsecutiveBitFields`)。** clang-format には `float3 Position : POSITION0;` がビットフィールドに見えるので、この設定で揃う。C++ ではビットフィールドにしか効かない。宣言や `=` の自動揃え(`AlignConsecutiveDeclarations`/`Assignments`)は使わない(生徒が書いた行が、隣の行の編集で勝手に動くため)。
   - **同梱のテンプレート(C++ の main.cpp、シェーダー雛形 3 種)は「整形しても 1 文字も変わらない」形で書く。** 最初の保存で雛形が崩れる不具合があった(2026-09-24 のクリック確認で発見。4 章の #12 と関連)。手で揃えた空白・タブは整形で消えるので使わない。`__PROJECT_NAME__` を含む行には行末コメントを付けない(置換で行の長さが変わり、揃えがずれるため。コメントは前の行に書く)。段階 2 で、名前の長さを変えて整形し、変化が無いことを確かめる。
-  - 既存プロジェクトの移行: `.clang-format` が当初の内容(`UseTab: Always` の版)と完全に同じなら、開いたときに今の内容に書き換えて通知する。手で直してあれば触らない。
+  - **`public:` などは `class` と同じ位置(`AccessModifierOffset: -4`、2026-09-25 追加)。** Microsoft スタイルの既定(-2)では、字下げ 4 の中で `public:` が空白 2 個だけ字下げされ、タブと空白が混ざる(「クラスを追加」の雛形で発覚。3.2 章)。
+  - 既存プロジェクトの移行: `.clang-format` が以前にこの拡張が書いた内容(`UseTab: Always` の版、`AccessModifierOffset` の無い版)のどれかと完全に同じなら、開いたときに今の内容に書き換えて通知する。手で直してあれば触らない。
 
 ## 11. 同時インストール(`extensionPack`)
 

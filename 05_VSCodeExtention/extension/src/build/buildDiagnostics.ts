@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 /**
  * ビルドエラーの赤線(DESIGN.md 6 章)。
  * タスクの問題マッチャー($msCompile)で付けた赤線は VSCode が持っていて拡張から消せず、
- * エラーを直しても次のビルドまで残る。そこで、ビルド用 bat が残した cl の出力のログを
+ * エラーを直しても次のビルドまで残る。そこで、ビルド用 bat が残した MSBuild(cl)の出力のログを
  * ビルド後に読んで自前で赤線を付け、そのファイルを書き換え始めたら消す。
  */
 
@@ -24,20 +24,29 @@ export interface ParsedDiagnostic {
 /** cl の出力を解析する。相対パスは baseDir から解決する。リンカーエラー(ファイルと行が無い)は含めない。 */
 export function parseMsvcOutput(text: string, baseDir: string): ParsedDiagnostic[] {
 	const result: ParsedDiagnostic[] = [];
+	const seen = new Set<string>();
 	for (const raw of text.split(/\r?\n/)) {
 		const m = MSVC_LINE.exec(raw);
 		if (!m) {
 			continue;
 		}
 		const file = path.isAbsolute(m[1]) ? m[1] : path.resolve(baseDir, m[1]);
-		result.push({
+		// MSBuild は行末に「 [<名前>.vcxproj]」を付ける(DESIGN.md 6 章)
+		const message = m[6].replace(/\s+\[[^\]]*\.vcxproj\]\s*$/i, '');
+		const d: ParsedDiagnostic = {
 			file,
 			line: Math.max(1, Number(m[2])),
 			column: m[3] ? Math.max(1, Number(m[3])) : 1,
 			severity: m[4] as ParsedDiagnostic['severity'],
 			code: m[5],
-			message: m[6],
-		});
+			message,
+		};
+		// MSBuild は同じエラーを最後にもう一度まとめて出すことがあるので、重ねない
+		const key = `${d.file.toLowerCase()}|${d.line}|${d.column}|${d.code}|${d.message}`;
+		if (!seen.has(key)) {
+			seen.add(key);
+			result.push(d);
+		}
 	}
 	return result;
 }

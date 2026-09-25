@@ -1,55 +1,101 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { currentFolder, getConfig, projectExeName } from '../env/environment';
-import { copyProjectTree, isEmptyDir, writeText } from '../util/fsx';
+import * as vscode from 'vscode';
+import { currentFolder, projectExeName } from '../env/environment';
+import { copyProjectTree } from '../util/fsx';
+import { writeZip, ZipEntry } from '../util/zip';
 import { PLACEHOLDER } from './createProject';
+import { addRecentTemplate, TEMPLATE_EXT } from './templates';
 
 export interface SaveTemplateArgs {
 	name: string;
 	description: string;
 	/** プロジェクト名を __PROJECT_NAME__ に戻すか。 */
 	substitute: boolean;
+	/** 保存するテンプレートファイル(.dxtemplate)。省略すると、コマンドの入口で保存ダイアログを出して決める(検証では渡す)。 */
+	file?: string;
 }
 
 export interface SaveTemplateResult {
 	ok: boolean;
 	error?: string;
-	dest?: string;
+	file?: string;
 	count?: number;
 }
 
+function lastDirFile(context: vscode.ExtensionContext): string {
+	return path.join(context.globalStorageUri.fsPath, 'last-template-dir.txt');
+}
+
+/** 保存ダイアログの初期値: 前回の保存先のフォルダ(無ければドキュメント)の「<表示名>.dxtemplate」。 */
+export function defaultTemplateFile(context: vscode.ExtensionContext, name: string): string {
+	let dir: string | undefined;
+	try {
+		dir = fs.readFileSync(lastDirFile(context), 'utf8').trim();
+	} catch {
+		dir = undefined;
+	}
+	if (!dir || !fs.existsSync(dir)) {
+		dir = path.join(os.homedir(), 'Documents');
+	}
+	const base = name.trim().replace(/[\\/:*?"<>|]/g, '_') || 'template';
+	return path.join(dir, `${base}${TEMPLATE_EXT}`);
+}
+
+/** テンプレートファイルに入れるファイルを集める(禁則は copyProjectTree と同じ)。一時フォルダに写してから読む。 */
+function collectEntries(projectDir: string, reverse: (s: string) => string): { entries: ZipEntry[]; count: number } {
+	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dxlib-save-'));
+	try {
+		const count = copyProjectTree(projectDir, tmp, { renameEntry: reverse, transformText: (text) => reverse(text) });
+		const entries: ZipEntry[] = [];
+		const walk = (dir: string, rel: string): void => {
+			for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+				const full = path.join(dir, e.name);
+				const name = rel ? `${rel}/${e.name}` : e.name;
+				if (e.isDirectory()) {
+					walk(full, name);
+				} else if (e.isFile()) {
+					entries.push({ name, data: fs.readFileSync(full) });
+				}
+			}
+		};
+		walk(tmp, '');
+		return { entries, count };
+	} finally {
+		fs.rmSync(tmp, { recursive: true, force: true });
+	}
+}
+
 /**
- * 今開いているプロジェクトを外部テンプレートフォルダにコピーして template.json を作る
- * (パネル内フォームの送信先。ダイアログは出さない)。
- * 「プロジェクトのフォルダが開いているか」「テンプレートフォルダが設定済みか」は
- * コマンドの入口(extension.ts)側で確認済みの前提。
+ * 今開いているプロジェクトをテンプレートファイル(.dxtemplate。中身は zip)に保存する(欄のフォームの送信先。ダイアログは出さない)。
+ * 保存先(args.file)はコマンドの入口で保存ダイアログから決めてある前提。上書きの確認もダイアログが済ませている。
  */
-export async function saveAsTemplateWork(args: SaveTemplateArgs): Promise<SaveTemplateResult> {
+export async function saveAsTemplateWork(context: vscode.ExtensionContext, args: SaveTemplateArgs & { file: string }): Promise<SaveTemplateResult> {
 	const folder = currentFolder();
 	if (!folder) {
 		return { ok: false, error: 'プロジェクトのフォルダが開かれていません。' };
-	}
-	const templatesPath = getConfig<string>('templatesPath', '');
-	if (!templatesPath || !fs.existsSync(templatesPath)) {
-		return { ok: false, error: 'テンプレートフォルダが設定されていません。先に指定してください。' };
 	}
 	const name = args.name.trim();
 	if (!name) {
 		return { ok: false, error: '名前を入力してください。' };
 	}
-
 	const projectName = projectExeName(folder);
-	const folderName = name.replace(/[\\/:*?"<>|]/g, '_');
-	const dest = path.join(templatesPath, folderName);
-	if (!isEmptyDir(dest)) {
-		return { ok: false, error: `同じ名前のテンプレートが既にあります: ${dest}` };
-	}
-
 	const reverse = (s: string): string => (args.substitute ? s.split(projectName).join(PLACEHOLDER) : s);
-	const count = copyProjectTree(folder.uri.fsPath, dest, {
-		renameEntry: reverse,
-		transformText: (text) => reverse(text),
-	});
-	writeText(path.join(dest, 'template.json'), JSON.stringify({ name, description: args.description.trim() }, null, '\t') + '\n');
-	return { ok: true, dest, count };
+	const { entries, count } = collectEntries(folder.uri.fsPath, reverse);
+	entries.unshift({ name: 'template.json', data: Buffer.from(JSON.stringify({ name, description: args.description.trim() }, null, '\t') + '\n', 'utf8') });
+	try {
+		fs.mkdirSync(path.dirname(args.file), { recursive: true });
+		fs.writeFileSync(args.file, writeZip(entries));
+	} catch (e) {
+		return { ok: false, error: `保存できませんでした: ${e instanceof Error ? e.message : String(e)}` };
+	}
+	try {
+		fs.mkdirSync(context.globalStorageUri.fsPath, { recursive: true });
+		fs.writeFileSync(lastDirFile(context), path.dirname(args.file), 'utf8');
+	} catch {
+		// 次の保存ダイアログの初期値がドキュメントになるだけ
+	}
+	addRecentTemplate(context, args.file);
+	return { ok: true, file: args.file, count };
 }
