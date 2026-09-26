@@ -1,0 +1,25 @@
+{
+	"title": "深度シャドウ(3D アクションの基本に影を付ける)",
+	"original": "B_applied/3DAction_DepthShadow",
+	"original_main": "3DAction_DepthShadow.cpp",
+	"original_shaders": {
+		"NormalMesh_DepthShadow_Step1VS.vso": "NormalMesh_DepthShadow_Step1VS.fx",
+		"SkinMesh4_DepthShadow_Step1VS.vso": "SkinMesh4_DepthShadow_Step1VS.fx",
+		"DepthShadow_Step1PS.pso": "DepthShadow_Step1PS.fx",
+		"NormalMesh_DirLight_DepthShadow_Step2VS.vso": "NormalMesh_DirLight_DepthShadow_Step2VS.fx",
+		"SkinMesh4_DirLight_DepthShadow_Step2VS.vso": "SkinMesh4_DirLight_DepthShadow_Step2VS.fx",
+		"DirLight_DepthShadow_Step2PS.pso": "DirLight_DepthShadow_Step2PS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"ColTestStage.mqo",
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"KabeTex.bmp",
+		"Shadow.tga"
+	],
+	"frame": 60
+}

@@ -114,13 +114,13 @@ export class DxLibProjectViewProvider implements vscode.WebviewViewProvider {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <style>
 ${BASE_CSS}
-	body { padding-top: 4px; }
+	body { padding-top: 2px; }
 	/* 見出しを左、ボタンを右に並べる(3 行に収める) */
-	.rows { display: grid; grid-template-columns: max-content 1fr; column-gap: 8px; row-gap: 6px; align-items: center; margin-top: 6px; }
+	.rows { display: grid; grid-template-columns: max-content 1fr; column-gap: 8px; row-gap: 3px; align-items: center; margin-top: 2px; }
 	.row-label { font-size: 11px; opacity: 0.8; white-space: nowrap; }
 	.row-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
 	/* 欄の幅が狭くても 1 行に収まるよう、ボタンの左右の余白を少し詰める */
-	.row-buttons button { padding: 4px 7px; }
+	.row-buttons button { padding: 3px 7px; }
 	h2:first-child { margin-top: 4px; }
 	#shader-form, #template-form, #cpp-form { display: none; }
 	/* C++ のファイルの作成: 小さい欄に収まるよう、名前とボタンを 1 行に並べる */
@@ -148,6 +148,10 @@ ${BASE_CSS}
 			<div class="row-label">テンプレート</div>
 			<div class="row-buttons">
 				<button id="btn-open-template-form" title="今開いているプロジェクトをテンプレートとして保存">保存</button>
+			</div>
+			<div class="row-label">リリース</div>
+			<div class="row-buttons">
+				<button data-cmd="packageRelease" title="Release でビルドして、exe と素材を dist フォルダ(と zip)にまとめる">配布用にまとめる</button>
 			</div>
 		</div>
 	</div>

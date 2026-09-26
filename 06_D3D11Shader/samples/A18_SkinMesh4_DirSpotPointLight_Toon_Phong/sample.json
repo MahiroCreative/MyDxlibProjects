@@ -1,0 +1,20 @@
+{
+	"title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライトとスポットライトとポイントライト一つづつのフォンシェーディング",
+	"original": "A_base/18_SkinMesh4_DirSpotPointLight_Toon_Phong/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SkinMesh4_DirSpotPointLight_Toon_PhongVS.vso": "SkinMesh4_DirSpotPointLight_Toon_PhongVS.fx",
+		"SkinMesh4_DirSpotPointLight_Toon_PhongPS.pso": "SkinMesh4_DirSpotPointLight_Toon_PhongPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga",
+		"GradTex.bmp"
+	],
+	"frame": 30
+}

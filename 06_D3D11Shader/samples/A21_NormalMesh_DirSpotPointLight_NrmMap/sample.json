@@ -1,0 +1,20 @@
+{
+	"title": "法線マップ付き剛体メッシュのディレクショナルライトとスポットライトとポイントライト一つづつ描画",
+	"original": "A_base/21_NormalMesh_DirSpotPointLight_NrmMap/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_DirSpotPointLight_NrmMapVS.vso": "../NormalMesh_DirSpotPointLight_NrmMapVS.fx",
+		"NormalMesh_DirSpotPointLight_NrmMapPS.pso": "NormalMesh_DirSpotPointLight_NrmMapPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"BumpTexture0.bmp",
+		"NormalBox_NrmMap.mqo",
+		"NormalBox_NrmMap.mv1",
+		"Texture1.bmp"
+	],
+	"frame": 30
+}

@@ -16,7 +16,7 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(169 項目)�
 | 項目 | 状態 |
 |---|---|
 | 拡張機能本体(`extension/`) | 動く状態。実利用で見つかった不具合 12 件は対応済み(4 章)。#12 の元の指摘(「字下げすべきでない場所が字下げされる」)はユーザーの指示で一旦扱わない |
-| 自動検証 | 全段階・173 項目すべて OK(段階1: 27 / 段階2: 71 / 段階3: 10 / 段階4: 11 / 段階5: 7 / 段階6-late: 11 / 段階6-soon: 6 / 段階7: 7 / 段階8: 10 / 段階9: 12 / 最後のログ確認: 1)。2026-09-26 16:54、1 台目の PC(VS の選択の後) |
+| 自動検証 | 全段階・181 項目すべて OK(段階1: 27 / 段階2: 76 / 段階3: 10 / 段階4: 11 / 段階5: 7 / 段階6-late: 11 / 段階6-soon: 6 / 段階7: 7 / 段階8: 10 / 段階9: 15 / 最後のログ確認: 1)。2026-09-26 17:57、1 台目の PC(リリース実行・配布用にまとめる・写しの不具合の修正の後)。そのあと欄の余白を詰めた見た目だけの修正を段階 3 だけで確認 |
 | git | `main`。HEAD は `cc28ee0 up`(2026-09-26 までの変更はユーザーがコミット・push 済み)。ローカルの `vscode-extension` ブランチは古い(`3a87bc0`)ので使わない |
 | 2026-09-25 の変更(`fc16917` に含まれる) | 変更 12 ファイル・新規 2 ファイル(`extension/` の下)。<br>・後片づけのエラーの修正: `src/intellisense/configProvider.ts`、`test/runTest.js`(最後のログ確認)<br>・ワークロード追加の検証用の切り替え: `src/env/vswhere.ts`(`DXLIB_TEST_SIMULATE_NO_WORKLOAD`)<br>・シェーダーのファイル名 `_2DPS`/`_3DPS`/`_3DVS`: `src/shader/compileShaders.ts`<br>・エクスプローラーの「DxLib」欄と右クリック: 新規 `src/panel/projectView.ts`・`src/panel/webviewCommon.ts`、変更 `src/panel/panelView.ts`・`src/extension.ts`・`src/shader/compileShaders.ts`・`package.json`<br>・検証: `test/suite/phase2.js`・`test/suite/phase3.js`・`test/screenshot.ps1`(窓を前面に出せないときは撮らない)<br>・`DESIGN.md`(1・3・3.1・4・7・9・17 章)、この HANDOFF.md |
 | 2026-09-25 夜〜26 の変更(`cc28ee0` に含まれる) | `DESIGN.md`(3.1・3.2・10 章ほか)、この HANDOFF.md、`extension/` の `package.json`・`README.md`・`src/extension.ts`・`src/project/createProject.ts`・`src/project/migrate.ts`・新規 `src/project/newFiles.ts`、`test/runTest.js`・`test/suite/phase1.js`・`phase2.js`・`phase8.js`・新規 `test/suite/phase2_steps_new_files.js` |
@@ -42,6 +42,10 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(169 項目)�
 - **ビルドを MSBuild にした**(2026-09-25 夜 ユーザー決定。DESIGN.md 6 章): 拡張がプロジェクトに `<名前>.vcxproj`(ソースは `src\**\*.cpp` のワイルドカード。設定は以前の cl と同じ)・`<名前>.sln`・`dxlib.props`(この PC の DxLib の場所。`.gitignore` に入れる)を作り、MSBuild でビルドする。生徒は `.vcxproj` を触らない。変更したファイルだけコンパイルし直す。`.sln` をダブルクリックすれば Visual Studio でも開ける(**Visual Studio の画面で開いて動かすのはまだ試していない**。MSBuild で `.sln` をビルドできることは確認済み)。以前のプロジェクトは開いたときに 3 つのファイルを作る。テンプレートには入れない。MSBuild は vswhere で見つけた `<VS>\MSBuild\Current\Bin\MSBuild.exe`。`PlatformToolset` は `$(DefaultPlatformToolset)` なので 2022 でも 2026 でも動くはず(2022 は未確認)。段階 1・2・8 に確認を追加(ファイルの中身、差分ビルド、テンプレートに入らない、移行)。
 - **Visual Studio で作ったプロジェクトを開けるようにした**(2026-09-26 ユーザー決定。DESIGN.md 6.1 章): 開いたフォルダに、この拡張が作った印の無い `.vcxproj` があれば、DxLib パネルに「Visual Studio のプロジェクトです」と [DxLib 拡張で使えるようにする] を出す。押すと、BOM なし UTF-8・Shift-JIS のソースを BOM 付き UTF-8 にそろえるかを聞き(Windows の確認画面)、`.vscode` の一式を書く(`dxlib.vsProject` / `dxlib.vsPlatform`、保存時の整形は切る、`.clang-format`・`.gitignore` は書かない)。ビルドはその `.vcxproj` を MSBuild でそのまま、exe の場所・補完の定義(`UNICODE` など)・インクルードは MSBuild に聞く(`-getProperty` / `-getItem`)。VSCode で足したファイルは `.vcxproj` と `.filters`(同じ種類のファイルのフィルター)に書き足す。それ以外で `.vcxproj`・`.sln`・`.slnx`・`.filters` は触らない。新しく `src/build/vsProject.ts`・`src/project/adoptVs.ts`。自動検証は段階 9(`test/fixtures/VsGame` = VS 2026 の空のプロジェクトと同じ形、12 項目)。**Visual Studio の画面側での確認(足したファイルが VS で見える、など)はまだ。**
 - **Visual Studio が複数入っているとき、使う版を選べるようにした**(2026-09-26 ユーザー決定。DESIGN.md 4 章): C++ ワークロードの入った VS をすべて探し、2 つ以上なら DxLib パネルの VS の行に [変更]。パネルの中のフォームで選ぶと、設定 `dxlib.visualStudioPath`(PC ごと)に書き、その VS の MSBuild と cl.exe を使う。選んだものが見つからなければ、いちばん新しいものを使って知らせる。検証用に `DXLIB_TEST_EXTRA_VS=1` で実在しない「2022(検証用)」が 1 つ増える(段階 1 で 4 項目、クリック操作でも確認)。**実物が 2 つある 2 台目の PC での確認はまだ。** パネルの古い説明(ビルド・実行は DxLib 欄に)も直した。
+- `extension/tsconfig.json` を `"module": "node16"` / `"moduleResolution": "node16"` に変えた(2026-09-26)。VSCode 内蔵の TypeScript 6.0 が「`moduleResolution=node10` は非推奨、7.0 で使えなくなる」と問題パネルに出していたため。手元の TypeScript 5.9 で型検査・ビルドとも通る。
+- **実行を「デバッグ実行」と「リリース実行」の 2 つにした**(2026-09-26 ユーザー決定。DESIGN.md 3.2 章): エディタ右上のボタンは [ビルド][デバッグ実行][リリース実行] の順(ユーザー指定)。▶ は「リリース実行」(Release ビルドをデバッガーなしで。配ったときと同じ動き・速さ)、🐞 は「デバッグ実行」(Debug ビルドをデバッガーありで)。以前の「実行」は Debug をデバッガーなしで動かしていた。VS のような「構成の切り替え」は、切り替え忘れを避けるため作らない(必要になったら広げる)。
+- **「配布用にまとめる」を作った**(2026-09-26 ユーザー決定。DESIGN.md 6.2 章): DxLib 欄に「リリース [配布用にまとめる]」の行を足した(欄に足すのはこれだけ)。Release でビルド → `dist\<名前>\` に exe と素材をプロジェクトと同じ並びでコピー(`build\Release` の exe をダブルクリックすると作業フォルダが変わり素材が読めない問題への対策)→ `dist\<名前>.zip` → エクスプローラーで開く。素材は「入れないもの」以外すべて。VS で作ったプロジェクトでも使える。新しいプロジェクトの `.gitignore` に `dist/`。段階 2(5 項目)と段階 9(3 項目)で確かめる(dist の exe を dist を作業フォルダにして起動し、`Log.txt` が dist にできる)。 DxLib 欄は 4 行になったので、行の間とボタンの上下の余白を少し詰めて、小さい欄でもスクロールなしで全部見えるようにした(段階 3 のスクリーンショットで確認)。リリース実行はデバッガーなしなので、VSCode の「停止」ではゲームが閉じない(生徒はゲームの窓を閉じればよい。検証ではゲームを直接閉じる)。
+- **補完に渡すヘッダーの写しの不具合を直した**(2026-09-26。`shadowHeaders.ts`): 新しい写しを作ったあと古い写しを消すとき、C/C++ 拡張が古い写しを開いていると消せず、その失敗で「写しを作れなかった」扱いになって元の SDK(CP932 のまま)を渡していた。SDK の場所を変えた直後にホバーの説明が化ける可能性があった。自動検証の「SDK の移動」で一度 NG になって発覚(タイミング次第)。古い写しの片づけは失敗しても無視し、名前の変更は少し試し直すようにした。別のプログラムが削除を許さずに開いている状態を作って、直す前は元の SDK、直した後は新しい写しを返すことを確かめた。
 
 ## 2. 環境の前提
 
@@ -178,7 +182,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File test/ui/ui.ps1 -UserDataDir 
 
 **別タスク(Direct3D 11 教材)**
 
-1. 定数バッファ仕様書 — Fable 5.1・高。2026-09-26 の週間枠リセット以降。冒頭に「なぜ 2D/3D でピクセルシェーダーの入力の並びが違うか」(DESIGN.md 9.1 と 8 章)を書く。
+1. 定数バッファ仕様書 — **Opus 5.5・高**(2026-09-26 ユーザー決定で Fable 5.1 から変更)。書いた事実はすべて「原本の場所(ファイルと行)」か「DxLib で描いて画素で確かめた結果」で裏を取る。Fable は必要を感じたら最後の見直しだけ。冒頭に「なぜ 2D/3D でピクセルシェーダーの入力の並びが違うか」(DESIGN.md 9.1 と 8 章)を書く。
 2. サンプルシェーダー 20 本の D3D11 版 + C++ サンプル(動作確認済みのみ) — Opus 5.5・高。
 3. それを使うシェーダー用テンプレート — Sonnet 5・中。
 - 参照する資料: `00_DxLib_Make/DxLibMake/Shader/Windows/Direct3D11/`。元の作業場所 `C:\Users\mahir\Desktop\IdaFaber`(有償アセットが題材なので配布不可)が無ければ、上の原本から起こす。

@@ -1,0 +1,32 @@
+{
+	"title": "被写界深度(ピントの前後をぼかす)",
+	"original": "B_applied/DepthOfField",
+	"original_main": "DepthOfField.cpp",
+	"original_shaders": {
+		"Depth_NormalMeshVS.vso": "Depth_NormalMeshVS.fx",
+		"Depth_SkinMeshVS.vso": "Depth_SkinMeshVS.fx",
+		"DepthPS.pso": "DepthPS.fx",
+		"DepthOfFieldPS.pso": "DepthOfFieldPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"max_diff_ratio": 0.03,
+	"diff_reason": "差のほとんどは、画面の文字(DrawString。DxLib の文字の描画の Direct3D 9 と 11 の違い)と、ぼかす前の標準の描画の明るさの差(約 5/255)。移植したシェーダーの出力(深度値・ぼかしの割合)だけを取り出して比べると、文字とモデルの縁の数画素を除いて一致した",
+	"original_patches": [
+		{
+			"file": "DepthPS.fx",
+			"old": "PSOutput.Color0.a = 0.0f ;",
+			"new": "PSOutput.Color0.a = 1.0f ;",
+			"reason": "原本はアルファを 0 にしていて、今の DxLib(3.24f)では Direct3D 9 でも深度値が書き込まれず、画面全体がぼける(公式ページの画像と違う)。移植版と同じく 1 にして比べる"
+		}
+	],
+	"assets": [
+		"ColTestStage.mqo",
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"KabeTex.bmp"
+	],
+	"frame": 60
+}

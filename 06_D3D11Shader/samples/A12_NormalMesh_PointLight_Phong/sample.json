@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのポイントライトありフォンシェーディング描画",
+	"original": "A_base/12_NormalMesh_PointLight_Phong/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_PointLight_PhongVS.vso": "NormalMesh_PointLight_PhongVS.fx",
+		"NormalMesh_PointLight_PhongPS.pso": "NormalMesh_PointLight_PhongPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

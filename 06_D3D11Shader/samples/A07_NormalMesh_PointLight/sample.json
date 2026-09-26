@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのポイントライトあり描画",
+	"original": "A_base/07_NormalMesh_PointLight/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_PointLightVS.vso": "NormalMesh_PointLightVS.fx",
+		"NormalMesh_PointLightPS.pso": "NormalMesh_PointLightPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

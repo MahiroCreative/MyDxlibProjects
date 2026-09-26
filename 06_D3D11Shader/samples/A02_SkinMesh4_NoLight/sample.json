@@ -1,0 +1,19 @@
+{
+	"title": "１頂点へ影響を与えるフレームの数が１～４個のスキニングメッシュのライティング無し描画",
+	"original": "A_base/02_SkinMesh4_NoLight",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SkinMesh4_NoLightVS.vso": "SkinMesh4_NoLightVS.fx",
+		"SkinMesh4_NoLightPS.pso": "SkinMesh4_NoLightPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga"
+	],
+	"frame": 30
+}

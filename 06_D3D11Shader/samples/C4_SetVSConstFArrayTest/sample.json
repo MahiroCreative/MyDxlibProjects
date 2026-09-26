@@ -1,0 +1,13 @@
+{
+	"title": "C++ から配列と整数を渡す(関数リファレンス SetVSConstFArray のサンプル)",
+	"original": "C_function/C4_SetVSConstFArrayTest",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SetVSConstFArrayTestVS.vso": "../C4_SetVSConstFArrayTest/SetVSConstFArrayTestVS.fx",
+		"SetVSConstFArrayTestPS.pso": "../C4_SetVSConstFArrayTest/SetVSConstFArrayTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

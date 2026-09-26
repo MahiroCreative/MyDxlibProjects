@@ -1,0 +1,20 @@
+{
+	"title": "フレネル反射(見る角度で映り込みの強さが変わる水面)",
+	"original": "B_applied/FresnelReflection",
+	"original_main": "FresnelReflection.cpp",
+	"original_shaders": {
+		"FresnelReflectionVS.vso": "FresnelReflectionVS.fx",
+		"FresnelReflectionPS.pso": "FresnelReflectionPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"ColTestStage.mqo",
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"KabeTex.bmp"
+	],
+	"frame": 60
+}

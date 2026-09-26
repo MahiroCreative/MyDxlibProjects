@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのライティング無しフォグあり描画",
+	"original": "A_base/03_NormalMesh_NoLight_Fog/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_NoLight_FogVS.vso": "NormalMesh_NoLight_FogVS.fx",
+		"NormalMesh_NoLight_FogPS.pso": "NormalMesh_NoLight_FogPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

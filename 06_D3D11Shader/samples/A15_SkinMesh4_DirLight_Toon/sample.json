@@ -1,0 +1,20 @@
+{
+	"title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つ",
+	"original": "A_base/15_SkinMesh4_DirLight_Toon/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SkinMesh4_DirLight_ToonVS.vso": "SkinMesh4_DirLight_ToonVS.fx",
+		"SkinMesh4_DirLight_ToonPS.pso": "SkinMesh4_DirLight_ToonPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga",
+		"GradTex.bmp"
+	],
+	"frame": 30
+}

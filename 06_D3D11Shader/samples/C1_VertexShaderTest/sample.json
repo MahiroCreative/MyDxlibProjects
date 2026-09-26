@@ -1,0 +1,11 @@
+{
+	"title": "頂点シェーダーの基本(関数リファレンス LoadVertexShader のサンプル)",
+	"original": "C_function/C1_VertexShaderTest",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"VertexShaderTestVS.vso": "VertexShaderTestVS.fx",
+		"VertexShaderTestPS.pso": "VertexShaderTestPS.fx"
+	},
+	"assets": ["Tex1.bmp"],
+	"frame": 30
+}

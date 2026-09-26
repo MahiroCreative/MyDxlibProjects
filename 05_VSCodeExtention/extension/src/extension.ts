@@ -5,6 +5,7 @@ import { BuildDiagnostics } from './build/buildDiagnostics';
 import { buildLogPathOfTask, DxLibTaskProvider, runBuild, TASK_TYPE } from './build/taskProvider';
 import { adoptVsProject, AdoptArgs } from './project/adoptVs';
 import { migrateProject } from './project/migrate';
+import { packageRelease } from './build/packageRelease';
 import { listCppFolders, registerNewFileCommands } from './project/newFiles';
 import { CPPTOOLS_ID, cpptoolsInstalled, intelliSenseState, warnIfCpptoolsMissing } from './env/cpptools';
 import { registerHlslFormatter } from './format/hlslFormatter';
@@ -22,6 +23,8 @@ import { compileShaders, createShaderFile, NewShaderArgs, shaderSourceDir } from
 import { buildStartProcessScript, launchElevated } from './util/exec';
 
 const DEBUG_LAUNCH_NAME = 'DxLib: デバッグ実行 (Debug)';
+/** リリース実行(Release ビルドをデバッガーなしで。DESIGN.md 3.2 章)。launch.json の名前は以前から同じ。 */
+const RELEASE_LAUNCH_NAME = 'DxLib: 実行 (Release)';
 
 /** 自動検証(test/)から使う窓口。利用者向けの機能ではない。 */
 export interface DxLibTestApi {
@@ -328,7 +331,7 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			void vscode.window.showWarningMessage('プロジェクトのフォルダが開かれていません。');
 			return;
 		}
-		await vscode.debug.startDebugging(folder, DEBUG_LAUNCH_NAME, { noDebug: true });
+		await vscode.debug.startDebugging(folder, RELEASE_LAUNCH_NAME, { noDebug: true });
 	});
 
 	register('dxlib.debug', async () => {
@@ -338,6 +341,28 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 			return;
 		}
 		await vscode.debug.startDebugging(folder, DEBUG_LAUNCH_NAME);
+	});
+
+	// 配布用にまとめる(DESIGN.md 6.2 章)。検証では { reveal: false } を渡してエクスプローラーを開かない
+	register('dxlib.packageRelease', async (arg?: unknown) => {
+		const folder = currentFolder();
+		if (!folder) {
+			void vscode.window.showWarningMessage('プロジェクトのフォルダが開かれていません。');
+			return undefined;
+		}
+		const result = await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: '配布用にまとめています(Release でビルドしてからコピーします)…' },
+			() => packageRelease(folder),
+		);
+		if (!result.ok) {
+			void vscode.window.showErrorMessage(result.error ?? '不明なエラーです。');
+			return result;
+		}
+		if ((arg as { reveal?: boolean } | undefined)?.reveal !== false) {
+			await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(result.dir as string));
+		}
+		void vscode.window.showInformationMessage(`配布用にまとめました(${result.files?.length ?? 0} ファイル): ${result.dir} と ${path.basename(result.zip as string)}。フォルダごと(または zip を)渡せば遊べます。`);
+		return result;
 	});
 
 	register('dxlib.compileShaders', () => compileShaders(output));

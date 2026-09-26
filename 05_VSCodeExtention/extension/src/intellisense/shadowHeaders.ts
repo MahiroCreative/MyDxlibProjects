@@ -71,15 +71,35 @@ export function ensureShadowHeaders(storageDir: string, sdkPath: string): string
 		}
 		fs.writeFileSync(path.join(tmp, SHADOW_SOURCE_FILE), sdkPath, 'utf8');
 		fs.rmSync(dir, { recursive: true, force: true });
-		fs.renameSync(tmp, dir);
-		// 古い写し(別の SDK・別の版)を片づける
-		for (const other of fs.readdirSync(root)) {
-			if (other !== id) {
-				fs.rmSync(path.join(root, other), { recursive: true, force: true });
-			}
-		}
-		return dir;
+		renameWithRetry(tmp, dir);
 	} catch {
 		return undefined;
+	}
+	// 古い写し(別の SDK・別の版)を片づける。C/C++ 拡張がまだ古い写しのヘッダーを開いていると消せないことがある。
+	// 片づけは次の機会でよいので、失敗しても新しい写しは使う(以前はここで失敗すると元の SDK を渡していた。2026-09-26)
+	for (const other of fs.readdirSync(root)) {
+		if (other !== id) {
+			try {
+				fs.rmSync(path.join(root, other), { recursive: true, force: true });
+			} catch {
+				// 次に写しを作るときにもう一度片づける
+			}
+		}
+	}
+	return dir;
+}
+
+/** 書いた直後のフォルダは、ウイルス対策などが一瞬つかんでいて名前を変えられないことがあるので、少し待って試し直す。 */
+function renameWithRetry(from: string, to: string): void {
+	for (let i = 0; ; i++) {
+		try {
+			fs.renameSync(from, to);
+			return;
+		} catch (e) {
+			if (i >= 9) {
+				throw e;
+			}
+			Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100); // 100 ミリ秒待つ
+		}
 	}
 }

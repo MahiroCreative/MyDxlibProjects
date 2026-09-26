@@ -1,0 +1,12 @@
+{
+	"title": "2 つの描画先に同時に描く(関数リファレンス SetRenderTargetToShader のサンプル)",
+	"original": "C_function/C6_SetRenderTargetTest",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SetRenderTargetTestPS.pso": "../C6_SetRenderTargetTest/SetRenderTargetTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

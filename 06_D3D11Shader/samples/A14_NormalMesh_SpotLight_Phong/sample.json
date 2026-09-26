@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのスポットライトありフォンシェーディング描画",
+	"original": "A_base/14_NormalMesh_SpotLight_Phong/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_SpotLight_PhongVS.vso": "NormalMesh_SpotLight_PhongVS.fx",
+		"NormalMesh_SpotLight_PhongPS.pso": "NormalMesh_SpotLight_PhongPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

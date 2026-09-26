@@ -1,0 +1,20 @@
+{
+	"title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つのフォンシェーディング",
+	"original": "A_base/17_SkinMesh4_DirLight_Toon_Phong/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SkinMesh4_DirLight_Toon_PhongVS.vso": "SkinMesh4_DirLight_Toon_PhongVS.fx",
+		"SkinMesh4_DirLight_Toon_PhongPS.pso": "SkinMesh4_DirLight_Toon_PhongPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga",
+		"GradTex.bmp"
+	],
+	"frame": 30
+}

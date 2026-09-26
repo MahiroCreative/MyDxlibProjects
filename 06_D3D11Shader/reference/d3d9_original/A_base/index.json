@@ -1,0 +1,443 @@
+[
+ {
+  "anchor": "R1N1",
+  "title": "剛体メッシュのライティング無し描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_NoLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_NoLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_NoLightPS.pso"
+   ]
+  ],
+  "folder": "01_NormalMesh_NoLight"
+ },
+ {
+  "anchor": "R1N2",
+  "title": "１頂点へ影響を与えるフレームの数が１～４個のスキニングメッシュのライティング無し描画",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_NoLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_NoLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_NoLightPS.pso"
+   ]
+  ],
+  "folder": "02_SkinMesh4_NoLight"
+ },
+ {
+  "anchor": "R1N3",
+  "title": "剛体メッシュのライティング無しフォグあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_NoLight_Fog.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_NoLight_FogVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_NoLight_FogPS.pso"
+   ]
+  ],
+  "folder": "03_NormalMesh_NoLight_Fog"
+ },
+ {
+  "anchor": "R1N4",
+  "title": "剛体メッシュのライティング無しフォグあり描画（シェーダーモデル３．０版）",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_NoLight_Fog_SV3.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_NoLight_Fog_SV3VS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_NoLight_Fog_SV3PS.pso"
+   ]
+  ],
+  "folder": "04_NormalMesh_NoLight_Fog_SV3"
+ },
+ {
+  "anchor": "R2N1",
+  "title": "剛体メッシュのディレクショナルライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_DirLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_DirLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_DirLightPS.pso"
+   ]
+  ],
+  "folder": "05_NormalMesh_DirLight"
+ },
+ {
+  "anchor": "R2N2",
+  "title": "１頂点へ影響を与えるフレームの数が１～４個のスキニングメッシュのディレクショナルライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_DirLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_DirLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_DirLightPS.pso"
+   ]
+  ],
+  "folder": "06_SkinMesh4_DirLight"
+ },
+ {
+  "anchor": "R3N1",
+  "title": "剛体メッシュのポイントライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_PointLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_PointLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_PointLightPS.pso"
+   ]
+  ],
+  "folder": "07_NormalMesh_PointLight"
+ },
+ {
+  "anchor": "R3N2",
+  "title": "剛体メッシュのスポットライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_SpotLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_SpotLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_SpotLightPS.pso"
+   ]
+  ],
+  "folder": "08_NormalMesh_SpotLight"
+ },
+ {
+  "anchor": "R3N3",
+  "title": "剛体メッシュのディレクショナルライトとポイントライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_DirPointLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_DirPointLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_DirPointLightPS.pso"
+   ]
+  ],
+  "folder": "09_NormalMesh_DirPointLight"
+ },
+ {
+  "anchor": "R3N4",
+  "title": "剛体メッシュのスポットライトとポイントライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_SpotPointLight.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_SpotPointLightVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_SpotPointLightPS.pso"
+   ]
+  ],
+  "folder": "10_NormalMesh_SpotPointLight"
+ },
+ {
+  "anchor": "R4N1",
+  "title": "剛体メッシュのディレクショナルライトありフォンシェーディング描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_DirLight_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_DirLight_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_DirLight_PhongPS.pso"
+   ]
+  ],
+  "folder": "11_NormalMesh_DirLight_Phong"
+ },
+ {
+  "anchor": "R4N2",
+  "title": "剛体メッシュのポイントライトありフォンシェーディング描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_PointLight_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_PointLight_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_PointLight_PhongPS.pso"
+   ]
+  ],
+  "folder": "12_NormalMesh_PointLight_Phong"
+ },
+ {
+  "anchor": "R4N4",
+  "title": "剛体メッシュのポイントライトありフォンシェーディング描画（ポイントライト６つ版）",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_PointLight6_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_PointLight6_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_PointLight6_PhongPS.pso"
+   ]
+  ],
+  "folder": "13_NormalMesh_PointLight6_Phong"
+ },
+ {
+  "anchor": "R4N3",
+  "title": "剛体メッシュのスポットライトありフォンシェーディング描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_SpotLight_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_SpotLight_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_SpotLight_PhongPS.pso"
+   ]
+  ],
+  "folder": "14_NormalMesh_SpotLight_Phong"
+ },
+ {
+  "anchor": "R5N1",
+  "title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つ",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_DirLight_Toon.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_DirLight_ToonVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_DirLight_ToonPS.pso"
+   ]
+  ],
+  "folder": "15_SkinMesh4_DirLight_Toon"
+ },
+ {
+  "anchor": "R5N2",
+  "title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライトとスポットライトとポイントライト一つづつ",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_DirSpotPointLight_Toon.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_DirSpotPointLight_ToonVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_DirSpotPointLight_ToonPS.pso"
+   ]
+  ],
+  "folder": "16_SkinMesh4_DirSpotPointLight_Toon"
+ },
+ {
+  "anchor": "R5N3",
+  "title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つのフォンシェーディング",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_DirLight_Toon_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_DirLight_Toon_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_DirLight_Toon_PhongPS.pso"
+   ]
+  ],
+  "folder": "17_SkinMesh4_DirLight_Toon_Phong"
+ },
+ {
+  "anchor": "R5N4",
+  "title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライトとスポットライトとポイントライト一つづつのフォンシェーディング",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_DirSpotPointLight_Toon_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_DirSpotPointLight_Toon_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_DirSpotPointLight_Toon_PhongPS.pso"
+   ]
+  ],
+  "folder": "18_SkinMesh4_DirSpotPointLight_Toon_Phong"
+ },
+ {
+  "anchor": "R5N5",
+  "title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つとスフィアマップのフォンシェーディング",
+  "zip": "https://dxlib.xsrv.jp/file/SkinMesh4_DirLight_SphereMap_Toon_Phong.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "SkinMesh4_DirLight_SphereMap_Toon_PhongVS.vso"
+   ],
+   [
+    "Pixel",
+    "SkinMesh4_DirLight_SphereMap_Toon_PhongPS.pso"
+   ]
+  ],
+  "folder": "19_SkinMesh4_DirLight_SphereMap_Toon_Phong"
+ },
+ {
+  "anchor": "R6N1",
+  "title": "法線マップ付き剛体メッシュのディレクショナルライトあり描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_DirLight_NrmMap.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム",
+   "ピクセルシェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_DirLight_NrmMapVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_DirLight_NrmMapPS.pso"
+   ]
+  ],
+  "folder": "20_NormalMesh_DirLight_NrmMap"
+ },
+ {
+  "anchor": "R6N2",
+  "title": "法線マップ付き剛体メッシュのディレクショナルライトとスポットライトとポイントライト一つづつ描画",
+  "zip": "https://dxlib.xsrv.jp/file/NormalMesh_DirSpotPointLight_NrmMap.zip",
+  "blocks": [
+   "Ｃ＋＋のプログラム",
+   "頂点シェーダーのプログラム"
+  ],
+  "shaders": [
+   [
+    "Vertex",
+    "NormalMesh_DirSpotPointLight_NrmMapVS.vso"
+   ],
+   [
+    "Pixel",
+    "NormalMesh_DirSpotPointLight_NrmMapPS.pso"
+   ]
+  ],
+  "folder": "21_NormalMesh_DirSpotPointLight_NrmMap",
+  "note": "HTML の「頂点シェーダーのプログラム」の見出しの中身はピクセルシェーダー(html/..._NrmMapPS.fx として保存)。頂点シェーダーは zip にある"
+ }
+]

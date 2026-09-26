@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのライティング無しフォグあり描画（シェーダーモデル３．０版）",
+	"original": "A_base/04_NormalMesh_NoLight_Fog_SV3/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_NoLight_Fog_SV3VS.vso": "NormalMesh_NoLight_Fog_SV3VS.fx",
+		"NormalMesh_NoLight_Fog_SV3PS.pso": "NormalMesh_NoLight_Fog_SV3PS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

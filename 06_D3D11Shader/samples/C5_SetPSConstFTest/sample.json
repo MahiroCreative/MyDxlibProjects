@@ -1,0 +1,12 @@
+{
+	"title": "ピクセルシェーダーに C++ から値を渡す(関数リファレンス SetPSConstF のサンプル)",
+	"original": "C_function/C5_SetPSConstFTest",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SetPSConstFTestPS.pso": "../C5_SetPSConstFTest/SetPSConstFTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

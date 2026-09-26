@@ -1,0 +1,20 @@
+{
+	"title": "法線マップ付き剛体メッシュのディレクショナルライトあり描画",
+	"original": "A_base/20_NormalMesh_DirLight_NrmMap/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_DirLight_NrmMapVS.vso": "NormalMesh_DirLight_NrmMapVS.fx",
+		"NormalMesh_DirLight_NrmMapPS.pso": "NormalMesh_DirLight_NrmMapPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"BumpTexture0.bmp",
+		"NormalBox_NrmMap.mqo",
+		"NormalBox_NrmMap.mv1",
+		"Texture1.bmp"
+	],
+	"frame": 30
+}

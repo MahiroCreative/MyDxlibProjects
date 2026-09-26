@@ -1,0 +1,23 @@
+{
+	"title": "厚みのある水(水の深さで透明度を変える)",
+	"original": "B_applied/VolumeWater",
+	"original_main": "VolumeWater.cpp",
+	"original_shaders": {
+		"Depth_NormalMeshVS.vso": "Depth_NormalMeshVS.fx",
+		"Depth_SkinMeshVS.vso": "Depth_SkinMeshVS.fx",
+		"DepthPS.pso": "DepthPS.fx",
+		"VolumeWaterVS.vso": "VolumeWaterVS.fx",
+		"VolumeWaterPS.pso": "VolumeWaterPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"Stage.mqo",
+		"StageTex.bmp"
+	],
+	"frame": 60
+}

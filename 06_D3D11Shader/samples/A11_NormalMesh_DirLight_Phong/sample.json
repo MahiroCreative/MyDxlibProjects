@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのディレクショナルライトありフォンシェーディング描画",
+	"original": "A_base/11_NormalMesh_DirLight_Phong",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_DirLight_PhongVS.vso": "NormalMesh_DirLight_PhongVS.fx",
+		"NormalMesh_DirLight_PhongPS.pso": "NormalMesh_DirLight_PhongPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

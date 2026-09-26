@@ -1,0 +1,19 @@
+{
+	"title": "１頂点へ影響を与えるフレームの数が１～４個のスキニングメッシュのディレクショナルライトあり描画",
+	"original": "A_base/06_SkinMesh4_DirLight/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SkinMesh4_DirLightVS.vso": "SkinMesh4_DirLightVS.fx",
+		"SkinMesh4_DirLightPS.pso": "SkinMesh4_DirLightPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga"
+	],
+	"frame": 30
+}

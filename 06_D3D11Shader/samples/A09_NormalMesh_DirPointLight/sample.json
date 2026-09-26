@@ -1,0 +1,18 @@
+{
+	"title": "剛体メッシュのディレクショナルライトとポイントライトあり描画",
+	"original": "A_base/09_NormalMesh_DirPointLight/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"NormalMesh_DirPointLightVS.vso": "NormalMesh_DirPointLightVS.fx",
+		"NormalMesh_DirPointLightPS.pso": "NormalMesh_DirPointLightPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

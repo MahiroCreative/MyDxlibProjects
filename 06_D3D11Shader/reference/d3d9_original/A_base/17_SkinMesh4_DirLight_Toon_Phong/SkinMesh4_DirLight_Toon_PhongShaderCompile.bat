@@ -1,0 +1,3 @@
+ShaderCompiler.exe /Tvs_3_0 SkinMesh4_DirLight_Toon_PhongVS.fx
+ShaderCompiler.exe /Tps_3_0 SkinMesh4_DirLight_Toon_PhongPS.fx
+pause

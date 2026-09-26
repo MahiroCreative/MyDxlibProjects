@@ -1,0 +1,23 @@
+{
+	"title": "光学迷彩(背景をゆがめて透けて見せる)",
+	"original": "B_applied/3DAction_OpticalCamouflage",
+	"original_main": "3DAction_OpticalCamouflage.cpp",
+	"original_shaders": {
+		"SkinMesh4_OpticalCamouflageVS.vso": "SkinMesh4_OpticalCamouflageVS.fx",
+		"SkinMesh4_OpticalCamouflagePS.pso": "SkinMesh4_OpticalCamouflagePS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"max_diff_ratio": 0.005,
+	"diff_reason": "移植したシェーダーの処理は一致している。残る差はレンガの模様の細部だけで、モデルのテクスチャを読むときの補間のDirect3D 9 と 11 の違い(テクスチャの色だけを出して比べても同じ差が出る)",
+	"assets": [
+		"ColTestStage.mqo",
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"KabeTex.bmp",
+		"Shadow.tga"
+	],
+	"frame": 60
+}

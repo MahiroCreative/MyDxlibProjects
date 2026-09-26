@@ -1,0 +1,12 @@
+{
+	"title": "インデックス付きの 2D 描画(関数リファレンス DrawPolygonIndexed2DToShader のサンプル)",
+	"original": "C_function/C7_DrawPolygonIndexed2DToShader",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"PixelShaderTestPS.pso": "../C2_PixelShaderTest/PixelShaderTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

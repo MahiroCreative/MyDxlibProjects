@@ -1,0 +1,12 @@
+{
+	"title": "ピクセルシェーダーの基本(関数リファレンス LoadPixelShader のサンプル)",
+	"original": "C_function/C2_PixelShaderTest",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"PixelShaderTestPS.pso": "../C2_PixelShaderTest/PixelShaderTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

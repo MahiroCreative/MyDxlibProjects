@@ -562,6 +562,9 @@ exports.run = async function () {
 		return { ok: res.exitCode === 0 && diags.length === 0, detail: `exit=${res.exitCode} diagnostics=${diags.length}` };
 	});
 
+	// --- リリース実行と「配布用にまとめる」(phase2_steps_release.js。DESIGN.md 3.2・6.2 章) ---
+	await require('./phase2_steps_release')(r, { proj });
+
 	await r.step('デバッグ実行でゲームが起動する', async () => {
 		const log = path.join(proj, 'Log.txt');
 		// 直前のデバッグ実行のプロセス終了待ちで、Log.txt がまだ使用中のことがあるのでリトライする。

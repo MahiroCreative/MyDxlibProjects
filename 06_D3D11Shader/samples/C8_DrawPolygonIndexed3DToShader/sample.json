@@ -1,0 +1,13 @@
+{
+	"title": "インデックス付きの 3D 描画(関数リファレンス DrawPolygonIndexed3DToShader のサンプル)",
+	"original": "C_function/C8_DrawPolygonIndexed3DToShader",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"VertexShaderTestVS.vso": "../C1_VertexShaderTest/VertexShaderTestVS.fx",
+		"VertexShaderTestPS.pso": "../C1_VertexShaderTest/VertexShaderTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

@@ -1,0 +1,13 @@
+{
+	"title": "C++ から行列を渡す(関数リファレンス SetVSConstFMtx のサンプル)",
+	"original": "C_function/C3_SetVSConstFMtxTest",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SetVSConstFMtxTestVS.vso": "../C3_SetVSConstFMtxTest/SetVSConstFMtxTestVS.fx",
+		"SetVSConstFMtxTestPS.pso": "../C3_SetVSConstFMtxTest/SetVSConstFMtxTestPS.fx"
+	},
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

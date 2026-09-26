@@ -1,0 +1,3 @@
+ShaderCompiler.exe /Tvs_3_0 NormalMesh_DirSpotPointLight_NrmMapVS.fx
+ShaderCompiler.exe /Tps_3_0 NormalMesh_DirSpotPointLight_NrmMapPS.fx
+pause

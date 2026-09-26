@@ -1,0 +1,20 @@
+{
+	"title": "鏡(鏡に映る視点で描いた画像を貼る)",
+	"original": "B_applied/Mirror",
+	"original_main": "Mirror.cpp",
+	"original_shaders": {
+		"MirrorVS.vso": "MirrorVS.fx",
+		"MirrorPS.pso": "MirrorPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_2_0",
+		"ps": "ps_2_0"
+	},
+	"assets": [
+		"ColTestStage.mqo",
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"KabeTex.bmp"
+	],
+	"frame": 60
+}

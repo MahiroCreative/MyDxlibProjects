@@ -86,7 +86,7 @@
       },
       {
         "command": "dxlib.run",
-        "title": "実行",
+        "title": "リリース実行",
         "category": "DxLib",
         "enablement": "isWorkspaceTrusted",
         "icon": "$(play)"
@@ -196,6 +196,13 @@
         "command": "dxlib.selectVisualStudio",
         "title": "使う Visual Studio を選ぶ",
         "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.packageRelease",
+        "title": "配布用にまとめる",
+        "category": "DxLib",
+        "enablement": "isWorkspaceTrusted",
+        "icon": "$(package)"
       }
     ],
     "keybindings": [
@@ -296,12 +303,12 @@
           "group": "navigation@1"
         },
         {
-          "command": "dxlib.run",
+          "command": "dxlib.debug",
           "when": "dxlib.isProject",
           "group": "navigation@2"
         },
         {
-          "command": "dxlib.debug",
+          "command": "dxlib.run",
           "when": "dxlib.isProject",
           "group": "navigation@3"
         }

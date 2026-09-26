@@ -269,7 +269,7 @@ export function writeProjectFiles(projectDir: string, projectName: string, vs?: 
 	};
 
 	// dxlib.props は PC ごとの SDK の場所なので入れない(DESIGN.md 6 章)
-	const gitignore = ['build/', 'Log.txt', '*.pdb', '*.ilk', '*.obj', '.vs/', '*.vcxproj.user', 'dxlib.props', ''].join('\n');
+	const gitignore = ['build/', 'Log.txt', '*.pdb', '*.ilk', '*.obj', '.vs/', 'dist/', '*.vcxproj.user', 'dxlib.props', ''].join('\n');
 
 	writeText(path.join(projectDir, '.vscode', 'tasks.json'), JSON.stringify(tasks, null, '\t') + '\n');
 	writeText(path.join(projectDir, '.vscode', 'launch.json'), JSON.stringify(launch, null, '\t') + '\n');

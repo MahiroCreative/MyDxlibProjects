@@ -1,0 +1,23 @@
+{
+	"title": "ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つとスフィアマップのフォンシェーディング",
+	"original": "A_base/19_SkinMesh4_DirLight_SphereMap_Toon_Phong/html",
+	"original_main": "main.cpp",
+	"original_shaders": {
+		"SkinMesh4_DirLight_SphereMap_Toon_PhongVS.vso": "SkinMesh4_DirLight_SphereMap_Toon_PhongVS.fx",
+		"SkinMesh4_DirLight_SphereMap_Toon_PhongPS.pso": "SkinMesh4_DirLight_SphereMap_Toon_PhongPS.fx"
+	},
+	"original_profiles": {
+		"vs": "vs_3_0",
+		"ps": "ps_3_0"
+	},
+	"assets": [
+		"DxChara.pmx",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga",
+		"GradTex.bmp",
+		"Save.bmp",
+		"Save2.bmp",
+		"SphereMap.spa"
+	],
+	"frame": 30
+}

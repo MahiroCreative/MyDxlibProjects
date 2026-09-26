@@ -152,5 +152,15 @@ exports.run = async function () {
 		return { ok: res.exitCode === 0 && /^\s*Enemy\.cpp\s*$/m.test(log), detail: `${JSON.stringify(res)} Enemy.cpp をコンパイル=${/^\s*Enemy\.cpp\s*$/m.test(log)}` };
 	});
 
+	// 配布用にまとめる(DESIGN.md 6.2 章): exe は Visual Studio の Release の出力先(x64\Release)、
+	// ソースはフォルダの直下にあっても入らない。VS の中間ファイルのフォルダ(VsGamed\...)も入らない
+	await require('./phase2_steps_release').checkPackage(r, {
+		proj,
+		name: 'VsGame',
+		asset: path.join('image', 'test.png'),
+		mustNot: ['main.cpp', 'player.h', 'Enemy.cpp', 'Enemy.h', 'VsGame.vcxproj', 'VsGame.vcxproj.filters', 'VsGame.slnx', 'VsGame', 'x64', '.vscode'],
+		prefix: 'VS のプロジェクト: ',
+	});
+
 	r.finish();
 };
