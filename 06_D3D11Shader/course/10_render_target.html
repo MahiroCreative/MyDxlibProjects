@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 描画先に描いて、後で使う(鏡・影) — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" class="now" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 10 回</span><h1>描画先に描いて、後で使う(鏡・影)</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>画面ではない「描画先」(<code>MakeScreen</code> で作った画像)に描いて、その結果を別の描画のテクスチャとして使える。</li>
+<li>鏡や影が「2 回描く」ことでできていると分かる。</li>
+</ul>
+</div>
+
+<p>この回は読む量が多いので、動かして、しくみをつかむことを優先します。</p>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/b6.jpg" alt="サンプルの実行画面">
+<div class="body">
+<p>1. <span class="name">samples/B6_Mirror</span>(鏡)<br>
+テンプレート: <code>templates/10a_mirror.dxtemplate</code></p>
+<p>2. <span class="name">samples/B1_3DAction_DepthShadow</span>(影)<br>
+テンプレート: <code>templates/10b_shadow.dxtemplate</code></p>
+</div>
+</div>
+
+<h2>鏡のしくみ(B6)</h2>
+
+<figure>
+<div class="row"><div><img src="images/b6.jpg" width="480" alt="">B6_Mirror。手前の床(水色の線の所)が鏡で、左のキャラクターが足元に映っています。</div></div>
+</figure>
+
+<ol>
+<li>鏡の面で折り返した位置にカメラを置き、その視点から見た景色を描画先の画像に描く。</li>
+<li>画面に描くとき、鏡の面の板に 1 の画像を貼る。</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 720 330" role="img" aria-label="鏡のしくみ">
+<line class="d-line" x1="40" y1="180" x2="680" y2="180" style="stroke-width:4"/>
+<text class="b" x="690" y="175" text-anchor="end">鏡の面</text>
+<!-- キャラクター -->
+<rect class="d-acc" x="440" y="100" width="36" height="80" rx="10"/>
+<text class="s" x="458" y="92" text-anchor="middle">キャラクター</text>
+<rect x="440" y="180" width="36" height="80" rx="10" fill="none" stroke="var(--accent)" stroke-dasharray="5 4"/>
+<text class="s" x="458" y="278" text-anchor="middle">鏡に映った像</text>
+<!-- 本当のカメラ -->
+<polygon class="d-good-fill" points="150,60 120,48 120,72"/>
+<text class="b" x="100" y="40" style="fill:var(--good)">画面のカメラ</text>
+<line class="d-good-line" x1="150" y1="60" x2="440" y2="240" style="stroke-dasharray:6 4"/>
+<!-- 折り返したカメラ -->
+<polygon class="d-acc2-fill" points="150,300 120,288 120,312"/>
+<text class="b acc2" x="100" y="328">① 折り返した位置のカメラ</text>
+<line class="d-acc2-line" x1="150" y1="300" x2="440" y2="120" marker-end="url(#ah-acc2)"/>
+<line class="d-dash" x1="135" y1="72" x2="135" y2="288"/>
+<text class="s" x="140" y="130">鏡の面から</text>
+<text class="s" x="140" y="148">同じ距離</text>
+<text class="s" x="140" y="232">同じ距離</text>
+<text class="s" x="330" y="30">② 画面に描くとき、①で描いた画像を鏡の板に貼る</text>
+</svg>
+<figcaption>横から見た図。鏡の奥に見える像は、鏡の面で折り返した位置のカメラから見た景色と同じです。</figcaption>
+</figure>
+
+<ul>
+<li>鏡の板の頂点には、「1 のカメラで見たときの画面の位置」を補助座標(<code>spos</code>、<code>POSITION1</code>)に入れて渡しています。ピクセルシェーダーは、その位置で 1 の画像を読みます。</li>
+</ul>
+
+<h2>影のしくみ(B1。デプスシャドウ)</h2>
+
+<figure>
+<div class="row"><div><img src="images/b1.jpg" width="480" alt="">B1_3DAction_DepthShadow。ライトとの間に物がある所(影)は、明るさが半分になっています。</div></div>
+</figure>
+
+<ol>
+<li><strong>ライトの位置にカメラを置き</strong>、ライトから見た「一番手前の物までの距離(深度)」を描画先の画像に描く(<code>DepthShadow_Step1PS</code>)。</li>
+<li>画面に描くとき、画素ごとに「ライトからの距離」を計算し、1 の画像の深度と比べる(<code>DirLight_DepthShadow_Step2PS</code>)。
+<ul><li>自分のほうが奥なら、ライトとの間に何かがある → 影なので暗くする。</li></ul></li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 720 300" role="img" aria-label="デプスシャドウのしくみ">
+<!-- ライト -->
+<circle cx="300" cy="36" r="16" fill="#fab005"/>
+<text class="b" x="326" y="30">ライト(ここにカメラを置く)</text>
+<!-- 床 -->
+<line class="d-line" x1="40" y1="250" x2="680" y2="250" style="stroke-width:3"/>
+<text class="s" x="680" y="272" text-anchor="end">床</text>
+<!-- 箱 -->
+<rect class="d-acc" x="210" y="130" width="100" height="40"/>
+<text class="s" x="228" y="155" text-anchor="middle">箱</text>
+<!-- 影 -->
+<rect x="100" y="246" width="216" height="8" fill="var(--ink)" opacity=".45"/>
+<!-- A -->
+<line class="d-acc2-line" x1="296" y1="50" x2="236" y2="246"/>
+<circle class="d-acc2-fill" cx="236" cy="250" r="6"/>
+<circle cx="271.5" cy="130" r="5" fill="#fab005" stroke="var(--ink)"/>
+<text class="b acc2" x="236" y="286" text-anchor="middle">A:影</text>
+<text class="s" x="20" y="110">① に描かれた深度 = 箱までの距離</text>
+<text class="s" x="20" y="128">A までの距離はそれより長い</text>
+<text class="s" x="20" y="146">→ 間に何かがある → 暗くする</text>
+<!-- B -->
+<line class="d-good-line" x1="306" y1="50" x2="520" y2="246"/>
+<circle class="d-good-fill" cx="520" cy="250" r="6"/>
+<text class="b" x="520" y="286" text-anchor="middle" style="fill:var(--good)">B:日なた</text>
+<text class="s" x="470" y="120">① の深度 = B までの距離</text>
+<text class="s" x="470" y="138">(間に何もない)→ そのまま</text>
+</svg>
+<figcaption>① ライトから見た深度の画像を作り、② 画面に描くときに「その画素のライトからの距離」と比べます。</figcaption>
+</figure>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>if( PSInput.LPPosition.z &gt; TextureDepth + 25.0f )   <span class="c">// 25 は、自分自身を影と間違えないためのずらし量</span>
+{
+    DefaultOutput.rgb *= 0.5f;                     <span class="c">// 影の所は明るさを半分に</span>
+}</code></pre>
+
+<ul>
+<li>ライトのカメラの行列は、C++ から定数バッファ(b4)で渡しています(02・05 と同じ)。</li>
+</ul>
+
+<h2>気をつけること</h2>
+
+<div class="warn">
+<ul>
+<li>描画先に値を書くシェーダーでは、<strong>出力のアルファを 1 にする</strong>。モデルを描くときもアルファが合成に使われるので、0 だと何も書き込まれません(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.5</a>)。</li>
+<li><code>SetDrawScreen</code> で描画先を変えると、カメラの設定が元に戻ります。描画先を変えたら、カメラを設定し直します。</li>
+</ul>
+</div>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★★</span><span class="id">10-1</span>鏡の色を変える(鏡の板の頂点の色、またはピクセルシェーダーで色を掛ける)。</li>
+<li><span class="stars">★★</span><span class="id">10-2</span>影を濃くする(<code>0.5f</code> を小さくする)。</li>
+<li><span class="stars">★★★</span><span class="id">10-3</span>影の縁のギザギザを確かめ、深度の画像の大きさ(<code>MakeScreen</code> の大きさ)を変えるとどうなるか試す。</li>
+</ol>
+
+<p><strong>解答例</strong>: 10-2 → <code>answers/10_shadow_strength</code>(<code>【課題 10-2】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row">
+<div><img src="images/ans10_base.jpg" width="340" alt="">元のサンプル(B1)</div>
+<div><img src="images/ans10.jpg" width="340" alt="">answers/10_shadow_strength</div>
+</div>
+<figcaption>キャラクターの影や、壁の影になった床が暗くなっています。</figcaption>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="09_toon.html"><span class="dir">← 前の回</span>09 トゥーン(アニメ調)の陰影</a><a class="next" href="index.html"><span class="dir">目次 →</span>回の一覧</a></nav>
+</main>
+</body>
+</html>

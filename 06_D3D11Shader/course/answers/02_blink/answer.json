@@ -1,0 +1,10 @@
+{
+	"title": "課題 2-1: 時間で点滅させる",
+	"lesson": "02",
+	"base": "C5_SetPSConstFTest",
+	"assets": [
+		"Tex1.bmp",
+		"TestTex1.jpg"
+	],
+	"frame": 60
+}

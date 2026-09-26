@@ -8,7 +8,7 @@ DxLib の公式リファレンスは、Direct3D 11 モードで自作シェー�
   - `ファイル:行` … DxLib ソースパッケージ(`05_VSCodeExtention/00_DxLib_Make/DxLibMake/`)の中の場所。
   - **[検証]** … `verify/` の検証プログラムで、実際に DxLib が GPU に渡した値を読み戻して確かめた項目(項目名は `verify/build/results.txt` と同じ)。
   - **推測** … ソースを読んだうえでの推論。確かめていない。
-- 検証のやり直し方: `python verify/run.py`(全 51 項目。2026-09-26 に全項目 OK)。
+- 検証のやり直し方: `python verify/run.py`(全 61 項目。2026-09-27 に全項目 OK)。
 
 ---
 
@@ -106,6 +106,22 @@ struct PS_INPUT
 - プリミティブは三角形リストで固定(`Windows/DxModelD3D11.cpp:3609`)。
 - 頂点が 9 個以上のボーンの影響を受けるメッシュ(`DX_MV1_VERTEX_TYPE_FREE_FRAME`)は、CPU で変形してワールド座標にした頂点を、剛体メッシュの形式で渡す。このとき `LocalWorldMatrix` は単位行列(`Windows/DxModelD3D11.cpp:2488-2492, 3833-3840`)。
 - `SetUseLarge3DPositionSupport(TRUE)` にすると、行列の意味が変わる(ワールド行列にビュー行列が掛け込まれ、ビュー行列が単位行列になる。`Windows/DxModelD3D11.cpp:3072-3086, 3155-3169`)。**この文書は Large3D を使わない前提。**
+
+### 3.4 2D の絵に自作の頂点シェーダーを使う方法(正射影カメラ + 3D の板)
+
+2D の描画では自作の頂点シェーダーが使えない(3.1)。頂点を動かしたい 2D の絵(旗・スライムの揺れなど)は、カメラを「正射影・画面の画素と 3D の座標が 1 対 1」にして、3D の板として `DrawPolygon3DToShader` で描けば、2D と同じ見た目のまま自作の頂点シェーダーが使える(Unity の 2D と同じ考え方)。実装は `samples/D1_Sprite2DVertexShader`(`src/Camera2D.h` の `SetupCamera2D` と `MakeSpriteGrid`)。
+
+- カメラ: `SetupCamera_Ortho( 画面の高さ )`、`SetCameraNearFar( 1, 1000 )`、`SetCameraPositionAndTargetAndUpVec( ( 幅/2, 高さ/2, 500 ), ( 幅/2, 高さ/2, 0 ), ( 0, -1, 0 ) )`。
+  - **+z 側から −z の向きを見て、上方向を −y にする。** x は右・y は下で、`DrawGraph` と同じ向きになる。**推測**(計算による。描画で確かめたのは +z 側から見る形だけ): −z 側から +z の向きを見ると、左右が反対になる(DxLib のビュー行列は左手系で、右の向き = 上方向 × 見る向き)。
+  - `SetDrawScreen` はカメラの設定を元に戻すので、`SetDrawScreen` の後に毎回設定する。
+- 板の頂点の座標は画面の画素の座標(z = 0)。頂点シェーダーで形を変えるなら、板をマス目に分けて頂点を増やす(4 隅だけでは曲げられない)。
+- **確かめたこと**(`verify/` の ortho2d。`DrawGraph` / `DrawExtendGraph` で描いた絵と画素単位で比べた):
+  - 補間なしで、等倍も 4 倍も完全に一致した(位置・向き・ドット絵のにじみ無し)。**[検証] ortho2d/same as DrawGraph (1x, nearest)**、**ortho2d/same as DrawExtendGraph (4x, nearest)**
+  - 補間あり(`DX_DRAWMODE_BILINEAR`)の 4 倍も完全に一致した(透過色の無い画像)。**[検証] ortho2d/same as DrawExtendGraph (4x, bilinear, no transparent color)**
+  - `SetDrawBlendMode( DX_BLENDMODE_ALPHA, … )` の合成の方法は効く(アルファ付きの画像の半透明が一致)。不透明度(2 番目の引数)はシェーダーに届かないので、頂点の色のアルファで渡すと `SetDrawBlendMode( DX_BLENDMODE_ALPHA, 128 )` と一致した。**[検証] ortho2d/alpha blend…**、**ortho2d/opacity by vertex alpha…**
+  - この描画の後も、ふつうの `DrawGraph` はそのまま使える。**[検証] ortho2d/DrawGraph after ortho drawing is unchanged**
+- **透過色**: `DrawGraph( x, y, 画像, TRUE )` と同じく透過色(既定は黒)の画素を描かないようにするには、ピクセルシェーダーで `clip( 色.a - 0.5f / 255.0f )` とする。`LoadGraph` で読み込んだ画像の透過色の画素はアルファが 0 になっている。これが無いと、合成の方法が NOBLEND(既定)のとき、透過色の画素が黒く描かれた。
+- **知っておくこと**: 透過色のある画像を補間ありで拡大すると、縁が `DrawExtendGraph` と違う(自作のシェーダーでは透過色の画素の黒が補間に混ざり、縁に黒い線が出る)。**[検証] ortho2d/KNOWN: transparent-color edges differ…** ドット絵は補間なしで描くか、透過色ではなくアルファ付きの画像(PNG など)を使う。
 
 ---
 

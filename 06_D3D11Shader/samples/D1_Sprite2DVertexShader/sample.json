@@ -1,0 +1,7 @@
+{
+	"title": "2D の絵を頂点シェーダーでなびかせる(正射影カメラ + 3D の板)",
+	"original": null,
+	"check_note": "公式の Direct3D 9 版は無い(この教材のためのサンプル)。正しさ(DrawGraph と画素単位で同じ・透過色・合成・ゆれ)は verify/ の ortho2d の項目で確かめる。ここでは動いて絵が出ることだけを確かめる",
+	"assets": ["Kao.bmp"],
+	"frame": 30
+}

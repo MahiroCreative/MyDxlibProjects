@@ -1,0 +1,10 @@
+{
+	"title": "課題 8-2: 輪郭を光らせる(リムライト)",
+	"lesson": "08",
+	"base": "A11_NormalMesh_DirLight_Phong",
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

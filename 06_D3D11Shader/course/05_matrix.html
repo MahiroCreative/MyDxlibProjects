@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 行列で回す — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" class="now" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 05 回</span><h1>行列で回す</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>C++ で作った行列(<code>MATRIX</code>)をシェーダーに渡して、頂点を回せる。</li>
+<li>拡大縮小・回転・移動を、行列の掛け算でまとめられることが分かる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/c3_f50.png" alt="サンプルの実行画面">
+<div class="body">
+<p class="name">samples/C3_SetVSConstFMtxTest</p>
+<p>テンプレート: <code>templates/05_matrix.dxtemplate</code></p>
+<p>動かすと、板が画面の真ん中で回ります。</p>
+</div>
+</div>
+
+<figure>
+<div class="row">
+<div><img src="images/c3_f20.png" width="170" alt="">20 フレーム目</div>
+<div><img src="images/c3_f50.png" width="170" alt="">50 フレーム目</div>
+<div><img src="images/c3_f80.png" width="170" alt="">80 フレーム目</div>
+<div><img src="images/c3_f110.png" width="170" alt="">110 フレーム目</div>
+</div>
+</figure>
+
+<h2>読むところ</h2>
+
+<h3><code>src/main.cpp</code></h3>
+
+<pre><span class="lang">C++</span><code>struct VS_PARAM
+{
+    FLOAT4 CenterPosition ;     <span class="c">// 回転の中心</span>
+    MATRIX RotateZMatrix ;      <span class="c">// Z 軸まわりの回転の行列</span>
+} ;</code></pre>
+
+<pre><span class="lang">C++</span><code>mtx = MGetRotZ( angle ) ;            <span class="c">// DxLib の関数で回転の行列を作る</span>
+vsparam-&gt;RotateZMatrix = mtx ;       <span class="c">// そのまま定数バッファに入れる</span></code></pre>
+
+<h3><code>shaders/SetVSConstFMtxTestVS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>cbuffer SetVSConstFMtxTestParam : register( b4 )
+{
+    float4 cfCenterPosition ;
+    row_major float4x4 cfRotateZMatrix ;
+} ;</code></pre>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>lWorldPosition = mul( float4( VSInput.Position, 1.0f ), cfRotateZMatrix ) ;   <span class="c">// 座標 × 行列</span>
+lWorldPosition += cfCenterPosition ;                                          <span class="c">// 中心に動かす</span></code></pre>
+
+<ul>
+<li><strong>C++ の <code>MATRIX</code> をそのまま入れたら、HLSL では <code>row_major</code> を付けて、<code>mul( 座標, 行列 )</code> の順で掛ける。</strong> DxLib の <code>VTransform( 座標, 行列 )</code> と同じ順番になります。
+<ul><li><code>row_major</code> を付けないと、行と列が入れ替わって(転置されて)読まれ、回る向きが逆になります(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 7 章</a>)。</li></ul></li>
+<li>回転は原点のまわりで起きるので、「回してから、中心に動かす」の順です。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 280" role="img" aria-label="row_major を付けた場合と付けない場合の読み方">
+<text class="b" x="115" y="22" text-anchor="middle">C++ の MATRIX</text>
+<text class="s" x="115" y="40" text-anchor="middle">(数字 = メモリーの順番)</text>
+<text class="b acc" x="360" y="22" text-anchor="middle">row_major を付ける</text>
+<text class="s" x="360" y="40" text-anchor="middle">同じ並びで読む ○</text>
+<text class="b acc2" x="605" y="22" text-anchor="middle">付けない</text>
+<text class="s" x="605" y="40" text-anchor="middle">縦に読む(転置)✕</text>
+<g class="m">
+<!-- 左 -->
+<rect class="d-box" x="35" y="52" width="160" height="160"/>
+<text class="m" x="55" y="84" text-anchor="middle">0</text><text class="m" x="95" y="84" text-anchor="middle">1</text><text class="m" x="135" y="84" text-anchor="middle">2</text><text class="m" x="175" y="84" text-anchor="middle">3</text>
+<text class="m" x="55" y="124" text-anchor="middle">4</text><text class="m" x="95" y="124" text-anchor="middle">5</text><text class="m" x="135" y="124" text-anchor="middle">6</text><text class="m" x="175" y="124" text-anchor="middle">7</text>
+<text class="m" x="55" y="164" text-anchor="middle">8</text><text class="m" x="95" y="164" text-anchor="middle">9</text><text class="m" x="135" y="164" text-anchor="middle">10</text><text class="m" x="175" y="164" text-anchor="middle">11</text>
+<text class="m" x="55" y="204" text-anchor="middle">12</text><text class="m" x="95" y="204" text-anchor="middle">13</text><text class="m" x="135" y="204" text-anchor="middle">14</text><text class="m" x="175" y="204" text-anchor="middle">15</text>
+<!-- 中 -->
+<rect class="d-acc" x="280" y="52" width="160" height="160"/>
+<text class="m" x="300" y="84" text-anchor="middle">0</text><text class="m" x="340" y="84" text-anchor="middle">1</text><text class="m" x="380" y="84" text-anchor="middle">2</text><text class="m" x="420" y="84" text-anchor="middle">3</text>
+<text class="m" x="300" y="124" text-anchor="middle">4</text><text class="m" x="340" y="124" text-anchor="middle">5</text><text class="m" x="380" y="124" text-anchor="middle">6</text><text class="m" x="420" y="124" text-anchor="middle">7</text>
+<text class="m" x="300" y="164" text-anchor="middle">8</text><text class="m" x="340" y="164" text-anchor="middle">9</text><text class="m" x="380" y="164" text-anchor="middle">10</text><text class="m" x="420" y="164" text-anchor="middle">11</text>
+<text class="m" x="300" y="204" text-anchor="middle">12</text><text class="m" x="340" y="204" text-anchor="middle">13</text><text class="m" x="380" y="204" text-anchor="middle">14</text><text class="m" x="420" y="204" text-anchor="middle">15</text>
+<!-- 右 -->
+<rect class="d-acc2" x="525" y="52" width="160" height="160"/>
+<text class="m" x="545" y="84" text-anchor="middle">0</text><text class="m" x="585" y="84" text-anchor="middle">4</text><text class="m" x="625" y="84" text-anchor="middle">8</text><text class="m" x="665" y="84" text-anchor="middle">12</text>
+<text class="m" x="545" y="124" text-anchor="middle">1</text><text class="m" x="585" y="124" text-anchor="middle">5</text><text class="m" x="625" y="124" text-anchor="middle">9</text><text class="m" x="665" y="124" text-anchor="middle">13</text>
+<text class="m" x="545" y="164" text-anchor="middle">2</text><text class="m" x="585" y="164" text-anchor="middle">6</text><text class="m" x="625" y="164" text-anchor="middle">10</text><text class="m" x="665" y="164" text-anchor="middle">14</text>
+<text class="m" x="545" y="204" text-anchor="middle">3</text><text class="m" x="585" y="204" text-anchor="middle">7</text><text class="m" x="625" y="204" text-anchor="middle">11</text><text class="m" x="665" y="204" text-anchor="middle">15</text>
+</g>
+<line class="d-line" x1="200" y1="132" x2="274" y2="132" marker-end="url(#ah)"/>
+<line class="d-line" x1="446" y1="132" x2="519" y2="132" marker-end="url(#ah)"/>
+<text class="s" x="360" y="240" text-anchor="middle">mul( 座標, 行列 ) = VTransform と同じ</text>
+<text class="s" x="605" y="240" text-anchor="middle">回転の行列なら、逆向きに回る</text>
+</svg>
+</figure>
+
+<figure>
+<svg viewBox="0 0 720 250" role="img" aria-label="回してから中心に動かす">
+<!-- ① -->
+<line class="d-thin" x1="20" y1="140" x2="200" y2="140"/><line class="d-thin" x1="80" y1="198" x2="80" y2="30"/>
+<polygon class="d-acc" points="50,110 110,110 110,170 50,170"/>
+<circle class="d-ink" cx="80" cy="140" r="3.5"/>
+<text class="s" x="116" y="160">原点</text>
+<text class="b" x="110" y="236" text-anchor="middle">① 原点にある板</text>
+<!-- ② -->
+<line class="d-thin" x1="260" y1="140" x2="440" y2="140"/><line class="d-thin" x1="320" y1="198" x2="320" y2="30"/>
+<polygon class="d-dash" points="290,110 350,110 350,170 290,170"/>
+<polygon class="d-acc" points="330.98,99.02 279.02,129.02 309.02,180.98 360.98,150.98"/>
+<path class="d-acc2-line" d="M 374.2,149.6 A 55 55 0 0 0 362.1,104.6" marker-end="url(#ah-acc2)"/>
+<circle class="d-ink" cx="320" cy="140" r="3.5"/>
+<text class="b" x="350" y="236" text-anchor="middle">② 原点のまわりで回す</text>
+<text class="m s" x="350" y="218" text-anchor="middle">mul( 座標, 回転 )</text>
+<!-- ③ -->
+<line class="d-thin" x1="500" y1="140" x2="710" y2="140"/><line class="d-thin" x1="560" y1="198" x2="560" y2="30"/>
+<polygon class="d-acc" points="660.98,49.02 609.02,79.02 639.02,130.98 690.98,100.98"/>
+<line class="d-acc2-line" x1="563" y1="137" x2="644" y2="94" marker-end="url(#ah-acc2)"/>
+<circle class="d-ink" cx="560" cy="140" r="3.5"/>
+<circle class="d-acc2-fill" cx="650" cy="90" r="4"/>
+<text class="b" x="605" y="236" text-anchor="middle">③ 中心へ動かす</text>
+<text class="m s" x="605" y="218" text-anchor="middle">+= cfCenterPosition</text>
+</svg>
+<figcaption>先に動かしてから回すと、板は原点のまわりを大きく回ってしまいます(その場では回りません)。</figcaption>
+</figure>
+
+<h2>行列をまとめる</h2>
+
+<p><code>MMult( A, B )</code> は「A をしてから B をする」行列を作ります。</p>
+
+<pre><span class="lang">C++</span><code>MMult( MGetScale( VGet( 2, 2, 1 ) ), MGetRotZ( angle ) )   <span class="c">// 2 倍にしてから回す</span></code></pre>
+
+<p>順番を逆にすると結果が変わることがあります(回してから横に伸ばすと、ななめにゆがむ)。</p>
+
+<figure>
+<svg viewBox="0 0 720 290" role="img" aria-label="掛ける順番で結果が変わる">
+<line class="d-grid" x1="80" y1="125" x2="280" y2="125"/><line class="d-grid" x1="180" y1="30" x2="180" y2="220"/>
+<polygon class="d-dash" points="155,100 205,100 205,150 155,150"/>
+<polygon class="d-acc" points="197.7,72 127,142.7 162.3,178 233,107.3"/>
+<text class="b" x="180" y="232" text-anchor="middle">横に 2 倍 → 45° 回す</text>
+<text class="m s" x="180" y="256" text-anchor="middle">MMult( MGetScale( VGet( 2, 1, 1 ) ),</text><text class="m s" x="180" y="276" text-anchor="middle">MGetRotZ( … ) )</text>
+
+<line class="d-grid" x1="440" y1="125" x2="640" y2="125"/><line class="d-grid" x1="540" y1="30" x2="540" y2="220"/>
+<polygon class="d-dash" points="515,100 565,100 565,150 515,150"/>
+<polygon class="d-acc2" points="540,89.64 469.3,125 540,160.36 610.7,125"/>
+<text class="b" x="540" y="232" text-anchor="middle">45° 回す → 横に 2 倍</text>
+<text class="m s" x="540" y="256" text-anchor="middle">MMult( MGetRotZ( … ),</text><text class="m s" x="540" y="276" text-anchor="middle">MGetScale( VGet( 2, 1, 1 ) ) )</text>
+</svg>
+<figcaption>点線が元の正方形。左は長方形のまま回っていますが、右は角が直角でなくなり、ひし形にゆがんでいます。縦横を同じだけ拡大する(<code>VGet( 2, 2, 1 )</code>)なら、どちらの順番でも同じです。</figcaption>
+</figure>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">5-1</span>回転の中心を画面の左上寄りにする(C++ で渡す中心を変える)。</li>
+<li><span class="stars">★★</span><span class="id">5-2</span>回しながら大きさも変える。拡大縮小の行列(<code>MGetScale</code>)と回転の行列を <code>MMult</code> で掛け合わせて渡す。大きさは <code>1.0f + 0.5f * sinf( angle )</code> など。</li>
+<li><span class="stars">★★★</span><span class="id">5-3</span>C++ で行列を作らず、シェーダーの中で角度から回す。角度だけを渡し、<code>x' = x * cos - y * sin</code>、<code>y' = x * sin + y * cos</code> を書く。</li>
+</ol>
+
+<p><strong>解答例</strong>: 5-2 → <code>answers/05_scale_rotate</code>(<code>【課題 5-2】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row">
+<div><img src="images/c3_f50.png" width="240" alt="">元のサンプル</div>
+<div><img src="images/ans05.png" width="240" alt="">answers/05_scale_rotate(大きさも変わる)</div>
+</div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="04_vertex_shader.html"><span class="dir">← 前の回</span>04 頂点シェーダーで板を動かす</a><a class="next" href="06_sprite_vertex.html"><span class="dir">次の回 →</span>06 2D の絵を頂点シェーダーで動かす</a></nav>
+</main>
+</body>
+</html>

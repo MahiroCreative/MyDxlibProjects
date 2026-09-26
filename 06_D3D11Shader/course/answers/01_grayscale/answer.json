@@ -1,0 +1,10 @@
+{
+	"title": "課題 1-1: 白黒にする",
+	"lesson": "01",
+	"base": "C2_PixelShaderTest",
+	"assets": [
+		"Tex1.bmp",
+		"TestTex1.jpg"
+	],
+	"frame": 30
+}

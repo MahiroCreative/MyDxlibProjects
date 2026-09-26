@@ -8,7 +8,7 @@ python verify/run.py
 
 - 必要なもの: Visual Studio(C++)、SDK(`../00_DxLib_VC/`)、Python。
 - 結果: `verify/build/results.txt`(OK / NG の判定)、`verify/build/dump.txt`(場面ごとの定数バッファの全フィールド)。
-- 2026-09-26: 51 項目すべて OK(DxLib 3.24f、Visual Studio 2026)。samples/_shared の .hlsli の並びが DxLib と一致することも、この中で確かめている。
+- 2026-09-27: 61 項目すべて OK(DxLib 3.24f、Visual Studio 2026)。内訳は定数バッファ(`probe/`)51 項目と、2D の絵を正射影カメラ + 3D の板で描く方法(`ortho2d/`。samples/D1 の Camera2D.h とシェーダーをそのまま使う)10 項目。samples/_shared の .hlsli の並びが DxLib と一致することも、この中で確かめている。
 
 ## しくみ
 
@@ -21,6 +21,7 @@ python verify/run.py
 | ファイル | 中身 |
 |---|---|
 | `run.py` | シェーダーのコンパイル(CP932 に変換 → ShaderCompiler.exe)、ビルド(cl)、実行 |
-| `probe/main.cpp` | 場面の設定と判定 |
+| `probe/main.cpp` | 場面の設定と判定(定数バッファ) |
+| `ortho2d/main.cpp` | 2D の絵を正射影カメラ + 3D の板で描いたものと、`DrawGraph` で描いたものを画素単位で比べる(比べた 2 枚は `build/ortho2d_<番号>_ref.png` / `_test.png`) |
 | `shaders/` | 検証用シェーダー |
 | `include/` | DxLib 3.24f のソースパッケージの `Windows/DxShader_*_D3D11.h` の複写(CP932。変更しない) |

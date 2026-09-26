@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 2D の絵を頂点シェーダーで動かす — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" class="now" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 06 回</span><h1>2D の絵を頂点シェーダーで動かす</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>2D の絵を、頂点シェーダーで曲げたり揺らしたりできる。</li>
+<li>「正射影カメラ + 3D の板」で、2D と同じ見た目のまま 3D の関数で描く方法が分かる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/d1.png" alt="サンプルの実行画面">
+<div class="body">
+<p class="name">samples/D1_Sprite2DVertexShader</p>
+<p>テンプレート: <code>templates/06_sprite_vertex.dxtemplate</code></p>
+<p>動かすと、左にふつうに描いた顔、右に旗のようになびく顔が出ます。上下キーでゆれの大きさ、左右キーで波の長さが変わります。</p>
+</div>
+</div>
+
+<figure>
+<div class="row">
+<div><img src="images/d1_f20.png" width="160" alt="">20 フレーム目</div>
+<div><img src="images/d1_f50.png" width="160" alt="">50 フレーム目</div>
+<div><img src="images/d1_f80.png" width="160" alt="">80 フレーム目</div>
+<div><img src="images/d1_f110.png" width="160" alt="">110 フレーム目</div>
+</div>
+<figcaption>右の顔。左の端(旗のさお側)は動かず、右へ行くほど大きく波打ちます。</figcaption>
+</figure>
+
+<h2>しくみ</h2>
+
+<p>01〜03 の 2D の描画(<code>DrawPolygon2DToShader</code>)では、<strong>自分の頂点シェーダーは使えません</strong>。DxLib が自分の頂点シェーダーに差し替えてしまいます(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 3.1</a>)。</p>
+
+<figure>
+<svg viewBox="0 0 720 200" role="img" aria-label="2D の描画と 3D の描画で使われる頂点シェーダー">
+<text class="m" x="10" y="52">DrawPolygon2DToShader</text>
+<line class="d-line" x1="190" y1="47" x2="226" y2="47" marker-end="url(#ah)"/>
+<rect class="d-box" x="230" y="22" width="200" height="50" rx="8"/>
+<text x="330" y="44" text-anchor="middle">DxLib の頂点シェーダー</text>
+<text class="s acc2" x="330" y="62" text-anchor="middle">自分のものは使われない</text>
+<line class="d-line" x1="430" y1="47" x2="466" y2="47" marker-end="url(#ah)"/>
+<rect class="d-acc" x="470" y="22" width="200" height="50" rx="8"/>
+<text x="570" y="52" text-anchor="middle">自分のピクセルシェーダー</text>
+
+<text class="m" x="10" y="142">DrawPolygon3DToShader</text>
+<line class="d-line" x1="190" y1="137" x2="226" y2="137" marker-end="url(#ah)"/>
+<rect class="d-acc" x="230" y="112" width="200" height="50" rx="8"/>
+<text x="330" y="134" text-anchor="middle">自分の頂点シェーダー</text>
+<text class="s acc" x="330" y="152" text-anchor="middle">ここで絵を曲げられる</text>
+<line class="d-line" x1="430" y1="137" x2="466" y2="137" marker-end="url(#ah)"/>
+<rect class="d-acc" x="470" y="112" width="200" height="50" rx="8"/>
+<text x="570" y="142" text-anchor="middle">自分のピクセルシェーダー</text>
+<text class="s" x="360" y="192" text-anchor="middle">→ 絵を「3D の板」として描けば、頂点シェーダーが使える</text>
+</svg>
+</figure>
+
+<p>そこで、絵を <strong>3D の板</strong>として描きます。3D の描画(<code>DrawPolygon3DToShader</code>)なら自分の頂点シェーダーが使えます。
+ただし、ふつうの 3D のカメラだと遠くの物が小さくなるので、カメラを次のようにします(<code>src/Camera2D.h</code> の <code>SetupCamera2D</code>)。</p>
+
+<ul>
+<li><strong>正射影</strong>(遠くても小さくならない)</li>
+<li>3D の座標 1 = 画面の 1 画素、x は右・y は下(<code>DrawGraph</code> と同じ向き)</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 230" role="img" aria-label="透視投影と正射影">
+<text class="b" x="175" y="22" text-anchor="middle">ふつうの 3D のカメラ(透視投影)</text>
+<polygon class="d-acc2" points="30,110 44,100 44,120"/>
+<line class="d-dash" x1="44" y1="104" x2="320" y2="40"/>
+<line class="d-dash" x1="44" y1="116" x2="320" y2="180"/>
+<rect class="d-acc" x="120" y="88" width="16" height="44"/>
+<rect class="d-acc" x="260" y="88" width="16" height="44"/>
+<text class="s" x="128" y="152" text-anchor="middle">近い</text>
+<text class="s" x="268" y="152" text-anchor="middle">遠い</text>
+<text class="s" x="175" y="205" text-anchor="middle">同じ大きさでも、遠いと画面の中で小さい</text>
+
+<text class="b" x="540" y="22" text-anchor="middle">正射影(SetupCamera2D)</text>
+<polygon class="d-acc2" points="390,110 404,100 404,120"/>
+<line class="d-dash" x1="404" y1="50" x2="690" y2="50"/>
+<line class="d-dash" x1="404" y1="170" x2="690" y2="170"/>
+<line class="d-thin" x1="404" y1="50" x2="404" y2="170"/>
+<rect class="d-acc" x="480" y="88" width="16" height="44"/>
+<rect class="d-acc" x="620" y="88" width="16" height="44"/>
+<text class="s" x="488" y="152" text-anchor="middle">近い</text>
+<text class="s" x="628" y="152" text-anchor="middle">遠い</text>
+<text class="s" x="540" y="205" text-anchor="middle">見える範囲がまっすぐ。遠くても同じ大きさ</text>
+</svg>
+<figcaption>横から見た図。点線の間が、カメラに写る範囲です。</figcaption>
+</figure>
+
+<p>こうすると、<code>DrawGraph</code> と 1 画素も違わない絵が、3D の関数で描けます(確かめてあります。<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 3.4</a>)。Unity の 2D も同じ考え方です。</p>
+
+<h2>読むところ</h2>
+
+<h3><code>src/Camera2D.h</code></h3>
+
+<ul>
+<li><code>SetupCamera2D()</code>: 上のカメラの設定。<strong><code>SetDrawScreen</code> の後に毎回呼ぶ</strong>(<code>SetDrawScreen</code> はカメラの設定を元に戻すため)。</li>
+<li><code>MakeSpriteGrid( x, y, 幅, 高さ, 横の分け数, 縦の分け数, 色 )</code>: 板の頂点を作る。<strong>板を細かいマス目に分けておかないと、なめらかに曲げられません</strong>(4 隅だけでは、四角が四角のまま動くだけ)。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 285" role="img">
+<text x="130" y="24" text-anchor="middle" class="b">4 隅だけ(頂点 4 個)</text>
+<rect class="d-dash" x="20" y="60" width="240" height="150"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="20,60 260,79.1"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="20,210 260,229.1"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="20,60 20,210"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="260,79.1 260,229.1"/>
+<circle class="d-acc2-fill" cx="20" cy="60" r="3.2"/>
+<circle class="d-acc2-fill" cx="260" cy="79.1" r="3.2"/>
+<circle class="d-acc2-fill" cx="20" cy="210" r="3.2"/>
+<circle class="d-acc2-fill" cx="260" cy="229.1" r="3.2"/>
+<text x="500" y="24" text-anchor="middle" class="b">マス目に分ける(頂点 13×7 個)</text>
+<rect class="d-dash" x="390" y="60" width="240" height="150"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,60 410,60.9 430,58.2 450,54.5 470,56.3 490,64.6 510,71 530,66.4 550,52.7 570,43.5 590,50.8 610,70.1 630,82"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,85 410,85.9 430,83.2 450,79.5 470,81.3 490,89.6 510,96 530,91.4 550,77.7 570,68.5 590,75.8 610,95.1 630,107"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,110 410,110.9 430,108.2 450,104.5 470,106.3 490,114.6 510,121 530,116.4 550,102.7 570,93.5 590,100.8 610,120.1 630,132"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,135 410,135.9 430,133.2 450,129.5 470,131.3 490,139.6 510,146 530,141.4 550,127.7 570,118.5 590,125.8 610,145.1 630,157"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,160 410,160.9 430,158.2 450,154.5 470,156.3 490,164.6 510,171 530,166.4 550,152.7 570,143.5 590,150.8 610,170.1 630,182"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,185 410,185.9 430,183.2 450,179.5 470,181.3 490,189.6 510,196 530,191.4 550,177.7 570,168.5 590,175.8 610,195.1 630,207"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,210 410,210.9 430,208.2 450,204.5 470,206.3 490,214.6 510,221 530,216.4 550,202.7 570,193.5 590,200.8 610,220.1 630,232"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="390,60 390,85 390,110 390,135 390,160 390,185 390,210"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="410,60.9 410,85.9 410,110.9 410,135.9 410,160.9 410,185.9 410,210.9"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="430,58.2 430,83.2 430,108.2 430,133.2 430,158.2 430,183.2 430,208.2"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="450,54.5 450,79.5 450,104.5 450,129.5 450,154.5 450,179.5 450,204.5"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="470,56.3 470,81.3 470,106.3 470,131.3 470,156.3 470,181.3 470,206.3"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="490,64.6 490,89.6 490,114.6 490,139.6 490,164.6 490,189.6 490,214.6"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="510,71 510,96 510,121 510,146 510,171 510,196 510,221"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="530,66.4 530,91.4 530,116.4 530,141.4 530,166.4 530,191.4 530,216.4"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="550,52.7 550,77.7 550,102.7 550,127.7 550,152.7 550,177.7 550,202.7"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="570,43.5 570,68.5 570,93.5 570,118.5 570,143.5 570,168.5 570,193.5"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="590,50.8 590,75.8 590,100.8 590,125.8 590,150.8 590,175.8 590,200.8"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="610,70.1 610,95.1 610,120.1 610,145.1 610,170.1 610,195.1 610,220.1"/>
+<polyline class="d-acc-line" style="stroke-width:1.6" points="630,82 630,107 630,132 630,157 630,182 630,207 630,232"/>
+<circle class="d-acc2-fill" cx="390" cy="60" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="60.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="58.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="54.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="56.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="64.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="71" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="66.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="52.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="43.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="50.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="70.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="82" r="2.2"/>
+<circle class="d-acc2-fill" cx="390" cy="85" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="85.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="83.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="79.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="81.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="89.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="96" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="91.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="77.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="68.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="75.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="95.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="107" r="2.2"/>
+<circle class="d-acc2-fill" cx="390" cy="110" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="110.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="108.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="104.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="106.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="114.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="121" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="116.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="102.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="93.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="100.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="120.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="132" r="2.2"/>
+<circle class="d-acc2-fill" cx="390" cy="135" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="135.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="133.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="129.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="131.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="139.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="146" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="141.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="127.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="118.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="125.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="145.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="157" r="2.2"/>
+<circle class="d-acc2-fill" cx="390" cy="160" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="160.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="158.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="154.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="156.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="164.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="171" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="166.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="152.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="143.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="150.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="170.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="182" r="2.2"/>
+<circle class="d-acc2-fill" cx="390" cy="185" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="185.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="183.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="179.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="181.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="189.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="196" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="191.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="177.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="168.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="175.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="195.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="207" r="2.2"/>
+<circle class="d-acc2-fill" cx="390" cy="210" r="2.2"/>
+<circle class="d-acc2-fill" cx="410" cy="210.9" r="2.2"/>
+<circle class="d-acc2-fill" cx="430" cy="208.2" r="2.2"/>
+<circle class="d-acc2-fill" cx="450" cy="204.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="470" cy="206.3" r="2.2"/>
+<circle class="d-acc2-fill" cx="490" cy="214.6" r="2.2"/>
+<circle class="d-acc2-fill" cx="510" cy="221" r="2.2"/>
+<circle class="d-acc2-fill" cx="530" cy="216.4" r="2.2"/>
+<circle class="d-acc2-fill" cx="550" cy="202.7" r="2.2"/>
+<circle class="d-acc2-fill" cx="570" cy="193.5" r="2.2"/>
+<circle class="d-acc2-fill" cx="590" cy="200.8" r="2.2"/>
+<circle class="d-acc2-fill" cx="610" cy="220.1" r="2.2"/>
+<circle class="d-acc2-fill" cx="630" cy="232" r="2.2"/>
+<text class="s" x="360.0" y="277" text-anchor="middle">点 = 頂点。頂点シェーダーが動かせるのは頂点だけで、頂点の間はまっすぐな線でつながる</text>
+</svg>
+<figcaption>同じ波で頂点を動かしたとき。4 隅だけだと、板がゆがんだ四角になるだけです。サンプルは横 24 × 縦 24 に分けています。</figcaption>
+</figure>
+
+<h3><code>shaders/Sprite2DVS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>float wave = sin(pos.x * (6.2831853f / g_WaveLength) - g_Time * g_Speed);
+pos.y += wave * g_Amplitude * input.TexCoords0.x;</code></pre>
+
+<ul>
+<li>頂点の x の位置と時間で決まる波の分だけ、y をずらします。</li>
+<li><code>TexCoords0.x</code>(左端 0、右端 1)を掛けているので、左端は動かず、右へ行くほど大きく揺れます(旗のさお側を留める)。</li>
+</ul>
+
+<h3><code>shaders/Sprite2DPS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>clip(color.a - 0.5f / 255.0f);</code></pre>
+
+<ul>
+<li><code>DrawGraph( …, TRUE )</code> と同じく、透明な画素(画像の透過色の黒など)を描かないための 1 行です。無いと透過色が黒く描かれます。</li>
+<li>不透明度は <code>SetDrawBlendMode</code> の 2 番目の引数では変わらないので、頂点の色のアルファで渡します(<code>MakeSpriteGrid</code> の色)。</li>
+</ul>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">6-1</span>縦になびかせる(上端を留めて、左右に揺らす)。</li>
+<li><span class="stars">★★</span><span class="id">6-2</span>スライムのぷるぷる。下の端を留めて、縦に伸びたら横に縮む、縦に縮んだら横に伸びる。<code>sin( 時間 * 速さ )</code> を伸び縮みの量にする。</li>
+<li><span class="stars">★★★</span><span class="id">6-3</span>絵の中心から広がる波紋。頂点の、絵の中心からの距離で波の値を決める。</li>
+</ol>
+
+<p><strong>解答例</strong>: 6-2 → <code>answers/06_slime</code>(<code>【課題 6-2】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row"><div><img src="images/ans06.png" width="480" alt="">answers/06_slime(右の顔が、下の端を留めて伸び縮みする)</div></div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="05_matrix.html"><span class="dir">← 前の回</span>05 行列で回す</a><a class="next" href="07_model_lighting.html"><span class="dir">次の回 →</span>07 3D モデルを自分のシェーダーで描く(ライト)</a></nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 テクスチャ座標をずらして画像を揺らす — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" class="now" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 03 回</span><h1>テクスチャ座標をずらして画像を揺らす</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>「どこの色を読むか(テクスチャ座標)」をずらすと、画像がゆがんで見えることが分かる。</li>
+<li>陽炎・水中・画面の乱れのような 2D のエフェクトを作れる。</li>
+</ul>
+</div>
+
+<h2>使うサンプル</h2>
+
+<div class="sample">
+<img class="px" src="images/c5_f80.png" alt="サンプルの実行画面">
+<div class="body">
+<p class="name">samples/C5_SetPSConstFTest を書き換えます</p>
+<p>テンプレート: <code>templates/02_constant_buffer.dxtemplate</code>(02 と同じ)</p>
+<p>02 で時間を渡せるようにしたものから始めるとよい。</p>
+</div>
+</div>
+
+<h2>しくみ</h2>
+
+<p>01 では、読んだ色を書き換えました。今回は<strong>読む場所</strong>を書き換えます。</p>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>float2 uv = PSInput.TextureCoord0 ;   <span class="c">// ふつうはこの画素に対応する場所</span>
+uv.x += 0.01f ;                        <span class="c">// 少し右の色を読む → 画像全体が少し左にずれて見える</span>
+color = DiffuseMapTexture.Sample( DiffuseMapSampler, uv ) ;</code></pre>
+
+<figure>
+<svg viewBox="0 0 720 250" role="img" aria-label="読む場所をずらす">
+<text class="b" x="130" y="22" text-anchor="middle">ふつう</text>
+<image href="images/photo.jpg" x="30" y="34" width="200" height="200"/>
+<circle cx="110" cy="134" r="8" fill="none" stroke="#fff" stroke-width="4"/>
+<circle class="d-acc-line" cx="110" cy="134" r="8"/>
+<text class="s" x="130" y="248" text-anchor="middle">この画素には、同じ場所の色</text>
+
+<text class="b" x="480" y="22" text-anchor="middle">uv.x を増やす</text>
+<image href="images/photo.jpg" x="380" y="34" width="200" height="200"/>
+<circle cx="460" cy="134" r="8" fill="none" stroke="#fff" stroke-width="4"/>
+<circle class="d-acc-line" cx="460" cy="134" r="8"/>
+<circle cx="530" cy="134" r="8" fill="none" stroke="#fff" stroke-width="4"/>
+<circle class="d-acc2-line" cx="530" cy="134" r="8"/>
+<line x1="470" y1="134" x2="518" y2="134" stroke="#fff" stroke-width="5"/>
+<line class="d-acc2-line" x1="470" y1="134" x2="518" y2="134" marker-end="url(#ah-acc2)"/>
+<text class="s" x="480" y="248" text-anchor="middle">青の画素に、右の(オレンジの)所の色を出す</text>
+<text class="s acc2" x="600" y="110">読む場所</text>
+<text class="s acc2" x="600" y="128">だけ動かす</text>
+</svg>
+</figure>
+
+<ul>
+<li>ずらす量を<strong>場所によって変える</strong>と、画像がゆがみます。</li>
+<li>例えば <code>sin( uv.y * 40.0f )</code> だけずらすと、上下の位置ごとに左右へ波打ちます。ここに時間を足すと、波が動きます。</li>
+<li>テクスチャ座標は画像の幅を 1 とした数なので、0.01 は画像の幅の 1%(256 画素の画像なら約 2.5 画素)です。</li>
+</ul>
+
+<figure>
+<div class="row">
+<div><img src="images/photo.jpg" width="200" alt="">元の画像</div>
+<div class="arrow">→</div>
+<div><img src="images/sim_shift.jpg" width="200" alt=""><code>uv.x += 0.1f</code>(全体を同じだけ)</div>
+<div><img src="images/sim_haze.jpg" width="200" alt=""><code>uv.x += sin( uv.y * 40.0f ) * 0.01f</code></div>
+</div>
+<figcaption>同じだけずらすと、絵が左に動くだけです(右の端は画像の外を読むので、端の色が伸びています)。場所ごとにずらす量を変えると、ゆがみになります。<span class="sim">(シェーダーと同じ計算を Python でした画像)</span></figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 560 210" role="img">
+<line class="d-grid" x1="80" x2="540" y1="141" y2="141"/>
+<text class="s" x="72" y="145" text-anchor="end">-0.01</text>
+<line class="d-grid" x1="80" x2="540" y1="91" y2="91"/>
+<text class="s" x="72" y="95" text-anchor="end">0</text>
+<line class="d-grid" x1="80" x2="540" y1="41" y2="41"/>
+<text class="s" x="72" y="45" text-anchor="end">+0.01</text>
+<line class="d-grid" x1="80" x2="80" y1="16" y2="166"/>
+<text class="s" x="80" y="184" text-anchor="middle">0(上)</text>
+<line class="d-grid" x1="195" x2="195" y1="16" y2="166"/>
+<text class="s" x="195" y="184" text-anchor="middle">0.25</text>
+<line class="d-grid" x1="310" x2="310" y1="16" y2="166"/>
+<text class="s" x="310" y="184" text-anchor="middle">0.5</text>
+<line class="d-grid" x1="425" x2="425" y1="16" y2="166"/>
+<text class="s" x="425" y="184" text-anchor="middle">0.75</text>
+<line class="d-grid" x1="540" x2="540" y1="16" y2="166"/>
+<text class="s" x="540" y="184" text-anchor="middle">1(下)</text>
+<line class="d-thin" x1="80" x2="80" y1="16" y2="166"/>
+<line class="d-thin" x1="80" x2="540" y1="91" y2="91"/>
+<polyline class="d-acc-line" points="80,91 82.3,81.1 84.6,71.5 86.9,62.8 89.2,55.1 91.5,48.9 93.8,44.4 96.1,41.7 98.4,41 100.7,42.3 103,45.5 105.3,50.6 107.6,57.2 109.9,65.2 112.2,74.3 114.5,83.9 116.8,93.9 119.1,103.8 121.4,113.1 123.7,121.6 126,128.8 128.3,134.6 130.6,138.6 132.9,140.7 135.2,140.8 137.5,138.9 139.8,135.2 142.1,129.6 144.4,122.6 146.7,114.2 149,105 151.3,95.2 153.6,85.2 155.9,75.4 158.2,66.3 160.5,58.2 162.8,51.3 165.1,46.1 167.4,42.6 169.7,41.1 172,41.5 174.3,44 176.6,48.3 178.9,54.3 181.2,61.8 183.5,70.4 185.8,79.9 188.1,89.8 190.4,99.7 192.7,109.3 195,118.2 197.3,126 199.6,132.4 201.9,137.1 204.2,140 206.5,141 208.8,140 211.1,137 213.4,132.1 215.7,125.7 218,117.8 220.3,108.9 222.6,99.3 224.9,89.3 227.2,79.4 229.5,70 231.8,61.4 234.1,54 236.4,48 238.7,43.8 241,41.5 243.3,41.1 245.6,42.7 247.9,46.3 250.2,51.6 252.5,58.5 254.8,66.7 257.1,75.8 259.4,85.6 261.7,95.6 264,105.4 266.3,114.6 268.6,122.9 270.9,129.9 273.2,135.4 275.5,139.1 277.8,140.8 280.1,140.6 282.4,138.4 284.7,134.4 287,128.5 289.3,121.2 291.6,112.7 293.9,103.3 296.2,93.5 298.5,83.5 300.8,73.8 303.1,64.8 305.4,56.9 307.7,50.3 310,45.4 312.3,42.2 314.6,41 316.9,41.8 319.2,44.6 321.5,49.2 323.8,55.4 326.1,63.1 328.4,71.9 330.7,81.5 333,91.4 335.3,101.4 337.6,110.9 339.9,119.6 342.2,127.2 344.5,133.3 346.8,137.8 349.1,140.3 351.4,141 353.7,139.6 356,136.3 358.3,131.2 360.6,124.4 362.9,116.4 365.2,107.3 367.5,97.6 369.8,87.6 372.1,77.8 374.4,68.5 376.7,60.1 379,52.9 381.3,47.2 383.6,43.3 385.9,41.3 388.2,41.2 390.5,43.2 392.8,47 395.1,52.6 397.4,59.8 399.7,68.2 402,77.5 404.3,87.3 406.6,97.3 408.9,107 411.2,116.1 413.5,124.2 415.8,131 418.1,136.1 420.4,139.5 422.7,140.9 425,140.4 427.3,137.9 429.6,133.5 431.9,127.4 434.2,119.9 436.5,111.2 438.8,101.7 441.1,91.8 443.4,81.8 445.7,72.3 448,63.4 450.3,55.7 452.6,49.4 454.9,44.7 457.2,41.9 459.5,41 461.8,42.1 464.1,45.2 466.4,50.1 468.7,56.6 471,64.5 473.3,73.5 475.6,83.2 477.9,93.1 480.2,103 482.5,112.4 484.8,121 487.1,128.3 489.4,134.2 491.7,138.3 494,140.6 496.3,140.9 498.6,139.2 500.9,135.5 503.2,130.1 505.5,123.2 507.8,114.9 510.1,105.7 512.4,95.9 514.7,86 517,76.2 519.3,67 521.6,58.8 523.9,51.8 526.2,46.4 528.5,42.8 530.8,41.1 533.1,41.4 535.4,43.7 537.7,47.9 540,53.7"/>
+<text class="s" x="310.0" y="204" text-anchor="middle">uv.y(画像の上下の位置)</text>
+<text class="s" x="14" y="91.0" text-anchor="middle" transform="rotate(-90 14 91.0)">uv.x をずらす量</text>
+</svg>
+<figcaption><code>sin( uv.y * 40.0f ) * 0.01f</code> の値。画像の上から下までに、約 6 回、右と左に 0.01 ずつずれます。</figcaption>
+</figure>
+
+<p>形(頂点)は動かしていないので、画像の外側の四角はそのままです。形を動かしたいときは 04〜06 の頂点シェーダーを使います。</p>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">3-1</span>陽炎のように揺らす。<code>uv.x += sin( uv.y * 40.0f + 時間 * 5.0f ) * 0.01f</code>。数を変えて、波の細かさ・速さ・大きさがどう変わるか試す。</li>
+<li><span class="stars">★★</span><span class="id">3-2</span>水の中のように、縦にも横にも揺らす(<code>uv.y</code> もずらす。x と y で波の向きや速さを変える)。</li>
+<li><span class="stars">★★</span><span class="id">3-3</span>モザイクにする。<code>floor( uv * 32.0f ) / 32.0f</code> で、テクスチャ座標をとびとびにする。</li>
+<li><span class="stars">★★★</span><span class="id">3-4</span>画像の端で、はみ出した所を読むとどうなるか確かめる。はみ出した所の読み方は、C++ の <code>SetTextureAddressModeUV</code> で変えられる(既定は端の色を伸ばす「クランプ」。<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 10.1</a>)。</li>
+</ol>
+
+<details>
+<summary>完成イメージを見る</summary>
+<figure>
+<div class="row">
+<div><img src="images/sim_haze.jpg" width="180" alt="">3-1 陽炎</div>
+<div><img src="images/sim_water.jpg" width="180" alt="">3-2 水の中</div>
+<div><img src="images/sim_mosaic.jpg" width="180" alt="">3-3 モザイク</div>
+</div>
+<figcaption>シェーダーと同じ計算を Python でした画像です(ある瞬間の絵。実際は時間で動きます)。</figcaption>
+</figure>
+</details>
+
+<p><strong>解答例</strong>: 3-1 → <code>answers/03_heat_haze</code>(<code>【課題 3-1】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row"><div><img src="images/ans03.png" width="256" alt="">answers/03_heat_haze</div></div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="02_constant_buffer.html"><span class="dir">← 前の回</span>02 C++ からシェーダーに値を渡す(定数バッファ)</a><a class="next" href="04_vertex_shader.html"><span class="dir">次の回 →</span>04 頂点シェーダーで板を動かす</a></nav>
+</main>
+</body>
+</html>

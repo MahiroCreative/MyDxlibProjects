@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 ピクセルごとにライトを計算する — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" class="now" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 08 回</span><h1>ピクセルごとにライトを計算する</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>頂点ごとのライトと、ピクセルごとのライト(フォンシェーディング)の違いが分かる。</li>
+<li>頂点シェーダーからピクセルシェーダーへ、座標や法線を渡して計算できる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/a11_spec.png" alt="サンプルの実行画面">
+<div class="body">
+<p>1. <span class="name">samples/A05_NormalMesh_DirLight</span>(頂点ごと。07 で見たもの)<br>
+テンプレート: <code>templates/07b_model_dirlight.dxtemplate</code></p>
+<p>2. <span class="name">samples/A11_NormalMesh_DirLight_Phong</span>(ピクセルごと)<br>
+テンプレート: <code>templates/08b_model_phong.dxtemplate</code></p>
+</div>
+</div>
+
+<p>並べて動かし、てかり(スペキュラー)の出方を見比べます。</p>
+
+<div class="warn">
+<p class="box-title">準備: てかりが見えるようにする</p>
+<p>このサンプルの箱(<code>NormalBox.mqo</code>)は、マテリアルのてかりの色(スペキュラーカラー)が 0 です。そのままでは<strong>てかりが出ず、A05 と A11 がまったく同じ絵</strong>になります(確かめてあります)。
+2 つとも、<code>src/main.cpp</code> の <code>MV1LoadModel</code> の次の行に、下の 2 行を足してから比べます。</p>
+<pre><span class="lang">C++</span><code>MV1SetMaterialSpcColor( ModelHandle, 0, GetColorF( 1.0f, 1.0f, 1.0f, 1.0f ) ) ;   <span class="c">// てかりの色を白に</span>
+MV1SetMaterialSpcPower( ModelHandle, 0, 60.0f ) ;                                 <span class="c">// てかりの鋭さ</span></code></pre>
+</div>
+
+<figure>
+<div class="row">
+<div><img src="images/a05_spec.png" width="280" alt="">A05 頂点ごと</div>
+<div><img src="images/a11_spec.png" width="280" alt="">A11 ピクセルごと</div>
+</div>
+<figcaption>準備の 2 行を足して、同じ瞬間を撮ったもの。頂点ごと(左)は、てかりが三角形に沿ってぼんやり広がっています。ピクセルごと(右)は「1」の面の上のほうに、小さなてかりがはっきり出ています。</figcaption>
+</figure>
+
+<h2>違い</h2>
+
+<table>
+<tr><th></th><th>頂点ごと(A05)</th><th>ピクセルごと(A11)</th></tr>
+<tr><td>ライトの計算をする所</td><td>頂点シェーダー</td><td>ピクセルシェーダー</td></tr>
+<tr><td>計算の回数</td><td>頂点の数</td><td>画素の数(ずっと多い)</td></tr>
+<tr><td>てかり</td><td>頂点と頂点の間でぼやける・消える</td><td>面の途中にもきれいに出る</td></tr>
+</table>
+
+<figure>
+<svg viewBox="0 0 720 260" role="img" aria-label="頂点ごとの計算とピクセルごとの計算の違い">
+<defs>
+<radialGradient id="spot08" cx="0.55" cy="0.42" r="0.35">
+<stop offset="0" stop-color="#ffffff"/>
+<stop offset="0.35" stop-color="#ffd8b0"/>
+<stop offset="1" stop-color="#d9480f"/>
+</radialGradient>
+</defs>
+<text class="b" x="175" y="22" text-anchor="middle">頂点ごと</text>
+<rect x="60" y="40" width="230" height="170" fill="#d9480f"/>
+<circle class="d-ink" cx="60" cy="40" r="5"/><circle class="d-ink" cx="290" cy="40" r="5"/>
+<circle class="d-ink" cx="60" cy="210" r="5"/><circle class="d-ink" cx="290" cy="210" r="5"/>
+<text class="m s" x="40" y="34" text-anchor="end">0.0</text><text class="m s" x="310" y="34">0.0</text>
+<text class="m s" x="40" y="222" text-anchor="end">0.0</text><text class="m s" x="310" y="222">0.0</text>
+<text class="s" x="175" y="240" text-anchor="middle">てかりを計算するのは 4 隅だけ。</text>
+<text class="s" x="175" y="256" text-anchor="middle">4 隅が 0 なら、真ん中のてかりは消える</text>
+
+<text class="b" x="545" y="22" text-anchor="middle">ピクセルごと</text>
+<rect x="430" y="40" width="230" height="170" fill="url(#spot08)"/>
+<text class="s" x="545" y="240" text-anchor="middle">画素ごとに計算するので、</text>
+<text class="s" x="545" y="256" text-anchor="middle">面の途中のてかりも出る</text>
+</svg>
+<figcaption>平らな面の真ん中あたりで光が目に反射してくる場合。数字は、それぞれの頂点で計算したてかりの強さ。</figcaption>
+</figure>
+
+<h2>読むところ</h2>
+
+<h3><code>A11 …PhongVS.hlsl</code></h3>
+
+<p>頂点シェーダーは、ライトを計算しません。代わりに、<strong>ビュー空間の座標と法線</strong>をピクセルシェーダーに渡します。</p>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>float3 VPosition : TEXCOORD1 ;   <span class="c">// 座標(ビュー空間)</span>
+float3 VNormal   : TEXCOORD2 ;   <span class="c">// 法線(ビュー空間)</span></code></pre>
+
+<ul>
+<li><code>TEXCOORD</code> は「テクスチャ座標」という名前ですが、<strong>好きな値を渡す箱</strong>として使えます。</li>
+</ul>
+
+<h3><code>A11 …PhongPS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>Normal = normalize( PSInput.VNormal ) ;              <span class="c">// 混ぜられた法線は長さが 1 でなくなるので、もう一度 1 にする</span>
+V_to_Eye = normalize( -PSInput.VPosition ) ;         <span class="c">// その画素から視点への向き(ビュー空間では視点が原点)</span>
+DiffuseAngleGen = saturate( dot( Normal, -lLightDir ) ) ;              <span class="c">// 07 と同じランバート</span>
+TempF3 = normalize( V_to_Eye - lLightDir ) ;                           <span class="c">// ハーフベクトル</span>
+Temp = pow( max( 0.0f, dot( Normal, TempF3 ) ), g_Common.Material.Power ) ;   <span class="c">// てかり</span></code></pre>
+
+<ul>
+<li><strong>ハーフベクトル</strong>は「視点への向き」と「ライトへの向き」の真ん中の向きです。法線がこれに近いほど、ライトが目の方へ反射してくる(てかって見える)。</li>
+<li><code>Power</code>(マテリアルのスペキュラーの強さ)が大きいほど、てかりは小さく鋭くなります。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 250" role="img" aria-label="ハーフベクトル">
+<line class="d-line" x1="160" y1="200" x2="560" y2="200"/>
+<line class="d-acc-line" x1="360" y1="200" x2="360" y2="70" marker-end="url(#ah-acc)"/>
+<text class="b acc" x="352" y="84" text-anchor="end">法線</text>
+<line class="d-acc2-line" x1="360" y1="200" x2="230" y2="90" marker-end="url(#ah-acc2)"/>
+<text class="b acc2" x="222" y="80" text-anchor="end">ライトへの向き</text>
+<text class="s" x="222" y="98" text-anchor="end">(-lLightDir)</text>
+<line class="d-good-line" x1="360" y1="200" x2="520" y2="100" marker-end="url(#ah-good)"/>
+<text class="b" x="528" y="92" style="fill:var(--good)">視点への向き</text>
+<text class="s" x="528" y="110">(V_to_Eye)</text>
+<line class="d-line" x1="360" y1="200" x2="369" y2="72" style="stroke-dasharray:6 4" marker-end="url(#ah)"/>
+<text class="b" x="380" y="52">ハーフベクトル</text>
+<text class="s" x="380" y="70">2 つの真ん中</text>
+<text class="s" x="360" y="232" text-anchor="middle">ハーフベクトルが法線に近いほど、てかりが強い(ここではほぼ重なっている → てかる)</text>
+</svg>
+</figure>
+
+<figure>
+<svg viewBox="0 0 560 270" role="img">
+<line class="d-grid" x1="56" x2="540" y1="226" y2="226"/>
+<text class="s" x="48" y="230" text-anchor="end">0</text>
+<line class="d-grid" x1="56" x2="540" y1="136" y2="136"/>
+<text class="s" x="48" y="140" text-anchor="end">0.5</text>
+<line class="d-grid" x1="56" x2="540" y1="46" y2="46"/>
+<text class="s" x="48" y="50" text-anchor="end">1</text>
+<line class="d-grid" x1="56" x2="56" y1="46" y2="226"/>
+<text class="s" x="56" y="244" text-anchor="middle">0°</text>
+<line class="d-grid" x1="177" x2="177" y1="46" y2="226"/>
+<text class="s" x="177" y="244" text-anchor="middle">15°</text>
+<line class="d-grid" x1="298" x2="298" y1="46" y2="226"/>
+<text class="s" x="298" y="244" text-anchor="middle">30°</text>
+<line class="d-grid" x1="419" x2="419" y1="46" y2="226"/>
+<text class="s" x="419" y="244" text-anchor="middle">45°</text>
+<line class="d-grid" x1="540" x2="540" y1="46" y2="226"/>
+<text class="s" x="540" y="244" text-anchor="middle">60°</text>
+<line class="d-thin" x1="56" x2="56" y1="46" y2="226"/>
+<line class="d-thin" x1="56" x2="540" y1="226" y2="226"/>
+<polyline class="d-dash" points="56,46 58.4,46 60.8,46 63.3,46.1 65.7,46.2 68.1,46.3 70.5,46.4 72.9,46.6 75.4,46.8 77.8,47 80.2,47.2 82.6,47.5 85,47.8 87.5,48.1 89.9,48.4 92.3,48.8 94.7,49.1 97.1,49.5 99.6,50 102,50.4 104.4,50.9 106.8,51.4 109.2,51.9 111.7,52.4 114.1,53 116.5,53.6 118.9,54.2 121.3,54.8 123.8,55.4 126.2,56.1 128.6,56.8 131,57.5 133.4,58.3 135.9,59 138.3,59.8 140.7,60.6 143.1,61.4 145.5,62.2 148,63.1 150.4,63.9 152.8,64.8 155.2,65.7 157.6,66.7 160.1,67.6 162.5,68.6 164.9,69.5 167.3,70.5 169.7,71.5 172.2,72.6 174.6,73.6 177,74.6 179.4,75.7 181.8,76.8 184.3,77.9 186.7,79 189.1,80.1 191.5,81.3 193.9,82.4 196.4,83.6 198.8,84.8 201.2,85.9 203.6,87.1 206,88.3 208.5,89.6 210.9,90.8 213.3,92 215.7,93.3 218.1,94.5 220.6,95.8 223,97.1 225.4,98.3 227.8,99.6 230.2,100.9 232.7,102.2 235.1,103.5 237.5,104.8 239.9,106.2 242.3,107.5 244.8,108.8 247.2,110.1 249.6,111.5 252,112.8 254.4,114.1 256.9,115.5 259.3,116.8 261.7,118.2 264.1,119.5 266.5,120.9 269,122.2 271.4,123.6 273.8,124.9 276.2,126.3 278.6,127.6 281.1,129 283.5,130.3 285.9,131.6 288.3,133 290.7,134.3 293.2,135.7 295.6,137 298,138.3 300.4,139.6 302.8,141 305.3,142.3 307.7,143.6 310.1,144.9 312.5,146.2 314.9,147.5 317.4,148.8 319.8,150 322.2,151.3 324.6,152.6 327,153.8 329.5,155.1 331.9,156.3 334.3,157.6 336.7,158.8 339.1,160 341.6,161.2 344,162.4 346.4,163.6 348.8,164.8 351.2,166 353.7,167.1 356.1,168.3 358.5,169.4 360.9,170.6 363.3,171.7 365.8,172.8 368.2,173.9 370.6,175 373,176.1 375.4,177.1 377.9,178.2 380.3,179.2 382.7,180.2 385.1,181.3 387.5,182.3 390,183.3 392.4,184.2 394.8,185.2 397.2,186.2 399.6,187.1 402.1,188 404.5,188.9 406.9,189.9 409.3,190.7 411.7,191.6 414.2,192.5 416.6,193.3 419,194.2 421.4,195 423.8,195.8 426.3,196.6 428.7,197.4 431.1,198.2 433.5,198.9 435.9,199.7 438.4,200.4 440.8,201.1 443.2,201.9 445.6,202.6 448,203.2 450.5,203.9 452.9,204.6 455.3,205.2 457.7,205.8 460.1,206.5 462.6,207.1 465,207.7 467.4,208.2 469.8,208.8 472.2,209.4 474.7,209.9 477.1,210.4 479.5,211 481.9,211.5 484.3,212 486.8,212.4 489.2,212.9 491.6,213.4 494,213.8 496.4,214.3 498.9,214.7 501.3,215.1 503.7,215.5 506.1,215.9 508.5,216.3 511,216.7 513.4,217 515.8,217.4 518.2,217.7 520.6,218 523.1,218.4 525.5,218.7 527.9,219 530.3,219.3 532.7,219.6 535.2,219.8 537.6,220.1 540,220.4"/>
+<polyline class="d-acc-line" points="56,46 58.4,46 60.8,46.2 63.3,46.4 65.7,46.8 68.1,47.2 70.5,47.8 72.9,48.4 75.4,49.1 77.8,50 80.2,50.9 82.6,51.9 85,53 87.5,54.2 89.9,55.4 92.3,56.8 94.7,58.2 97.1,59.7 99.6,61.3 102,63 104.4,64.7 106.8,66.5 109.2,68.4 111.7,70.4 114.1,72.4 116.5,74.4 118.9,76.5 121.3,78.7 123.8,80.9 126.2,83.2 128.6,85.5 131,87.9 133.4,90.2 135.9,92.7 138.3,95.1 140.7,97.6 143.1,100.1 145.5,102.6 148,105.2 150.4,107.7 152.8,110.3 155.2,112.9 157.6,115.5 160.1,118 162.5,120.6 164.9,123.2 167.3,125.8 169.7,128.4 172.2,130.9 174.6,133.5 177,136 179.4,138.5 181.8,141 184.3,143.5 186.7,146 189.1,148.4 191.5,150.8 193.9,153.1 196.4,155.5 198.8,157.8 201.2,160 203.6,162.2 206,164.4 208.5,166.6 210.9,168.7 213.3,170.8 215.7,172.8 218.1,174.8 220.6,176.7 223,178.6 225.4,180.5 227.8,182.3 230.2,184 232.7,185.8 235.1,187.4 237.5,189.1 239.9,190.6 242.3,192.2 244.8,193.7 247.2,195.1 249.6,196.5 252,197.8 254.4,199.2 256.9,200.4 259.3,201.6 261.7,202.8 264.1,204 266.5,205.1 269,206.1 271.4,207.1 273.8,208.1 276.2,209 278.6,209.9 281.1,210.8 283.5,211.6 285.9,212.4 288.3,213.2 290.7,213.9 293.2,214.6 295.6,215.2 298,215.9 300.4,216.5 302.8,217 305.3,217.6 307.7,218.1 310.1,218.6 312.5,219 314.9,219.5 317.4,219.9 319.8,220.3 322.2,220.7 324.6,221 327,221.4 329.5,221.7 331.9,222 334.3,222.2 336.7,222.5 339.1,222.7 341.6,223 344,223.2 346.4,223.4 348.8,223.6 351.2,223.8 353.7,223.9 356.1,224.1 358.5,224.2 360.9,224.4 363.3,224.5 365.8,224.6 368.2,224.7 370.6,224.8 373,224.9 375.4,225 377.9,225.1 380.3,225.2 382.7,225.2 385.1,225.3 387.5,225.4 390,225.4 392.4,225.5 394.8,225.5 397.2,225.6 399.6,225.6 402.1,225.6 404.5,225.7 406.9,225.7 409.3,225.7 411.7,225.8 414.2,225.8 416.6,225.8 419,225.8 421.4,225.8 423.8,225.9 426.3,225.9 428.7,225.9 431.1,225.9 433.5,225.9 435.9,225.9 438.4,225.9 440.8,225.9 443.2,225.9 445.6,225.9 448,226 450.5,226 452.9,226 455.3,226 457.7,226 460.1,226 462.6,226 465,226 467.4,226 469.8,226 472.2,226 474.7,226 477.1,226 479.5,226 481.9,226 484.3,226 486.8,226 489.2,226 491.6,226 494,226 496.4,226 498.9,226 501.3,226 503.7,226 506.1,226 508.5,226 511,226 513.4,226 515.8,226 518.2,226 520.6,226 523.1,226 525.5,226 527.9,226 530.3,226 532.7,226 535.2,226 537.6,226 540,226"/>
+<polyline class="d-acc2-line" points="56,46 58.4,46.1 60.8,46.6 63.3,47.3 65.7,48.4 68.1,49.7 70.5,51.3 72.9,53.1 75.4,55.2 77.8,57.6 80.2,60.2 82.6,63.1 85,66.1 87.5,69.4 89.9,72.8 92.3,76.4 94.7,80.2 97.1,84.1 99.6,88.2 102,92.3 104.4,96.5 106.8,100.8 109.2,105.2 111.7,109.6 114.1,114.1 116.5,118.5 118.9,122.9 121.3,127.4 123.8,131.8 126.2,136.1 128.6,140.4 131,144.6 133.4,148.8 135.9,152.8 138.3,156.8 140.7,160.7 143.1,164.4 145.5,168 148,171.5 150.4,174.9 152.8,178.2 155.2,181.3 157.6,184.3 160.1,187.2 162.5,189.9 164.9,192.5 167.3,195 169.7,197.3 172.2,199.5 174.6,201.6 177,203.5 179.4,205.3 181.8,207.1 184.3,208.7 186.7,210.2 189.1,211.6 191.5,212.9 193.9,214.1 196.4,215.2 198.8,216.2 201.2,217.1 203.6,218 206,218.8 208.5,219.5 210.9,220.2 213.3,220.8 215.7,221.4 218.1,221.9 220.6,222.3 223,222.7 225.4,223.1 227.8,223.4 230.2,223.7 232.7,224 235.1,224.2 237.5,224.4 239.9,224.6 242.3,224.8 244.8,225 247.2,225.1 249.6,225.2 252,225.3 254.4,225.4 256.9,225.5 259.3,225.6 261.7,225.6 264.1,225.7 266.5,225.7 269,225.8 271.4,225.8 273.8,225.8 276.2,225.8 278.6,225.9 281.1,225.9 283.5,225.9 285.9,225.9 288.3,225.9 290.7,225.9 293.2,226 295.6,226 298,226 300.4,226 302.8,226 305.3,226 307.7,226 310.1,226 312.5,226 314.9,226 317.4,226 319.8,226 322.2,226 324.6,226 327,226 329.5,226 331.9,226 334.3,226 336.7,226 339.1,226 341.6,226 344,226 346.4,226 348.8,226 351.2,226 353.7,226 356.1,226 358.5,226 360.9,226 363.3,226 365.8,226 368.2,226 370.6,226 373,226 375.4,226 377.9,226 380.3,226 382.7,226 385.1,226 387.5,226 390,226 392.4,226 394.8,226 397.2,226 399.6,226 402.1,226 404.5,226 406.9,226 409.3,226 411.7,226 414.2,226 416.6,226 419,226 421.4,226 423.8,226 426.3,226 428.7,226 431.1,226 433.5,226 435.9,226 438.4,226 440.8,226 443.2,226 445.6,226 448,226 450.5,226 452.9,226 455.3,226 457.7,226 460.1,226 462.6,226 465,226 467.4,226 469.8,226 472.2,226 474.7,226 477.1,226 479.5,226 481.9,226 484.3,226 486.8,226 489.2,226 491.6,226 494,226 496.4,226 498.9,226 501.3,226 503.7,226 506.1,226 508.5,226 511,226 513.4,226 515.8,226 518.2,226 520.6,226 523.1,226 525.5,226 527.9,226 530.3,226 532.7,226 535.2,226 537.6,226 540,226"/>
+<text class="s" x="298.0" y="264" text-anchor="middle">法線とハーフベクトルの角度</text>
+<text class="s" x="14" y="136.0" text-anchor="middle" transform="rotate(-90 14 136.0)">てかりの強さ</text>
+<line class="d-dash" x1="56" x2="82" y1="16" y2="16"/>
+<text x="88" y="21" class="s">Power 5</text>
+<line class="d-acc-line" x1="179" x2="205" y1="16" y2="16"/>
+<text x="211" y="21" class="s">Power 20</text>
+<line class="d-acc2-line" x1="311" x2="337" y1="16" y2="16"/>
+<text x="343" y="21" class="s">Power 60</text>
+</svg>
+<figcaption><code>pow( 内積, Power )</code>。Power が大きいほど、法線とハーフベクトルがぴったり合った所だけが光る(てかりが小さく鋭くなる)。</figcaption>
+</figure>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">8-1</span>てかりの強さ(<code>Power</code>)を変える。C++ で <code>MV1SetMaterialSpcPower( モデル, 0, 値 )</code>、またはシェーダーで <code>g_Common.Material.Power</code> の代わりに数を書く(てかりの色が 0 のままだと何も変わらないので、上の「準備」の 2 行を足しておく)。</li>
+<li><span class="stars">★★</span><span class="id">8-2</span>輪郭を光らせる(リムライト)。<code>1.0f - saturate( dot( Normal, V_to_Eye ) )</code> は、正面で 0、輪郭で 1 になる。これを 3 乗くらいして輪郭の近くに絞り、色を足す。</li>
+<li><span class="stars">★★★</span><span class="id">8-3</span>A05 の頂点シェーダーを書き換えて、A11 と同じ見た目にしてみる(ピクセルシェーダーに法線と座標を渡す形に作り直す)。</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 720 280" role="img" aria-label="リムライト">
+<circle class="d-acc" cx="330" cy="140" r="85"/>
+<path d="M 294.1,63 A 85 85 0 0 1 365.9,63" fill="none" stroke="#fab005" stroke-width="8" stroke-linecap="round"/>
+<path d="M 294.1,217 A 85 85 0 0 0 365.9,217" fill="none" stroke="#fab005" stroke-width="8" stroke-linecap="round"/>
+<polygon class="d-good-fill" points="640,132 660,140 640,148"/>
+<text x="668" y="145">視点</text>
+<line class="d-acc-line" x1="415" y1="140" x2="480" y2="140" marker-end="url(#ah-acc)"/>
+<text class="s" x="490" y="126">法線 = 視点への向き</text>
+<text class="s" x="490" y="146">内積 1 → リム 0</text>
+<text class="s" x="490" y="166">(光らない)</text>
+<line class="d-acc-line" x1="330" y1="55" x2="330" y2="14" marker-end="url(#ah-acc)"/>
+<line class="d-good-line" x1="330" y1="55" x2="390" y2="55" marker-end="url(#ah-good)"/>
+<text class="s" x="300" y="22" text-anchor="end">法線と視点への向きが直角</text>
+<text class="s" x="300" y="42" text-anchor="end">内積 0 → リム 1(光る)</text>
+<line class="d-acc-line" x1="20" y1="252" x2="44" y2="252"/><text class="s" x="50" y="257">法線</text>
+<line class="d-good-line" x1="100" y1="252" x2="124" y2="252"/><text class="s" x="130" y="257">視点への向き</text>
+<text class="s" x="250" y="257">上から見た図。視点から見て輪郭になる所(黄色)が光る</text>
+</svg>
+</figure>
+
+<p><strong>解答例</strong>: 8-2 → <code>answers/08_rim_light</code>(<code>【課題 8-2】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row">
+<div><img src="images/ans08_base.png" width="260" alt="">元のサンプル(A11)</div>
+<div><img src="images/ans08.png" width="260" alt="">answers/08_rim_light</div>
+</div>
+<figcaption>横を向いた暗い面(輪郭に近い面)が、白っぽく光っています。</figcaption>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="07_model_lighting.html"><span class="dir">← 前の回</span>07 3D モデルを自分のシェーダーで描く(ライト)</a><a class="next" href="09_toon.html"><span class="dir">次の回 →</span>09 トゥーン(アニメ調)の陰影</a></nav>
+</main>
+</body>
+</html>

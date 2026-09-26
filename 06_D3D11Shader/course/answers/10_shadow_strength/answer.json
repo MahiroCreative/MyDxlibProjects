@@ -1,0 +1,13 @@
+{
+	"title": "課題 10-2: 影を濃くする",
+	"lesson": "10",
+	"base": "B1_3DAction_DepthShadow",
+	"assets": [
+		"ColTestStage.mqo",
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"KabeTex.bmp",
+		"Shadow.tga"
+	],
+	"frame": 60
+}

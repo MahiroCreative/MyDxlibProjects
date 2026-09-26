@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 トゥーン(アニメ調)の陰影 — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" class="now" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 09 回</span><h1>トゥーン(アニメ調)の陰影</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>明るさを「段」にして、アニメのような陰影を付けられる。</li>
+<li>グラデーションの画像で、明るさを色に置き換える方法が分かる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/a15.png" alt="サンプルの実行画面" style="width:120px">
+<div class="body">
+<p class="name">samples/A15_SkinMesh4_DirLight_Toon</p>
+<p>テンプレート: <code>templates/09_toon.dxtemplate</code></p>
+<p>キャラクター(スキンメッシュ)が、2〜3 段にくっきり分かれた陰影で描かれます。</p>
+</div>
+</div>
+
+<h2>しくみ</h2>
+
+<p>ふつうのライトの明るさは 0〜1 のなめらかな数です。トゥーンでは、この数を<strong>グラデーションの画像の横の位置</strong>として使い、その位置の色を明るさの代わりにします。</p>
+
+<figure>
+<svg viewBox="0 0 720 250" role="img" aria-label="明るさをグラデーションの画像の位置として使う">
+<defs>
+<linearGradient id="smooth09" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>
+</defs>
+<text class="b" x="80" y="58" text-anchor="end">明るさ</text>
+<text class="s" x="80" y="76" text-anchor="end">(0〜1)</text>
+<rect x="100" y="44" width="560" height="36" fill="url(#smooth09)" stroke="var(--ink-soft)"/>
+<text class="m s" x="100" y="36" text-anchor="middle">0</text>
+<text class="m s" x="660" y="36" text-anchor="middle">1</text>
+<text class="b" x="80" y="170" text-anchor="end">GradTex</text>
+<text class="s" x="80" y="188" text-anchor="end">.bmp</text>
+<image href="images/gradtex.png" x="100" y="156" width="560" height="36" preserveAspectRatio="none" style="image-rendering:pixelated"/>
+<rect class="d-thin" x="100" y="156" width="560" height="36"/>
+<line class="d-acc2-line" x1="167.2" y1="84" x2="167.2" y2="150" marker-end="url(#ah-acc2)"/>
+<text class="m acc2" x="175.2" y="122">0.12</text>
+<line class="d-acc2-line" x1="312.8" y1="84" x2="312.8" y2="150" marker-end="url(#ah-acc2)"/>
+<text class="m acc2" x="320.8" y="122">0.38</text>
+<line class="d-acc2-line" x1="447.2" y1="84" x2="447.2" y2="150" marker-end="url(#ah-acc2)"/>
+<text class="m acc2" x="455.2" y="122">0.62</text>
+<line class="d-acc2-line" x1="592.8" y1="84" x2="592.8" y2="150" marker-end="url(#ah-acc2)"/>
+<text class="m acc2" x="600.8" y="122">0.88</text>
+<text class="s" x="380" y="222" text-anchor="middle">明るさの数を、画像の横の位置(テクスチャ座標)にして色を読む。</text>
+<text class="s" x="380" y="240" text-anchor="middle">画像が段になっていれば、なめらかな明るさも段になる</text>
+</svg>
+<figcaption>サンプルの <code>GradTex.bmp</code>(横 256 × 縦 8 画素)を横に引き伸ばして表示したもの。</figcaption>
+</figure>
+
+<p>画像が「段」になっていれば、陰影も段になります。画像を描き換えるだけで、段の数や色を変えられます。</p>
+
+<figure>
+<svg viewBox="0 0 720 230" role="img" aria-label="ふつうの陰影とトゥーンの陰影">
+<defs>
+<radialGradient id="ball09a" cx="0.35" cy="0.3" r="0.8">
+<stop offset="0" stop-color="#b2f2bb"/><stop offset="0.5" stop-color="#37b24d"/><stop offset="1" stop-color="#0b3d14"/>
+</radialGradient>
+<radialGradient id="ball09b" cx="0.35" cy="0.3" r="0.8">
+<stop offset="0" stop-color="#b2f2bb"/><stop offset="0.3" stop-color="#b2f2bb"/>
+<stop offset="0.3" stop-color="#37b24d"/><stop offset="0.68" stop-color="#37b24d"/>
+<stop offset="0.68" stop-color="#1b6b2a"/><stop offset="1" stop-color="#1b6b2a"/>
+</radialGradient>
+</defs>
+<circle cx="200" cy="105" r="80" fill="url(#ball09a)"/>
+<text class="b" x="200" y="212" text-anchor="middle">ふつう(なめらか)</text>
+<circle cx="520" cy="105" r="80" fill="url(#ball09b)"/>
+<text class="b" x="520" y="212" text-anchor="middle">トゥーン(3 段)</text>
+</svg>
+</figure>
+
+<h2>読むところ</h2>
+
+<h3><code>src/main.cpp</code></h3>
+
+<pre><span class="lang">C++</span><code>GradTexHandle = LoadGraph( "GradTex.bmp" ) ;
+SetUseTextureToShader( 1, GradTexHandle ) ;   <span class="c">// 1 番(t1)に置く。0 番はモデルのテクスチャ</span></code></pre>
+
+<h3><code>shaders/SkinMesh4_DirLight_ToonVS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>lTotalLightGen += lLightLitDest.y ;          <span class="c">// 07 と同じ明るさ(0〜1)</span>
+…
+VSOutput.ToonCoords0 = lTotalLightGen ;      <span class="c">// それをテクスチャ座標として渡す</span></code></pre>
+
+<ul>
+<li>スキンメッシュ(アニメーションで体が曲がるモデル)なので、頂点を複数のボーンの行列で動かす処理が前に入っています(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.4</a>)。</li>
+</ul>
+
+<h3><code>shaders/SkinMesh4_DirLight_ToonPS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>ToonColor = ToonTexture.Sample( ToonTextureSampler, PSInput.ToonCoords0 ) ;   <span class="c">// 明るさの位置の色</span>
+PSOutput.Color0.rgb = saturate( PSInput.Diffuse.rgb * ToonColor.rgb + PSInput.Specular.rgb ) * TextureDiffuseColor.rgb ;</code></pre>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">9-1</span><code>GradTex.bmp</code> を描き換えて、段の数や色を変える(ペイントソフトで横 256 × 縦 8 画素の画像を作る)。</li>
+<li><span class="stars">★★</span><span class="id">9-2</span>画像を使わずに、明るさ 0.5 を境に 2 段にする(<code>? :</code> や <code>step</code> を使う)。</li>
+<li><span class="stars">★★★</span><span class="id">9-3</span>輪郭線を付ける。モデルをもう一度、法線の方向に少し膨らませて裏側だけ黒で描く(頂点シェーダーで座標を法線の方向にずらす)。</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 720 250" role="img" aria-label="輪郭線の付け方">
+<circle cx="150" cy="110" r="70" fill="#37b24d"/>
+<text class="b" x="150" y="210" text-anchor="middle">① ふつうに描く</text>
+<text x="275" y="116" text-anchor="middle" class="b">+</text>
+<circle cx="400" cy="110" r="80" fill="#222" stroke="var(--ink-soft)" stroke-dasharray="4 4"/>
+<circle cx="400" cy="110" r="70" fill="none" stroke="var(--ink-soft)" stroke-dasharray="3 3"/>
+<line class="d-acc2-line" x1="449.5" y1="60.5" x2="462" y2="48" marker-end="url(#ah-acc2)"/>
+<line class="d-acc2-line" x1="330" y1="110" x2="318" y2="110" marker-end="url(#ah-acc2)"/>
+<line class="d-acc2-line" x1="400" y1="180" x2="400" y2="192" marker-end="url(#ah-acc2)"/>
+<text class="b" x="400" y="215" text-anchor="middle">② 法線の方向に膨らませて</text>
+<text class="b" x="400" y="235" text-anchor="middle">裏側だけ黒で描く</text>
+<text x="525" y="116" text-anchor="middle" class="b">=</text>
+<circle cx="640" cy="110" r="80" fill="#222"/>
+<circle cx="640" cy="110" r="70" fill="#37b24d"/>
+<text class="b" x="640" y="210" text-anchor="middle">③ 黒いふちが残る</text>
+</svg>
+<figcaption>課題 9-3 の考え方。裏側(カメラから見て向こう側の面)だけを描くと、膨らませた分がふちとして、もとのモデルの外側にだけ見えます。</figcaption>
+</figure>
+
+<p><strong>解答例</strong>: 9-2 → <code>answers/09_step_toon</code>(<code>【課題 9-2】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row">
+<div><img src="images/a15.png" width="180" alt="">元のサンプル(A15)</div>
+<div><img src="images/ans09.png" width="180" alt="">answers/09_step_toon(2 段)</div>
+</div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="08_pixel_lighting.html"><span class="dir">← 前の回</span>08 ピクセルごとにライトを計算する</a><a class="next" href="10_render_target.html"><span class="dir">次の回 →</span>10 描画先に描いて、後で使う(鏡・影)</a></nav>
+</main>
+</body>
+</html>

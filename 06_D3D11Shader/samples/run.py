@@ -94,7 +94,7 @@ def build_and_run(work, main_cpp, d3d, frame, defines=""):
         f'call "{vcvarsall()}" x64 >nul 2>&1',
         f'cd /d "{work}"',
         f'cl /nologo /EHsc /W3 /std:c++20 /source-charset:.932 /execution-charset:.932 /D_WINDOWS /DWIN32 /O2 /MT /DNDEBUG '
-        f'/DVERIFY_D3D={d3d} /DVERIFY_FRAME={frame} {defines} /FI"{HOOK}" /I "{SDK}" _main.cpp /Fo_main.obj /Fe_sample.exe '
+        f'/DVERIFY_D3D={d3d} /DVERIFY_FRAME={frame} {defines} /FI"{HOOK}" /I "{SDK}" /I "{os.path.dirname(os.path.abspath(main_cpp))}" _main.cpp /Fo_main.obj /Fe_sample.exe '
         f'/link /SUBSYSTEM:WINDOWS /LIBPATH:"{SDK}" > _build.log 2>&1',
     ]
     with open(bat, "w", encoding="cp932", newline="\r\n") as f:
@@ -222,6 +222,14 @@ def run_sample(name, compare_only=False):
     conf = json.load(open(os.path.join(HERE, name, "sample.json"), encoding="utf-8"))
     work = os.path.join(HERE, "build", name)
     frame = conf.get("frame", 30)
+    if conf.get("original") is None:
+        # 公式の Direct3D 9 版が無いサンプル(この教材のためのもの)。動いて絵が出ることだけを確かめる(正しさは check_note の所で確かめる)
+        n = prepare_port(name, conf, os.path.join(work, "port")) if not compare_only else "-"
+        png = os.path.join(work, "port", "capture.png") if compare_only else \
+            build_and_run(os.path.join(work, "port"), os.path.join(work, "port", "src", "main.cpp"), "DX_DIRECT3D_11", frame)
+        a = np.asarray(Image.open(png).convert("RGB")).astype(np.int16)
+        drawn = float((a.max(axis=2) > 16).mean())
+        return drawn > 0.01, f"shaders={n} frame={frame} 動作のみ(D3D9 版なし) 描かれた画素={drawn * 100:.1f}%  {png}"
     if compare_only:
         # 前回の撮影結果で比べ直すだけ
         n = "-"

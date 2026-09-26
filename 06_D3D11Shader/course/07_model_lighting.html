@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 3D モデルを自分のシェーダーで描く(ライト) — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" class="now" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 07 回</span><h1>3D モデルを自分のシェーダーで描く(ライト)</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>MV1 のモデル(<code>MV1LoadModel</code> で読んだもの)を、自分の頂点シェーダー・ピクセルシェーダーで描ける。</li>
+<li>ライトの当たり方(明るさ)を、法線とライトの向きの内積で計算できる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/a05.png" alt="サンプルの実行画面">
+<div class="body">
+<p>1. <span class="name">samples/A01_NormalMesh_NoLight</span>(ライト無し。テクスチャの色がそのまま出る)<br>
+テンプレート: <code>templates/07a_model_nolight.dxtemplate</code></p>
+<p>2. <span class="name">samples/A05_NormalMesh_DirLight</span>(ディレクショナルライトあり。面の向きで明るさが変わる)<br>
+テンプレート: <code>templates/07b_model_dirlight.dxtemplate</code></p>
+</div>
+</div>
+
+<p>どちらも回る箱が出ます。2 つを見比べると、ライトの計算が何をしているかが分かります。</p>
+
+<figure>
+<div class="row">
+<div><img src="images/a01.png" width="280" alt="">A01 ライト無し</div>
+<div><img src="images/a05.png" width="280" alt="">A05 ディレクショナルライト</div>
+</div>
+<figcaption>同じ向きの箱。ライト無しはどの面も同じ明るさ(テクスチャの色のまま)。ライトありは、ライトの方を向いていない右の面が暗くなります。</figcaption>
+</figure>
+
+<h2>モデルを自分のシェーダーで描く手順(<code>src/main.cpp</code>)</h2>
+
+<pre><span class="lang">C++</span><code>MV1SetUseOrigShader( TRUE ) ;             <span class="c">// モデルを自分のシェーダーで描く</span>
+SetUseVertexShader( VertexShaderHandle ) ; <span class="c">// 頂点シェーダー</span>
+SetUsePixelShader( PixelShaderHandle ) ;   <span class="c">// ピクセルシェーダー</span>
+MV1DrawModel( ModelHandle ) ;</code></pre>
+
+<ul>
+<li><strong>頂点シェーダーとピクセルシェーダーの両方が必要</strong>です。片方だけでは正しく描けません(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 3.3</a>)。</li>
+<li>モデルのテクスチャは、DxLib が 0 番(<code>t0</code>)に置いてくれます。</li>
+</ul>
+
+<h2>入力の並び(<code>shaders/…VS.hlsl</code>)</h2>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct VS_INPUT
+{
+    float3 Position   : POSITION0 ;
+    float3 Normal     : NORMAL0 ;     <span class="c">// 法線(面が向いている方向)</span>
+    float4 Diffuse    : COLOR0 ;
+    float4 Specular   : COLOR1 ;
+    float4 TexCoords0 : TEXCOORD0 ;   <span class="c">// float4 なので注意</span>
+    float4 TexCoords1 : TEXCOORD1 ;
+} ;</code></pre>
+
+<ul>
+<li>MV1 のモデルの頂点は、<code>DrawPolygon3DToShader</code> の頂点と<strong>並びが違います</strong>。モデルの種類(剛体・スキンメッシュ・法線マップ付き)でも増えます(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 5.3</a>)。</li>
+<li>04 と同じく、並びが合わないとエラーも出ずに何も描かれません。</li>
+</ul>
+
+<h2>ライトの計算(A05 の <code>NormalMesh_DirLightVS.hlsl</code>)</h2>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>lLightLitParam.x = dot( lViewNrm, -g_Common.Light[ 0 ].Direction ) ;   <span class="c">// 法線とライトの逆向きの内積</span>
+lLightLitDest = lit( lLightLitParam.x, lLightLitParam.y, lLightLitParam.w ) ;
+VSOutput.Diffuse = lLightLitDest.y * ライトの色 * マテリアルの色 + アンビエント ;</code></pre>
+
+<ul>
+<li><strong>内積</strong>は、2 つの向きがどれだけ同じ方向かを表す数です(同じ向きで 1、直角で 0、反対で -1)。面がライトの方を向いているほど明るくなります。これをランバートの法則といいます。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 230" role="img" aria-label="法線とライトの向きの内積">
+<g>
+<line class="d-line" x1="20" y1="150" x2="160" y2="150"/>
+<line class="d-acc-line" x1="90" y1="150" x2="90" y2="70" marker-end="url(#ah-acc)"/>
+<line class="d-acc2-line" x1="90" y1="150" x2="90" y2="62" style="stroke-dasharray:0" transform="translate(8,0)" marker-end="url(#ah-acc2)"/>
+<text class="b" x="90" y="182" text-anchor="middle">内積 1</text>
+<text class="s" x="90" y="202" text-anchor="middle">真上から当たる</text>
+<text class="s" x="90" y="220" text-anchor="middle">いちばん明るい</text>
+</g>
+<g>
+<line class="d-line" x1="200" y1="150" x2="340" y2="150"/>
+<line class="d-acc-line" x1="270" y1="150" x2="270" y2="70" marker-end="url(#ah-acc)"/>
+<line class="d-acc2-line" x1="270" y1="150" x2="339" y2="110" marker-end="url(#ah-acc2)"/>
+<path class="d-thin" d="M 270,115 A 35 35 0 0 1 300.3,132.5"/>
+<text class="s" x="292" y="118">60°</text>
+<text class="b" x="270" y="182" text-anchor="middle">内積 0.5</text>
+<text class="s" x="270" y="202" text-anchor="middle">ななめに当たる</text>
+<text class="s" x="270" y="220" text-anchor="middle">半分の明るさ</text>
+</g>
+<g>
+<line class="d-line" x1="380" y1="150" x2="520" y2="150"/>
+<line class="d-acc-line" x1="450" y1="150" x2="450" y2="70" marker-end="url(#ah-acc)"/>
+<line class="d-acc2-line" x1="450" y1="146" x2="530" y2="146" marker-end="url(#ah-acc2)"/>
+<text class="b" x="450" y="182" text-anchor="middle">内積 0</text>
+<text class="s" x="450" y="202" text-anchor="middle">横からかすめる</text>
+<text class="s" x="450" y="220" text-anchor="middle">真っ暗</text>
+</g>
+<g>
+<line class="d-line" x1="560" y1="150" x2="700" y2="150"/>
+<line class="d-acc-line" x1="630" y1="150" x2="630" y2="70" marker-end="url(#ah-acc)"/>
+<line class="d-acc2-line" x1="630" y1="150" x2="690" y2="200" marker-end="url(#ah-acc2)"/>
+<text class="b" x="630" y="182" text-anchor="middle" dx="-40">内積 マイナス</text>
+<text class="s" x="630" y="202" text-anchor="middle" dx="-40">裏から当たる</text>
+<text class="s" x="630" y="220" text-anchor="middle" dx="-40">lit で 0 にする</text>
+</g>
+<line class="d-acc-line" x1="190" y1="22" x2="220" y2="22"/><text class="s" x="226" y="27">法線(面が向いている方向)</text>
+<line class="d-acc2-line" x1="420" y1="22" x2="450" y2="22"/><text class="s" x="456" y="27">ライトの方への向き(-Direction)</text>
+</svg>
+<figcaption>内積 = 2 つの向きの角度の cos。ライトの向き(<code>Direction</code>)は「光が進む向き」なので、符号を反対にして「ライトの方への向き」にしてから内積を取ります。</figcaption>
+</figure>
+
+<ul>
+<li><code>lit</code> は、内積がマイナス(ライトの裏側)なら 0 にしてくれる関数です。<code>.y</code> がディフューズ(拡散)の明るさ、<code>.z</code> がスペキュラー(てかり)の強さ。</li>
+<li><code>g_Common.Light[ 0 ]</code> は、DxLib のライトの設定(<code>SetLightDirection</code> など)から DxLib が入れてくれる値です。向きは<strong>カメラから見た向き</strong>(ビュー空間)なので、法線もビュー空間にしてから内積を取ります(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.1</a>)。</li>
+<li>この計算は頂点ごとにしています(頂点ライティング)。三角形の中は、頂点の色をなめらかに混ぜた色になります。</li>
+</ul>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">7-1</span>ライトの向きを変える(C++ で <code>SetLightDirection( VGet( … ) )</code>)。どの面が明るくなるか予想してから試す。</li>
+<li><span class="stars">★★</span><span class="id">7-2</span>ハーフランバートにする。内積(-1〜1)を <code>* 0.5f + 0.5f</code> で 0〜1 にしてから 2 乗し、それを明るさにする。ライトの反対側が真っ暗にならず、やわらかい陰影になる。</li>
+<li><span class="stars">★★</span><span class="id">7-3</span>アンビエント(ライトが当たらない所の明るさ)を足して、暗い面を少し明るくする。</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 560 270" role="img">
+<line class="d-grid" x1="56" x2="540" y1="226" y2="226"/>
+<text class="s" x="48" y="230" text-anchor="end">0</text>
+<line class="d-grid" x1="56" x2="540" y1="136" y2="136"/>
+<text class="s" x="48" y="140" text-anchor="end">0.5</text>
+<line class="d-grid" x1="56" x2="540" y1="46" y2="46"/>
+<text class="s" x="48" y="50" text-anchor="end">1</text>
+<line class="d-grid" x1="56" x2="56" y1="46" y2="226"/>
+<text class="s" x="56" y="244" text-anchor="middle">0°</text>
+<line class="d-grid" x1="177" x2="177" y1="46" y2="226"/>
+<text class="s" x="177" y="244" text-anchor="middle">45°</text>
+<line class="d-grid" x1="298" x2="298" y1="46" y2="226"/>
+<text class="s" x="298" y="244" text-anchor="middle">90°</text>
+<line class="d-grid" x1="419" x2="419" y1="46" y2="226"/>
+<text class="s" x="419" y="244" text-anchor="middle">135°</text>
+<line class="d-grid" x1="540" x2="540" y1="46" y2="226"/>
+<text class="s" x="540" y="244" text-anchor="middle">180°</text>
+<line class="d-thin" x1="56" x2="56" y1="46" y2="226"/>
+<line class="d-thin" x1="56" x2="540" y1="226" y2="226"/>
+<polyline class="d-acc-line" points="56,46 58.4,46 60.8,46.1 63.3,46.2 65.7,46.4 68.1,46.6 70.5,46.8 72.9,47.1 75.4,47.4 77.8,47.8 80.2,48.2 82.6,48.7 85,49.2 87.5,49.7 89.9,50.3 92.3,51 94.7,51.7 97.1,52.4 99.6,53.1 102,54 104.4,54.8 106.8,55.7 109.2,56.6 111.7,57.6 114.1,58.6 116.5,59.7 118.9,60.8 121.3,61.9 123.8,63.1 126.2,64.4 128.6,65.6 131,66.9 133.4,68.3 135.9,69.6 138.3,71.1 140.7,72.5 143.1,74 145.5,75.6 148,77.1 150.4,78.7 152.8,80.4 155.2,82.1 157.6,83.8 160.1,85.5 162.5,87.3 164.9,89.1 167.3,91 169.7,92.9 172.2,94.8 174.6,96.7 177,98.7 179.4,100.7 181.8,102.8 184.3,104.9 186.7,107 189.1,109.1 191.5,111.3 193.9,113.5 196.4,115.7 198.8,117.9 201.2,120.2 203.6,122.5 206,124.8 208.5,127.2 210.9,129.6 213.3,132 215.7,134.4 218.1,136.8 220.6,139.3 223,141.8 225.4,144.3 227.8,146.8 230.2,149.4 232.7,151.9 235.1,154.5 237.5,157.1 239.9,159.7 242.3,162.4 244.8,165 247.2,167.7 249.6,170.4 252,173.1 254.4,175.8 256.9,178.5 259.3,181.2 261.7,184 264.1,186.7 266.5,189.5 269,192.3 271.4,195.1 273.8,197.8 276.2,200.6 278.6,203.4 281.1,206.2 283.5,209.1 285.9,211.9 288.3,214.7 290.7,217.5 293.2,220.3 295.6,223.2 298,226 300.4,226 302.8,226 305.3,226 307.7,226 310.1,226 312.5,226 314.9,226 317.4,226 319.8,226 322.2,226 324.6,226 327,226 329.5,226 331.9,226 334.3,226 336.7,226 339.1,226 341.6,226 344,226 346.4,226 348.8,226 351.2,226 353.7,226 356.1,226 358.5,226 360.9,226 363.3,226 365.8,226 368.2,226 370.6,226 373,226 375.4,226 377.9,226 380.3,226 382.7,226 385.1,226 387.5,226 390,226 392.4,226 394.8,226 397.2,226 399.6,226 402.1,226 404.5,226 406.9,226 409.3,226 411.7,226 414.2,226 416.6,226 419,226 421.4,226 423.8,226 426.3,226 428.7,226 431.1,226 433.5,226 435.9,226 438.4,226 440.8,226 443.2,226 445.6,226 448,226 450.5,226 452.9,226 455.3,226 457.7,226 460.1,226 462.6,226 465,226 467.4,226 469.8,226 472.2,226 474.7,226 477.1,226 479.5,226 481.9,226 484.3,226 486.8,226 489.2,226 491.6,226 494,226 496.4,226 498.9,226 501.3,226 503.7,226 506.1,226 508.5,226 511,226 513.4,226 515.8,226 518.2,226 520.6,226 523.1,226 525.5,226 527.9,226 530.3,226 532.7,226 535.2,226 537.6,226 540,226"/>
+<polyline class="d-acc2-line" points="56,46 58.4,46 60.8,46.1 63.3,46.2 65.7,46.4 68.1,46.6 70.5,46.8 72.9,47.1 75.4,47.4 77.8,47.8 80.2,48.2 82.6,48.7 85,49.2 87.5,49.7 89.9,50.3 92.3,50.9 94.7,51.6 97.1,52.3 99.6,53.1 102,53.9 104.4,54.7 106.8,55.6 109.2,56.5 111.7,57.4 114.1,58.4 116.5,59.4 118.9,60.5 121.3,61.6 123.8,62.7 126.2,63.9 128.6,65.1 131,66.3 133.4,67.6 135.9,68.9 138.3,70.2 140.7,71.5 143.1,72.9 145.5,74.3 148,75.8 150.4,77.2 152.8,78.7 155.2,80.3 157.6,81.8 160.1,83.4 162.5,84.9 164.9,86.5 167.3,88.2 169.7,89.8 172.2,91.5 174.6,93.2 177,94.9 179.4,96.6 181.8,98.3 184.3,100 186.7,101.8 189.1,103.6 191.5,105.3 193.9,107.1 196.4,108.9 198.8,110.7 201.2,112.6 203.6,114.4 206,116.2 208.5,118 210.9,119.9 213.3,121.7 215.7,123.5 218.1,125.4 220.6,127.2 223,129 225.4,130.9 227.8,132.7 230.2,134.5 232.7,136.3 235.1,138.2 237.5,140 239.9,141.8 242.3,143.6 244.8,145.4 247.2,147.1 249.6,148.9 252,150.6 254.4,152.4 256.9,154.1 259.3,155.8 261.7,157.5 264.1,159.2 266.5,160.9 269,162.6 271.4,164.2 273.8,165.8 276.2,167.4 278.6,169 281.1,170.6 283.5,172.1 285.9,173.7 288.3,175.2 290.7,176.7 293.2,178.1 295.6,179.6 298,181 300.4,182.4 302.8,183.8 305.3,185.1 307.7,186.5 310.1,187.8 312.5,189.1 314.9,190.3 317.4,191.6 319.8,192.8 322.2,194 324.6,195.1 327,196.3 329.5,197.4 331.9,198.5 334.3,199.6 336.7,200.6 339.1,201.6 341.6,202.6 344,203.6 346.4,204.5 348.8,205.4 351.2,206.3 353.7,207.2 356.1,208 358.5,208.9 360.9,209.6 363.3,210.4 365.8,211.2 368.2,211.9 370.6,212.6 373,213.3 375.4,213.9 377.9,214.5 380.3,215.2 382.7,215.7 385.1,216.3 387.5,216.8 390,217.4 392.4,217.9 394.8,218.4 397.2,218.8 399.6,219.3 402.1,219.7 404.5,220.1 406.9,220.5 409.3,220.8 411.7,221.2 414.2,221.5 416.6,221.8 419,222.1 421.4,222.4 423.8,222.7 426.3,222.9 428.7,223.2 431.1,223.4 433.5,223.6 435.9,223.8 438.4,224 440.8,224.2 443.2,224.4 445.6,224.5 448,224.7 450.5,224.8 452.9,224.9 455.3,225 457.7,225.1 460.1,225.2 462.6,225.3 465,225.4 467.4,225.5 469.8,225.5 472.2,225.6 474.7,225.6 477.1,225.7 479.5,225.7 481.9,225.8 484.3,225.8 486.8,225.8 489.2,225.9 491.6,225.9 494,225.9 496.4,225.9 498.9,225.9 501.3,226 503.7,226 506.1,226 508.5,226 511,226 513.4,226 515.8,226 518.2,226 520.6,226 523.1,226 525.5,226 527.9,226 530.3,226 532.7,226 535.2,226 537.6,226 540,226"/>
+<text class="s" x="298.0" y="264" text-anchor="middle">法線とライトの向きの角度(0° = 真正面から当たる)</text>
+<text class="s" x="14" y="136.0" text-anchor="middle" transform="rotate(-90 14 136.0)">明るさ</text>
+<line class="d-acc-line" x1="56" x2="82" y1="16" y2="16"/>
+<text x="88" y="21" class="s">ランバート</text>
+<line class="d-acc2-line" x1="161" x2="187" y1="16" y2="16"/>
+<text x="193" y="21" class="s">ハーフランバート(7-2)</text>
+</svg>
+<figcaption>課題 7-2。ランバート(青)は 90° を過ぎると 0(真っ暗)ですが、ハーフランバート(オレンジ)は 180° まで少しずつ暗くなります。</figcaption>
+</figure>
+
+<p><strong>解答例</strong>: 7-2 → <code>answers/07_half_lambert</code>(<code>【課題 7-2】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row">
+<div><img src="images/ans07_base.png" width="260" alt="">元のサンプル(A05)</div>
+<div><img src="images/ans07.png" width="260" alt="">answers/07_half_lambert</div>
+</div>
+<figcaption>右の暗い面が、真っ暗にならずに少し見えるようになります。</figcaption>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="06_sprite_vertex.html"><span class="dir">← 前の回</span>06 2D の絵を頂点シェーダーで動かす</a><a class="next" href="08_pixel_lighting.html"><span class="dir">次の回 →</span>08 ピクセルごとにライトを計算する</a></nav>
+</main>
+</body>
+</html>

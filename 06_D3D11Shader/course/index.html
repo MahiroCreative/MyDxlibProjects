@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+
+<div class="hero">
+<span class="no">DxLib(Direct3D 11)</span>
+<h1>シェーダーを書く授業 全 10 回</h1>
+</div>
+
+<p>DxLib(Direct3D 11)で、自分のシェーダーを書けるようになるための全 10 回の授業です。
+各回は <code>samples/</code> の動作確認済みのサンプルを 1 つ開いて、読んで、少し書き換えます。</p>
+
+<ul>
+<li>対象: C++ と DxLib で 2D・3D のゲームを作ったことがある人。シェーダーは初めてでよい。</li>
+<li>使うもの: VSCode と DxLib 開発環境の拡張機能(05_VSCodeExtention)。</li>
+<li>分からない言葉や、DxLib が渡してくれる値の細かい意味は、<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書</a>(<code>spec/dxlib_d3d11_shader_spec.md</code>)を引く。</li>
+</ul>
+
+<h2>回の一覧</h2>
+
+<p class="part">2D の画面だけで進む(3D が苦手でも入りやすい)</p>
+<div class="cards">
+<a class="card" href="01_pixel_shader.html"><div class="thumb"><img class="px" src="images/c2_result.png" alt=""></div><div class="text"><div class="no">01</div><div class="title">ピクセルシェーダーで画像の色を変える</div><div class="sample-name">C2_PixelShaderTest</div></div></a>
+<a class="card" href="02_constant_buffer.html"><div class="thumb"><img class="px" src="images/c5_f80.png" alt=""></div><div class="text"><div class="no">02</div><div class="title">C++ からシェーダーに値を渡す(定数バッファ)</div><div class="sample-name">C5_SetPSConstFTest</div></div></a>
+<a class="card" href="03_uv_distortion.html"><div class="thumb"><img src="images/sim_haze.jpg" alt=""></div><div class="text"><div class="no">03</div><div class="title">テクスチャ座標をずらして画像を揺らす</div><div class="sample-name">C5_SetPSConstFTest を書き換える</div></div></a>
+</div>
+
+<p class="part">頂点シェーダー</p>
+<div class="cards">
+<a class="card" href="04_vertex_shader.html"><div class="thumb"><img src="images/c1_f50.png" alt=""></div><div class="text"><div class="no">04</div><div class="title">頂点シェーダーで板を動かす</div><div class="sample-name">C1_VertexShaderTest</div></div></a>
+<a class="card" href="05_matrix.html"><div class="thumb"><img src="images/c3_f50.png" alt=""></div><div class="text"><div class="no">05</div><div class="title">行列で回す</div><div class="sample-name">C3_SetVSConstFMtxTest</div></div></a>
+<a class="card" href="06_sprite_vertex.html"><div class="thumb"><img src="images/d1_f50.png" alt=""></div><div class="text"><div class="no">06</div><div class="title">2D の絵を頂点シェーダーで動かす</div><div class="sample-name">D1_Sprite2DVertexShader</div></div></a>
+</div>
+
+<p class="part">3D モデル</p>
+<div class="cards">
+<a class="card" href="07_model_lighting.html"><div class="thumb"><img src="images/a05.png" alt=""></div><div class="text"><div class="no">07</div><div class="title">3D モデルを自分のシェーダーで描く(ライト)</div><div class="sample-name">A01 → A05</div></div></a>
+<a class="card" href="08_pixel_lighting.html"><div class="thumb"><img src="images/a11_spec.png" alt=""></div><div class="text"><div class="no">08</div><div class="title">ピクセルごとにライトを計算する</div><div class="sample-name">A05 と A11 を見比べる</div></div></a>
+<a class="card" href="09_toon.html"><div class="thumb"><img src="images/a15.png" alt=""></div><div class="text"><div class="no">09</div><div class="title">トゥーン(アニメ調)の陰影</div><div class="sample-name">A15</div></div></a>
+<a class="card" href="10_render_target.html"><div class="thumb"><img src="images/b6.jpg" alt=""></div><div class="text"><div class="no">10</div><div class="title">描画先に描いて、後で使う(鏡・影)</div><div class="sample-name">B6 → B1</div></div></a>
+</div>
+
+<h2 id="open">サンプルの開き方</h2>
+
+<h3>テンプレートを使う場合(おすすめ)</h3>
+
+<ol>
+<li>VSCode の「DxLib」欄で「新規プロジェクト作成」を押す。</li>
+<li>「テンプレートファイル (.dxtemplate) を選ぶ...」から、<code>course/templates/</code> の中のその回のファイルを選ぶ(一覧は <a href="templates/README.md">templates/README.md</a>。各回のページの「開くサンプル」にも書いてあります)。</li>
+<li>名前と作成先を決めて作成。</li>
+<li>エクスプローラーの「DxLib」欄の「シェーダー」の「すべてコンパイル」を押す。</li>
+<li>エディタの右上の「デバッグ実行」。</li>
+</ol>
+
+<h3>手でコピーする場合</h3>
+
+<ol>
+<li>「新規プロジェクト作成」で(どのテンプレートでもよいので)プロジェクトを作る。</li>
+<li>作ったプロジェクトのフォルダに、サンプル(<code>samples/</code>)のフォルダの中身(<code>src/</code>・<code>shaders/</code>・画像やモデルのファイル)を上書きでコピーする。</li>
+<li>上の 4〜5 と同じ。</li>
+</ol>
+
+<h2>全体を通しての決まり</h2>
+
+<ul>
+<li>シェーダーのファイルは <code>shaders/</code> に置き、名前の最後を <code>VS</code>(頂点シェーダー)か <code>PS</code>(ピクセルシェーダー)にする。</li>
+<li><code>shaders/DxLibVS.hlsli</code> と <code>shaders/DxLibPS.hlsli</code> は、DxLib が渡してくれる値(カメラの行列・ライトなど)の宣言。書き換えない。</li>
+<li>C++ から値を渡すときは、定数バッファを作ってスロット 4(<code>register( b4 )</code>)に置く(02 で習う)。</li>
+<li>書き換えて動かなくなったら、まずエラーを読む。何も描かれないのにエラーが出ないときは、入力(<code>struct … INPUT</code>)の並びを疑う(04 で習う)。</li>
+</ul>
+
+<h2>講師向け</h2>
+
+<ul>
+<li>各回の資料の最後の「課題」には、解答例のプロジェクト(<code>answers/</code>)があります。解答例は、ビルドして動かし、土台のサンプルと並べた絵を確かめたものだけです(<code>python course/check_answers.py</code>。比べた絵は <code>course/build/&lt;名前&gt;/compare.png</code>)。</li>
+<li>解答例は、土台のサンプルに決まった書き換えを当てて作っています(<code>python course/make_answers.py</code>)。サンプルを直したら作り直してください。</li>
+<li>資料の画像(<code>images/</code>)は <code>python course/make_images.py</code> で作り直せます(サンプルをビルドして撮る。解答例の画面は <code>check_answers.py</code> の結果を使うので、先にそちらを動かす)。図は各ページの中に SVG で書いてあります。</li>
+<li>1 回の目安は 90 分(説明 30 分・課題 60 分)。課題は ★ が少ないものから。★★★ は余裕のある人向け。</li>
+<li>各サンプルの Direct3D 9 版との違いは、サンプルのソースの <code>【D3D11】</code> のコメントにあります。古い解説記事(Direct3D 9 のもの)を見て混乱した生徒への説明に使えます。</li>
+</ul>
+
+</main>
+</body>
+</html>

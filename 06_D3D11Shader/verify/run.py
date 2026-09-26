@@ -67,27 +67,45 @@ def compile_shaders(work):
     print(f"[verify] シェーダー {len(SHADERS)} 本をコンパイルした")
 
 
-def build_probe(work):
-    bat = os.path.join(work, "build.bat")
-    inc = os.path.join(HERE, "include")
-    src = os.path.join(HERE, "probe", "main.cpp")
+def build_program(work, name, src, includes):
+    bat = os.path.join(work, f"build_{name}.bat")
+    inc = " ".join(f'/I "{i}"' for i in includes)
     lines = [
         "@echo off",
         f'call "{vcvarsall()}" x64 >nul 2>&1',
         f'cd /d "{work}"',
         f'cl /nologo /EHsc /W3 /std:c++20 /source-charset:.932 /execution-charset:.932 /D_WINDOWS /DWIN32 /O2 /MT /DNDEBUG '
-        f'/I "{SDK}" /I "{inc}" "{src}" /Foprobe.obj /Feprobe.exe /link /SUBSYSTEM:WINDOWS /LIBPATH:"{SDK}" > build.log 2>&1',
+        f'/I "{SDK}" {inc} "{src}" /Fo{name}.obj /Fe{name}.exe /link /SUBSYSTEM:WINDOWS /LIBPATH:"{SDK}" > build_{name}.log 2>&1',
     ]
     # cmd は bat を ANSI コードページで読むので、日本語のパスを含む bat は CP932 で書く
     with open(bat, "w", encoding="cp932", newline="\r\n") as f:
         f.write("\n".join(lines) + "\n")
     subprocess.run(["cmd.exe", "/d", "/c", bat])
-    exe = os.path.join(work, "probe.exe")
+    exe = os.path.join(work, f"{name}.exe")
     if not os.path.exists(exe):
-        print(open(os.path.join(work, "build.log"), encoding="cp932", errors="replace").read())
-        raise SystemExit("検証プログラムのビルドに失敗")
-    print("[verify] 検証プログラムをビルドした")
+        print(open(os.path.join(work, f"build_{name}.log"), encoding="cp932", errors="replace").read())
+        raise SystemExit(f"検証プログラム {name} のビルドに失敗")
+    print(f"[verify] 検証プログラム {name} をビルドした")
     return exe
+
+
+# 2D を「正射影カメラ + 3D の板」で描く方法の検証(samples/D1_Sprite2DVertexShader の Camera2D.h とシェーダーをそのまま使う)
+ORTHO2D_SAMPLE = os.path.join(os.path.dirname(HERE), "samples", "D1_Sprite2DVertexShader")
+
+
+def prepare_ortho2d(work):
+    for name, profile in (("Sprite2DVS", "vs_4_0"), ("Sprite2DPS", "ps_4_0")):
+        text = open(os.path.join(ORTHO2D_SAMPLE, "shaders", name + ".hlsl"), encoding="utf-8-sig").read()
+        cp932 = os.path.join(work, "shader_src", name + ".hlsl")
+        with open(cp932, "w", encoding="cp932", newline="\r\n") as f:
+            f.write(text)
+        out = os.path.join(work, "shaders", name + (".vso" if profile.startswith("vs") else ".pso"))
+        r = subprocess.run([COMPILER, f"/T{profile}", f"/Fo{out}", cp932], capture_output=True)
+        if r.returncode != 0 or not os.path.exists(out):
+            print(r.stdout.decode("cp932", "replace"))
+            raise SystemExit(f"シェーダーのコンパイルに失敗: {name}")
+    for f in ("Kao.bmp", "Src2.tga", "Tex2.bmp"):
+        shutil.copy(os.path.join(SAMPLE_DATA, f), work)
 
 
 def main():
@@ -97,12 +115,19 @@ def main():
     compile_shaders(work)
     for f in SAMPLE_FILES:
         shutil.copy(os.path.join(SAMPLE_DATA, f), work)
-    exe = build_probe(work)
-    subprocess.run([exe], cwd=work, timeout=120)
-    results = open(os.path.join(work, "results.txt"), encoding="utf-8").read()
-    lines = [l for l in results.splitlines() if l.startswith(("OK ", "NG ")) and not l.startswith("NG count=")]
-    for l in results.splitlines():
-        print("[verify]", l)
+    prepare_ortho2d(work)
+    programs = [
+        ("probe", os.path.join(HERE, "probe", "main.cpp"), [os.path.join(HERE, "include")], "results.txt"),
+        ("ortho2d", os.path.join(HERE, "ortho2d", "main.cpp"), [os.path.join(ORTHO2D_SAMPLE, "src")], "results_ortho2d.txt"),
+    ]
+    lines = []
+    for name, src, includes, result in programs:
+        exe = build_program(work, name, src, includes)
+        subprocess.run([exe], cwd=work, timeout=180)
+        results = open(os.path.join(work, result), encoding="utf-8").read()
+        for l in results.splitlines():
+            print("[verify]", l)
+        lines += [l for l in results.splitlines() if l.startswith(("OK ", "NG ")) and not l.startswith("NG count=")]
     ng = sum(1 for l in lines if l.startswith("NG "))
     print(f"[verify] OK {len(lines) - ng} / NG {ng}  (中身の一覧: {os.path.join(work, 'dump.txt')})")
     sys.exit(1 if ng or not lines else 0)

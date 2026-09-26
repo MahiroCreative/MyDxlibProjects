@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 C++ からシェーダーに値を渡す(定数バッファ) — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" class="now" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 02 回</span><h1>C++ からシェーダーに値を渡す(定数バッファ)</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>C++ で決めた値(色・時間など)を、シェーダーで使える。</li>
+<li>定数バッファの作り方と、毎フレームの渡し方が分かる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img class="px" src="images/c5_f80.png" alt="サンプルの実行画面">
+<div class="body">
+<p class="name">samples/C5_SetPSConstFTest</p>
+<p>テンプレート: <code>templates/02_constant_buffer.dxtemplate</code></p>
+<p>動かすと、画像の色が少しずつ変わり続けます。C++ で毎フレーム変えている r, g, b を、シェーダーで画像の色に掛けています。</p>
+</div>
+</div>
+
+<figure>
+<div class="row">
+<div><img class="px" src="images/c5_f20.png" width="150" alt="">20 フレーム目</div>
+<div><img class="px" src="images/c5_f50.png" width="150" alt="">50 フレーム目</div>
+<div><img class="px" src="images/c5_f80.png" width="150" alt="">80 フレーム目</div>
+<div><img class="px" src="images/c5_f110.png" width="150" alt="">110 フレーム目</div>
+</div>
+<figcaption>画像(黄色と緑)は同じまま、掛ける色だけを C++ から毎フレーム渡しています。</figcaption>
+</figure>
+
+<h2>しくみ</h2>
+
+<p>シェーダーは GPU で動くので、C++ の変数を直接は読めません。
+<strong>定数バッファ</strong>という入れ物を作り、C++ で値を書いて GPU に送ると、シェーダーから読めます。</p>
+
+<figure>
+<svg viewBox="0 0 720 300" role="img" aria-label="C++ から定数バッファでシェーダーに値を渡す流れ">
+<text class="b" x="120" y="24" text-anchor="middle">C++(CPU)</text>
+<rect class="d-box" x="10" y="36" width="220" height="244" rx="12"/>
+<text class="m" x="24" y="66"><tspan style="font-family:'BIZ UDPGothic','Meiryo',sans-serif">①</tspan> CreateShader…</text><text class="s" x="40" y="86">作る(最初の 1 回)</text>
+<text class="m" x="24" y="118"><tspan style="font-family:'BIZ UDPGothic','Meiryo',sans-serif">②</tspan> GetBufferShader…</text><text class="s" x="40" y="138">書き込む場所をもらって値を書く</text>
+<text class="m" x="24" y="170"><tspan style="font-family:'BIZ UDPGothic','Meiryo',sans-serif">③</tspan> UpdateShader…</text><text class="s" x="40" y="190">GPU に送る</text>
+<text class="m acc" x="24" y="222"><tspan style="font-family:'BIZ UDPGothic','Meiryo',sans-serif">④</tspan> SetShader…( …, 4 )</text><text class="s" x="40" y="242">スロット 4 に置く</text>
+<text class="s" x="120" y="270" text-anchor="middle">②〜④ は値が変わるたび(毎フレーム)</text>
+
+<text class="b" x="375" y="24" text-anchor="middle">GPU の定数バッファのスロット</text>
+<rect class="d-box" x="300" y="40" width="150" height="36" rx="6"/><text class="m" x="316" y="63">b0</text><text class="s" x="350" y="63">DxLib が使う</text>
+<rect class="d-box" x="300" y="84" width="150" height="36" rx="6"/><text class="m" x="316" y="107">b1</text><text class="s" x="350" y="107">DxLib が使う</text>
+<rect class="d-box" x="300" y="128" width="150" height="36" rx="6"/><text class="m" x="316" y="151">b2</text><text class="s" x="350" y="151">DxLib が使う</text>
+<rect class="d-box" x="300" y="172" width="150" height="36" rx="6"/><text class="m" x="316" y="195">b3</text><text class="s" x="350" y="195">DxLib が使う</text>
+<rect class="d-acc" x="300" y="216" width="150" height="36" rx="6"/><text class="m b acc" x="316" y="239">b4</text><text class="s acc" x="350" y="239">自分の値</text>
+<line class="d-acc-line" x1="230" y1="228" x2="296" y2="232" marker-end="url(#ah-acc)"/>
+
+<text class="b" x="600" y="24" text-anchor="middle">シェーダー(HLSL)</text>
+<rect class="d-box" x="500" y="176" width="212" height="96" rx="10"/>
+<text class="m" x="512" y="202">cbuffer … : register( <tspan class="acc" style="fill:var(--accent);font-weight:700">b4</tspan> )</text>
+<text class="m" x="512" y="224">{</text>
+<text class="m" x="530" y="244">float4 cfMultiplyColor ;</text>
+<text class="m" x="512" y="264">} ;</text>
+<line class="d-acc-line" x1="450" y1="234" x2="496" y2="234" marker-end="url(#ah-acc)"/>
+</svg>
+<figcaption>b0〜b3 は DxLib がカメラやライトの値を入れるのに使っています。自分の値は b4 から。</figcaption>
+</figure>
+
+<h2>読むところ</h2>
+
+<h3><code>src/main.cpp</code></h3>
+
+<pre><span class="lang">C++</span><code>pscb = CreateShaderConstantBuffer( sizeof( FLOAT4 ) ) ;              <span class="c">// 大きさは 16 バイトの倍数</span>
+psparam = ( FLOAT4 * )GetBufferShaderConstantBuffer( pscb ) ;        <span class="c">// 書き込む場所</span></code></pre>
+
+<pre><span class="lang">C++</span><code>*psparam = f4 ;                                                       <span class="c">// 値を書いて</span>
+UpdateShaderConstantBuffer( pscb ) ;                                  <span class="c">// GPU に送って</span>
+SetShaderConstantBuffer( pscb, DX_SHADERTYPE_PIXEL, 4 ) ;             <span class="c">// ピクセルシェーダーのスロット 4 に置く</span></code></pre>
+
+<ul>
+<li>作るのは最初の 1 回。書いて・送って・置くのは、値が変わるたび(毎フレーム)。</li>
+<li>最後に <code>DeleteShaderConstantBuffer</code> で消します。</li>
+</ul>
+
+<h3><code>shaders/SetPSConstFTestPS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>cbuffer SetPSConstFTestParam : register( b4 )
+{
+    float4 cfMultiplyColor ;
+} ;</code></pre>
+
+<ul>
+<li><code>b4</code> の 4 が、C++ の <code>SetShaderConstantBuffer( …, 4 )</code> の 4。</li>
+<li><strong>0〜3 は DxLib が使っているので、自分の値は 4 から</strong>(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 9 章</a>)。</li>
+</ul>
+
+<h2>気をつけること</h2>
+
+<div class="warn">
+<ul>
+<li><strong>大きさは 16 バイト(float 4 個)の倍数</strong>。float を 1 個だけ渡したいときも、float4 1 個分(16 バイト)で作る。倍数でないと作れません(-1 が返る)。</li>
+<li>値を 2 つ以上渡すときは、C++ で構造体を作り、HLSL の cbuffer と<strong>同じ順番</strong>で並べる。</li>
+<li>古い解説記事の <code>SetPSConstF</code> / <code>SetVSConstF</code> は Direct3D 9 用で、<strong>Direct3D 11 では何もしません</strong>。</li>
+<li><code>SetDrawBlendMode( DX_BLENDMODE_ALPHA, 128 )</code> の 128(不透明度)は、自分のシェーダーには届きません。不透明度も自分で渡します(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.5</a>)。</li>
+</ul>
+</div>
+
+<figure>
+<svg viewBox="0 0 720 230" role="img" aria-label="定数バッファの大きさは 16 バイトの倍数">
+<text class="b" x="10" y="22">16 バイト = float 4 個 = 1 段</text>
+<text class="m" x="10" y="64">Color</text>
+<rect class="d-acc" x="80" y="42" width="90" height="34"/><text class="m" x="125" y="64" text-anchor="middle">r</text>
+<rect class="d-acc" x="170" y="42" width="90" height="34"/><text class="m" x="215" y="64" text-anchor="middle">g</text>
+<rect class="d-acc" x="260" y="42" width="90" height="34"/><text class="m" x="305" y="64" text-anchor="middle">b</text>
+<rect class="d-acc" x="350" y="42" width="90" height="34"/><text class="m" x="395" y="64" text-anchor="middle">a</text>
+<text class="m" x="10" y="108">Time</text>
+<rect class="d-acc" x="80" y="86" width="90" height="34"/><text class="m" x="125" y="108" text-anchor="middle">時間</text>
+<rect class="d-box" x="170" y="86" width="90" height="34"/><text class="s" x="215" y="108" text-anchor="middle">使わない</text>
+<rect class="d-box" x="260" y="86" width="90" height="34"/><text class="s" x="305" y="108" text-anchor="middle">使わない</text>
+<rect class="d-box" x="350" y="86" width="90" height="34"/><text class="s" x="395" y="108" text-anchor="middle">使わない</text>
+<text class="s" x="460" y="64">← FLOAT4 Color ;</text>
+<text class="s" x="460" y="108">← FLOAT4 Time ;(時間は .x だけ使う)</text>
+<text class="s" x="80" y="140">4 バイト × 4 = 16 バイト。この構造体は 2 段で 32 バイト(16 の倍数 ○)</text>
+<text class="b acc2" x="10" y="186">✕</text>
+<rect class="d-acc2" x="80" y="164" width="90" height="34"/><text class="m" x="125" y="186" text-anchor="middle">時間</text>
+<text class="s acc2" x="186" y="186">float 1 個だけ(4 バイト)では作れない → CreateShaderConstantBuffer が -1</text>
+</svg>
+<figcaption>課題 2-3 の <code>struct { FLOAT4 Color ; FLOAT4 Time ; }</code> の並び。HLSL の cbuffer も同じ順番で書きます。</figcaption>
+</figure>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">2-1</span>画像を時間で点滅させる。C++ で経過時間(秒)を渡し、シェーダーで <code>sin( 時間 * 速さ ) * 0.5f + 0.5f</code> を明るさに掛ける(sin は -1〜1 なので、0〜1 にする)。
+<ul><li>1 フレームを 1/60 秒として、毎フレーム足していけばよい。</li></ul></li>
+<li><span class="stars">★★</span><span class="id">2-2</span>フェードイン・フェードアウトにする。明るさの代わりにアルファを変え、C++ で <code>SetDrawBlendMode( DX_BLENDMODE_ALPHA, 255 )</code> にする。</li>
+<li><span class="stars">★★</span><span class="id">2-3</span>色と時間の 2 つを渡す。C++ で <code>struct { FLOAT4 Color ; FLOAT4 Time ; }</code> を作り、HLSL も同じ順番の cbuffer にする。</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 560 270" role="img">
+<line class="d-grid" x1="56" x2="540" y1="226" y2="226"/>
+<text class="s" x="48" y="230" text-anchor="end">-1</text>
+<line class="d-grid" x1="56" x2="540" y1="136" y2="136"/>
+<text class="s" x="48" y="140" text-anchor="end">0</text>
+<line class="d-grid" x1="56" x2="540" y1="91" y2="91"/>
+<text class="s" x="48" y="95" text-anchor="end">0.5</text>
+<line class="d-grid" x1="56" x2="540" y1="46" y2="46"/>
+<text class="s" x="48" y="50" text-anchor="end">1</text>
+<line class="d-grid" x1="56" x2="56" y1="46" y2="226"/>
+<text class="s" x="56" y="244" text-anchor="middle">0</text>
+<line class="d-grid" x1="177" x2="177" y1="46" y2="226"/>
+<text class="s" x="177" y="244" text-anchor="middle">π</text>
+<line class="d-grid" x1="298" x2="298" y1="46" y2="226"/>
+<text class="s" x="298" y="244" text-anchor="middle">2π</text>
+<line class="d-grid" x1="419" x2="419" y1="46" y2="226"/>
+<text class="s" x="419" y="244" text-anchor="middle">3π</text>
+<line class="d-grid" x1="540" x2="540" y1="46" y2="226"/>
+<text class="s" x="540" y="244" text-anchor="middle">4π</text>
+<line class="d-thin" x1="56" x2="56" y1="46" y2="226"/>
+<line class="d-thin" x1="56" x2="540" y1="136" y2="136"/>
+<polyline class="d-dash" points="56,136 58.4,130.3 60.8,124.7 63.3,119.1 65.7,113.6 68.1,108.2 70.5,102.9 72.9,97.7 75.4,92.6 77.8,87.8 80.2,83.1 82.6,78.6 85,74.4 87.5,70.4 89.9,66.7 92.3,63.2 94.7,60 97.1,57.1 99.6,54.6 102,52.3 104.4,50.4 106.8,48.8 109.2,47.6 111.7,46.7 114.1,46.2 116.5,46 118.9,46.2 121.3,46.7 123.8,47.6 126.2,48.8 128.6,50.4 131,52.3 133.4,54.6 135.9,57.1 138.3,60 140.7,63.2 143.1,66.7 145.5,70.4 148,74.4 150.4,78.6 152.8,83.1 155.2,87.8 157.6,92.6 160.1,97.7 162.5,102.9 164.9,108.2 167.3,113.6 169.7,119.1 172.2,124.7 174.6,130.3 177,136 179.4,141.7 181.8,147.3 184.3,152.9 186.7,158.4 189.1,163.8 191.5,169.1 193.9,174.3 196.4,179.4 198.8,184.2 201.2,188.9 203.6,193.4 206,197.6 208.5,201.6 210.9,205.3 213.3,208.8 215.7,212 218.1,214.9 220.6,217.4 223,219.7 225.4,221.6 227.8,223.2 230.2,224.4 232.7,225.3 235.1,225.8 237.5,226 239.9,225.8 242.3,225.3 244.8,224.4 247.2,223.2 249.6,221.6 252,219.7 254.4,217.4 256.9,214.9 259.3,212 261.7,208.8 264.1,205.3 266.5,201.6 269,197.6 271.4,193.4 273.8,188.9 276.2,184.2 278.6,179.4 281.1,174.3 283.5,169.1 285.9,163.8 288.3,158.4 290.7,152.9 293.2,147.3 295.6,141.7 298,136 300.4,130.3 302.8,124.7 305.3,119.1 307.7,113.6 310.1,108.2 312.5,102.9 314.9,97.7 317.4,92.6 319.8,87.8 322.2,83.1 324.6,78.6 327,74.4 329.5,70.4 331.9,66.7 334.3,63.2 336.7,60 339.1,57.1 341.6,54.6 344,52.3 346.4,50.4 348.8,48.8 351.2,47.6 353.7,46.7 356.1,46.2 358.5,46 360.9,46.2 363.3,46.7 365.8,47.6 368.2,48.8 370.6,50.4 373,52.3 375.4,54.6 377.9,57.1 380.3,60 382.7,63.2 385.1,66.7 387.5,70.4 390,74.4 392.4,78.6 394.8,83.1 397.2,87.8 399.6,92.6 402.1,97.7 404.5,102.9 406.9,108.2 409.3,113.6 411.7,119.1 414.2,124.7 416.6,130.3 419,136 421.4,141.7 423.8,147.3 426.3,152.9 428.7,158.4 431.1,163.8 433.5,169.1 435.9,174.3 438.4,179.4 440.8,184.2 443.2,188.9 445.6,193.4 448,197.6 450.5,201.6 452.9,205.3 455.3,208.8 457.7,212 460.1,214.9 462.6,217.4 465,219.7 467.4,221.6 469.8,223.2 472.2,224.4 474.7,225.3 477.1,225.8 479.5,226 481.9,225.8 484.3,225.3 486.8,224.4 489.2,223.2 491.6,221.6 494,219.7 496.4,217.4 498.9,214.9 501.3,212 503.7,208.8 506.1,205.3 508.5,201.6 511,197.6 513.4,193.4 515.8,188.9 518.2,184.2 520.6,179.4 523.1,174.3 525.5,169.1 527.9,163.8 530.3,158.4 532.7,152.9 535.2,147.3 537.6,141.7 540,136"/>
+<polyline class="d-acc-line" points="56,91 58.4,88.2 60.8,85.4 63.3,82.6 65.7,79.8 68.1,77.1 70.5,74.4 72.9,71.8 75.4,69.3 77.8,66.9 80.2,64.5 82.6,62.3 85,60.2 87.5,58.2 89.9,56.3 92.3,54.6 94.7,53 97.1,51.6 99.6,50.3 102,49.2 104.4,48.2 106.8,47.4 109.2,46.8 111.7,46.4 114.1,46.1 116.5,46 118.9,46.1 121.3,46.4 123.8,46.8 126.2,47.4 128.6,48.2 131,49.2 133.4,50.3 135.9,51.6 138.3,53 140.7,54.6 143.1,56.3 145.5,58.2 148,60.2 150.4,62.3 152.8,64.5 155.2,66.9 157.6,69.3 160.1,71.8 162.5,74.4 164.9,77.1 167.3,79.8 169.7,82.6 172.2,85.4 174.6,88.2 177,91 179.4,93.8 181.8,96.6 184.3,99.4 186.7,102.2 189.1,104.9 191.5,107.6 193.9,110.2 196.4,112.7 198.8,115.1 201.2,117.5 203.6,119.7 206,121.8 208.5,123.8 210.9,125.7 213.3,127.4 215.7,129 218.1,130.4 220.6,131.7 223,132.8 225.4,133.8 227.8,134.6 230.2,135.2 232.7,135.6 235.1,135.9 237.5,136 239.9,135.9 242.3,135.6 244.8,135.2 247.2,134.6 249.6,133.8 252,132.8 254.4,131.7 256.9,130.4 259.3,129 261.7,127.4 264.1,125.7 266.5,123.8 269,121.8 271.4,119.7 273.8,117.5 276.2,115.1 278.6,112.7 281.1,110.2 283.5,107.6 285.9,104.9 288.3,102.2 290.7,99.4 293.2,96.6 295.6,93.8 298,91 300.4,88.2 302.8,85.4 305.3,82.6 307.7,79.8 310.1,77.1 312.5,74.4 314.9,71.8 317.4,69.3 319.8,66.9 322.2,64.5 324.6,62.3 327,60.2 329.5,58.2 331.9,56.3 334.3,54.6 336.7,53 339.1,51.6 341.6,50.3 344,49.2 346.4,48.2 348.8,47.4 351.2,46.8 353.7,46.4 356.1,46.1 358.5,46 360.9,46.1 363.3,46.4 365.8,46.8 368.2,47.4 370.6,48.2 373,49.2 375.4,50.3 377.9,51.6 380.3,53 382.7,54.6 385.1,56.3 387.5,58.2 390,60.2 392.4,62.3 394.8,64.5 397.2,66.9 399.6,69.3 402.1,71.8 404.5,74.4 406.9,77.1 409.3,79.8 411.7,82.6 414.2,85.4 416.6,88.2 419,91 421.4,93.8 423.8,96.6 426.3,99.4 428.7,102.2 431.1,104.9 433.5,107.6 435.9,110.2 438.4,112.7 440.8,115.1 443.2,117.5 445.6,119.7 448,121.8 450.5,123.8 452.9,125.7 455.3,127.4 457.7,129 460.1,130.4 462.6,131.7 465,132.8 467.4,133.8 469.8,134.6 472.2,135.2 474.7,135.6 477.1,135.9 479.5,136 481.9,135.9 484.3,135.6 486.8,135.2 489.2,134.6 491.6,133.8 494,132.8 496.4,131.7 498.9,130.4 501.3,129 503.7,127.4 506.1,125.7 508.5,123.8 511,121.8 513.4,119.7 515.8,117.5 518.2,115.1 520.6,112.7 523.1,110.2 525.5,107.6 527.9,104.9 530.3,102.2 532.7,99.4 535.2,96.6 537.6,93.8 540,91"/>
+<text class="s" x="298.0" y="264" text-anchor="middle">時間 × 速さ</text>
+<text class="s" x="14" y="136.0" text-anchor="middle" transform="rotate(-90 14 136.0)">値</text>
+<line class="d-dash" x1="56" x2="82" y1="16" y2="16"/>
+<text x="88" y="21" class="s">sin(t)</text>
+<line class="d-acc-line" x1="170" x2="196" y1="16" y2="16"/>
+<text x="202" y="21" class="s">sin(t) * 0.5 + 0.5</text>
+</svg>
+<figcaption>課題 2-1。<code>sin</code>(点線)は -1〜1 を行ったり来たりします。<code>* 0.5f + 0.5f</code> で 0〜1(青)にすると、明るさとして掛けられます。</figcaption>
+</figure>
+
+<p><strong>解答例</strong>: 2-1 → <code>answers/02_blink</code>(<code>【課題】</code> <code>【課題 2-1】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row"><div><img src="images/ans02.png" width="256" alt="">answers/02_blink(明るさが時間で変わる。写真に変えてある)</div></div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="01_pixel_shader.html"><span class="dir">← 前の回</span>01 ピクセルシェーダーで画像の色を変える</a><a class="next" href="03_uv_distortion.html"><span class="dir">次の回 →</span>03 テクスチャ座標をずらして画像を揺らす</a></nav>
+</main>
+</body>
+</html>

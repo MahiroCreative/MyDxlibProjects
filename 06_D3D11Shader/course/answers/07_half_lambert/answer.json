@@ -1,0 +1,10 @@
+{
+	"title": "課題 7-2: ハーフランバート",
+	"lesson": "07",
+	"base": "A05_NormalMesh_DirLight",
+	"assets": [
+		"NormalBox.mqo",
+		"Texture0.bmp"
+	],
+	"frame": 30
+}

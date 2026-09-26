@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 頂点シェーダーで板を動かす — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" class="now" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 04 回</span><h1>頂点シェーダーで板を動かす</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>頂点シェーダーが「頂点 1 個ずつ、画面のどこに描くかを決める関数」だと分かる。</li>
+<li>3D の座標を、ビュー行列・射影行列で画面の座標にする流れが分かる。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img src="images/c1_f50.png" alt="サンプルの実行画面">
+<div class="body">
+<p class="name">samples/C1_VertexShaderTest</p>
+<p>テンプレート: <code>templates/04_vertex_shader.dxtemplate</code></p>
+<p>動かすと、画像を貼った板が左右に動きながら、明るくなったり暗くなったりします。動きは頂点シェーダー、明るさはピクセルシェーダーで付けています。</p>
+</div>
+</div>
+
+<figure>
+<div class="row">
+<div><img src="images/c1_f20.png" width="190" alt="">20 フレーム目</div>
+<div><img src="images/c1_f50.png" width="190" alt="">50 フレーム目</div>
+<div><img src="images/c1_f80.png" width="190" alt="">80 フレーム目</div>
+<div><img src="images/c1_f110.png" width="190" alt="">110 フレーム目</div>
+</div>
+<figcaption>頂点の位置を毎フレームずらして、板を左右に動かしています。</figcaption>
+</figure>
+
+<h2>しくみ</h2>
+
+<figure>
+<svg viewBox="0 0 760 240" role="img" aria-label="頂点シェーダーからピクセルシェーダーまでの流れ">
+<!-- 1 頂点 -->
+<text class="b" x="65" y="24" text-anchor="middle">頂点</text>
+<polygon class="d-thin" points="20,60 110,60 20,150"/>
+<polygon class="d-thin" points="110,60 110,150 20,150"/>
+<circle class="d-acc2-fill" cx="20" cy="60" r="5"/><circle class="d-acc2-fill" cx="110" cy="60" r="5"/>
+<circle class="d-acc2-fill" cx="20" cy="150" r="5"/><circle class="d-acc2-fill" cx="110" cy="150" r="5"/>
+<text class="s" x="65" y="178" text-anchor="middle">頂点 6 個</text>
+<text class="s" x="65" y="196" text-anchor="middle">(三角形 2 枚)</text>
+<line class="d-line" x1="122" y1="105" x2="148" y2="105" marker-end="url(#ah)"/>
+<!-- 2 頂点シェーダー -->
+<rect class="d-acc" x="152" y="50" width="130" height="110" rx="12"/>
+<text class="b" x="217" y="92" text-anchor="middle">頂点</text>
+<text class="b" x="217" y="112" text-anchor="middle">シェーダー</text>
+<text class="s acc" x="217" y="138" text-anchor="middle">自分で書く</text>
+<text class="s" x="217" y="178" text-anchor="middle">頂点ごとに位置</text>
+<text class="s" x="217" y="196" text-anchor="middle">を決める(6 回)</text>
+<line class="d-line" x1="286" y1="105" x2="312" y2="105" marker-end="url(#ah)"/>
+<!-- 3 埋める -->
+<text class="b" x="378" y="24" text-anchor="middle">埋める</text>
+<g>
+<rect class="d-acc" style="stroke-width:1" x="326" y="56" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="338" y="56" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="350" y="56" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="362" y="56" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="374" y="56" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="386" y="56" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="398" y="56" width="12" height="12"/>
+<rect class="d-acc" style="stroke-width:1" x="326" y="68" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="338" y="68" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="350" y="68" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="362" y="68" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="374" y="68" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="386" y="68" width="12" height="12"/>
+<rect class="d-acc" style="stroke-width:1" x="326" y="80" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="338" y="80" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="350" y="80" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="362" y="80" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="374" y="80" width="12" height="12"/>
+<rect class="d-acc" style="stroke-width:1" x="326" y="92" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="338" y="92" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="350" y="92" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="362" y="92" width="12" height="12"/>
+<rect class="d-acc" style="stroke-width:1" x="326" y="104" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="338" y="104" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="350" y="104" width="12" height="12"/>
+<rect class="d-acc" style="stroke-width:1" x="326" y="116" width="12" height="12"/><rect class="d-acc" style="stroke-width:1" x="338" y="116" width="12" height="12"/>
+<rect class="d-acc" style="stroke-width:1" x="326" y="128" width="12" height="12"/>
+</g>
+<polygon class="d-line" points="326,56 416,56 326,146"/>
+<text class="s" x="378" y="178" text-anchor="middle">三角形の中の</text>
+<text class="s" x="378" y="196" text-anchor="middle">画素を決める</text>
+<line class="d-line" x1="430" y1="105" x2="456" y2="105" marker-end="url(#ah)"/>
+<!-- 4 ピクセルシェーダー -->
+<rect class="d-acc" x="460" y="50" width="130" height="110" rx="12"/>
+<text class="b" x="525" y="92" text-anchor="middle">ピクセル</text>
+<text class="b" x="525" y="112" text-anchor="middle">シェーダー</text>
+<text class="s acc" x="525" y="138" text-anchor="middle">自分で書く</text>
+<text class="s" x="525" y="178" text-anchor="middle">画素ごとに</text>
+<text class="s" x="525" y="196" text-anchor="middle">色を決める</text>
+<line class="d-line" x1="594" y1="105" x2="620" y2="105" marker-end="url(#ah)"/>
+<!-- 5 画面 -->
+<text class="b" x="690" y="24" text-anchor="middle">画面</text>
+<image href="images/c1_f50.png" x="624" y="54" width="132" height="92"/>
+<rect class="d-thin" x="624" y="54" width="132" height="92"/>
+</svg>
+<figcaption>頂点シェーダーは頂点の数だけ(このサンプルは 6 回)、ピクセルシェーダーは画素の数だけ呼ばれます。</figcaption>
+</figure>
+
+<ul>
+<li>頂点シェーダーは頂点の数だけ呼ばれます(このサンプルは 6 回)。ピクセルシェーダーは画素の数だけ呼ばれます。</li>
+<li>頂点シェーダーが出した値(色・テクスチャ座標)は、三角形の中でなめらかに混ぜられてからピクセルシェーダーに届きます。</li>
+</ul>
+
+<figure>
+<div class="row">
+<div style="position:relative"><img src="images/tri_interp.png" width="300" alt="頂点の色が混ざった三角形" style="background:none"></div>
+<div style="text-align:left;max-width:320px">
+<p style="margin:0 0 8px"><span style="color:#e03131;font-weight:700">上の頂点</span> は赤、<span style="color:#2f9e44;font-weight:700">左下</span> は緑、<span style="color:#1c7ed6;font-weight:700">右下</span> は青を出したとき。</p>
+<p style="margin:0">頂点シェーダーは頂点の色を 3 つ決めただけですが、間の画素には、近い頂点の色ほど強く混ざった色が届きます。</p>
+</div>
+</div>
+</figure>
+
+<h2>読むところ</h2>
+
+<h3><code>shaders/VertexShaderTestVS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>#include "DxLibVS.hlsli"      <span class="c">// DxLib が渡すカメラの行列などの宣言</span></code></pre>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct VS_INPUT
+{
+    float3 Position   : POSITION0 ;   <span class="c">// pos</span>
+    float4 SubPosition: POSITION1 ;   <span class="c">// spos</span>
+    float3 Normal     : NORMAL0 ;     <span class="c">// norm</span>
+    …(全部で 9 個)
+} ;</code></pre>
+
+<ul>
+<li><code>DrawPolygon3DToShader</code> の頂点(<code>VERTEX3DSHADER</code>)の<strong>全 9 要素を、この順番で</strong>書きます。<strong>使わない要素も消しません。</strong></li>
+<li>1 つでも消したり順番を変えたりすると、<strong>エラーも出ずに何も描かれません</strong>(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 5 章</a>)。何も出ないときは、まずここを疑います。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 300" role="img" aria-label="VERTEX3DSHADER と VS_INPUT の対応">
+<text class="s" x="95" y="18" text-anchor="middle">C++ の VERTEX3DSHADER</text>
+<text class="s" x="335" y="18" text-anchor="middle">HLSL の VS_INPUT</text>
+<g>
+<rect class="d-box" x="20" y="28" width="150" height="24" rx="5"/><text class="m" x="95" y="45" text-anchor="middle">pos</text>
+<rect class="d-box" x="20" y="56" width="150" height="24" rx="5"/><text class="m" x="95" y="73" text-anchor="middle">spos</text>
+<rect class="d-box" x="20" y="84" width="150" height="24" rx="5"/><text class="m" x="95" y="101" text-anchor="middle">norm</text>
+<rect class="d-box" x="20" y="112" width="150" height="24" rx="5"/><text class="m" x="95" y="129" text-anchor="middle">tan</text>
+<rect class="d-box" x="20" y="140" width="150" height="24" rx="5"/><text class="m" x="95" y="157" text-anchor="middle">binorm</text>
+<rect class="d-box" x="20" y="168" width="150" height="24" rx="5"/><text class="m" x="95" y="185" text-anchor="middle">dif</text>
+<rect class="d-box" x="20" y="196" width="150" height="24" rx="5"/><text class="m" x="95" y="213" text-anchor="middle">spc</text>
+<rect class="d-box" x="20" y="224" width="150" height="24" rx="5"/><text class="m" x="95" y="241" text-anchor="middle">u, v</text>
+<rect class="d-box" x="20" y="252" width="150" height="24" rx="5"/><text class="m" x="95" y="269" text-anchor="middle">su, sv</text>
+<rect class="d-acc" x="260" y="28" width="150" height="24" rx="5"/><text class="m" x="335" y="45" text-anchor="middle">POSITION0</text>
+<rect class="d-acc" x="260" y="56" width="150" height="24" rx="5"/><text class="m" x="335" y="73" text-anchor="middle">POSITION1</text>
+<rect class="d-acc" x="260" y="84" width="150" height="24" rx="5"/><text class="m" x="335" y="101" text-anchor="middle">NORMAL0</text>
+<rect class="d-acc" x="260" y="112" width="150" height="24" rx="5"/><text class="m" x="335" y="129" text-anchor="middle">TANGENT0</text>
+<rect class="d-acc" x="260" y="140" width="150" height="24" rx="5"/><text class="m" x="335" y="157" text-anchor="middle">BINORMAL0</text>
+<rect class="d-acc" x="260" y="168" width="150" height="24" rx="5"/><text class="m" x="335" y="185" text-anchor="middle">COLOR0</text>
+<rect class="d-acc" x="260" y="196" width="150" height="24" rx="5"/><text class="m" x="335" y="213" text-anchor="middle">COLOR1</text>
+<rect class="d-acc" x="260" y="224" width="150" height="24" rx="5"/><text class="m" x="335" y="241" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-acc" x="260" y="252" width="150" height="24" rx="5"/><text class="m" x="335" y="269" text-anchor="middle">TEXCOORD1</text>
+</g>
+<line class="d-line" x1="170" y1="40" x2="260" y2="40"/><line class="d-line" x1="170" y1="68" x2="260" y2="68"/><line class="d-line" x1="170" y1="96" x2="260" y2="96"/>
+<line class="d-line" x1="170" y1="124" x2="260" y2="124"/><line class="d-line" x1="170" y1="152" x2="260" y2="152"/><line class="d-line" x1="170" y1="180" x2="260" y2="180"/>
+<line class="d-line" x1="170" y1="208" x2="260" y2="208"/><line class="d-line" x1="170" y1="236" x2="260" y2="236"/><line class="d-line" x1="170" y1="264" x2="260" y2="264"/>
+<rect class="d-acc2" x="450" y="96" width="260" height="110" rx="10"/>
+<text class="b acc2" x="466" y="124">9 個全部・この順番</text>
+<text class="s" x="466" y="150">使わない要素(tan など)も消さない。</text>
+<text class="s" x="466" y="172">1 つ欠けても、エラーは出ずに</text>
+<text class="s" x="466" y="192">何も描かれない。</text>
+</svg>
+</figure>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>lWorldPosition = float4( VSInput.Position, 1.0f ) + cfAddPosition ;        <span class="c">// C++ から渡した量だけ動かす</span>
+lViewPosition.x = dot( lWorldPosition, g_Base.ViewMatrix[ 0 ] ) ;          <span class="c">// カメラから見た座標に</span>
+…
+VSOutput.ProjectionPosition.x = dot( lViewPosition, g_Base.ProjectionMatrix[ 0 ] ) ;  <span class="c">// 画面の座標に</span></code></pre>
+
+<ul>
+<li><code>g_Base.ViewMatrix</code> と <code>g_Base.ProjectionMatrix</code> は、DxLib のカメラの設定(<code>SetCameraPositionAndTarget_UpVecY</code> など)から DxLib が入れてくれる値です。</li>
+<li>行列は「行と内積(<code>dot</code>)を取る」形で掛けます。ビュー行列は 3 行だけなので、w は自分で 1 にします(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 7 章</a>)。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 760 170" role="img" aria-label="座標が変わっていく流れ">
+<rect class="d-box" x="10" y="40" width="160" height="70" rx="10"/>
+<text class="b" x="90" y="70" text-anchor="middle">ワールド座標</text>
+<text class="s" x="90" y="92" text-anchor="middle">3D の世界での位置</text>
+<line class="d-acc-line" x1="174" y1="75" x2="286" y2="75" marker-end="url(#ah-acc)"/>
+<text class="m acc" x="230" y="64" text-anchor="middle">ViewMatrix</text>
+<rect class="d-box" x="290" y="40" width="170" height="70" rx="10"/>
+<text class="b" x="375" y="70" text-anchor="middle">ビュー座標</text>
+<text class="s" x="375" y="92" text-anchor="middle">カメラから見た位置</text>
+<line class="d-acc-line" x1="464" y1="75" x2="586" y2="75" marker-end="url(#ah-acc)"/>
+<text class="m acc" x="525" y="64" text-anchor="middle">ProjectionMatrix</text>
+<rect class="d-acc" x="590" y="40" width="160" height="70" rx="10"/>
+<text class="b" x="670" y="70" text-anchor="middle">SV_POSITION</text>
+<text class="s" x="670" y="92" text-anchor="middle">画面のどこに描くか</text>
+<text class="s" x="380" y="146" text-anchor="middle">カメラの行列(ViewMatrix・ProjectionMatrix)は DxLib が b1 に入れてくれる</text>
+</svg>
+</figure>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct VS_OUTPUT
+{
+    float4 ProjectionPosition : SV_POSITION ;   <span class="c">// 画面の座標(必ず先頭に)</span>
+    float4 DiffuseColor       : COLOR0 ;
+    float2 TextureCoord0      : TEXCOORD0 ;
+} ;</code></pre>
+
+<ul>
+<li>ピクセルシェーダーの入力(<code>PS_INPUT</code>)は、<strong>この出力と同じ順番</strong>で書きます。</li>
+</ul>
+
+<h3><code>src/main.cpp</code></h3>
+
+<ul>
+<li>動かす量は、02 と同じ定数バッファで、<strong>頂点シェーダーの</strong>スロット 4 に置きます(<code>DX_SHADERTYPE_VERTEX</code>)。</li>
+<li>3D の描画なので、C++ の座標は 3D の座標です(DxLib の最初のカメラは、z = 0 の平面がほぼ画面の画素の大きさで見えるように置かれています。ただし 3D なので y は<strong>上向き</strong>です)。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 230" role="img" aria-label="2D と 3D の座標の向き">
+<text class="b" x="170" y="22" text-anchor="middle">2D(DrawGraph など)</text>
+<rect class="d-box" x="40" y="40" width="260" height="170" rx="4"/>
+<circle class="d-acc2-fill" cx="40" cy="40" r="5"/>
+<text class="m" x="48" y="60">(0, 0)</text>
+<line class="d-acc-line" x1="40" y1="40" x2="140" y2="40" marker-end="url(#ah-acc)"/><text class="acc b" x="146" y="36">x</text>
+<line class="d-acc-line" x1="40" y1="40" x2="40" y2="130" marker-end="url(#ah-acc)"/><text class="acc b" x="24" y="140">y</text>
+<text class="s" x="170" y="160" text-anchor="middle">左上が原点。y は<tspan style="font-weight:700">下</tspan>向き</text>
+
+<text class="b" x="540" y="22" text-anchor="middle">3D(最初のカメラ)</text>
+<rect class="d-box" x="410" y="40" width="260" height="170" rx="4"/>
+<circle class="d-acc2-fill" cx="410" cy="210" r="5"/>
+<text class="m" x="418" y="200">(0, 0, 0)</text>
+<line class="d-acc-line" x1="410" y1="210" x2="510" y2="210" marker-end="url(#ah-acc)"/><text class="acc b" x="516" y="215">x</text>
+<line class="d-acc-line" x1="410" y1="210" x2="410" y2="120" marker-end="url(#ah-acc)"/><text class="acc b" x="394" y="118">y</text>
+<text class="s" x="560" y="80" text-anchor="middle">左下が原点。y は<tspan style="font-weight:700">上</tspan>向き</text>
+<text class="s" x="560" y="100" text-anchor="middle">z = 0 の面で 1 = 約 1 画素</text>
+</svg>
+<figcaption>同じ「y を増やす」でも、2D では下へ、3D では上へ動きます(課題 4-1)。</figcaption>
+</figure>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">4-1</span>左右だけでなく上下にも動かす(C++ で渡す y も変える)。3D の座標なので、y が大きいほど<strong>上</strong>です。</li>
+<li><span class="stars">★★</span><span class="id">4-2</span>頂点シェーダーで頂点の色も時間で変える(<code>VSOutput.DiffuseColor</code> を書き換える)。ピクセルシェーダーでなく頂点シェーダーで変えると、どう見えるか。</li>
+<li><span class="stars">★★★</span><span class="id">4-3</span>わざと <code>VS_INPUT</code> の要素を 1 つ消して、何も描かれないこと(エラーが出ないこと)を確かめる。確かめたら元に戻す。</li>
+</ol>
+
+<p><strong>解答例</strong>: 4-1 → <code>answers/04_move_xy</code>(<code>【課題 4-1】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row"><div><img src="images/ans04.png" width="400" alt="">answers/04_move_xy(ななめに動く)</div></div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="03_uv_distortion.html"><span class="dir">← 前の回</span>03 テクスチャ座標をずらして画像を揺らす</a><a class="next" href="05_matrix.html"><span class="dir">次の回 →</span>05 行列で回す</a></nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 ピクセルシェーダーで画像の色を変える — DxLib シェーダー授業</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="index.html">DxLib シェーダー授業</a><span class="spacer"></span><nav class="lesson-dots" aria-label="回"><a href="01_pixel_shader.html" class="now" title="ピクセルシェーダーで画像の色を変える">01</a><a href="02_constant_buffer.html" title="C++ からシェーダーに値を渡す(定数バッファ)">02</a><a href="03_uv_distortion.html" title="テクスチャ座標をずらして画像を揺らす">03</a><a href="04_vertex_shader.html" title="頂点シェーダーで板を動かす">04</a><a href="05_matrix.html" title="行列で回す">05</a><a href="06_sprite_vertex.html" title="2D の絵を頂点シェーダーで動かす">06</a><a href="07_model_lighting.html" title="3D モデルを自分のシェーダーで描く(ライト)">07</a><a href="08_pixel_lighting.html" title="ピクセルごとにライトを計算する">08</a><a href="09_toon.html" title="トゥーン(アニメ調)の陰影">09</a><a href="10_render_target.html" title="描画先に描いて、後で使う(鏡・影)">10</a></nav></div></header>
+<main>
+<div class="hero"><span class="no">第 01 回</span><h1>ピクセルシェーダーで画像の色を変える</h1></div>
+<div class="goal">
+<p class="box-title">この回の目標</p>
+<ul>
+<li>ピクセルシェーダーが「画面の 1 画素ずつ、色を決める関数」だと分かる。</li>
+<li>画像の色を読んで、書き換えて出す、を自分で書ける。</li>
+</ul>
+</div>
+
+<h2>開くサンプル</h2>
+
+<div class="sample">
+<img class="px" src="images/c2_result.png" alt="サンプルの実行画面">
+<div class="body">
+<p class="name">samples/C2_PixelShaderTest</p>
+<p>テンプレート: <code>templates/01_pixel_shader.dxtemplate</code>(開き方は<a href="index.html#open">目次</a>)</p>
+<p>動かすと、画像の赤と青が入れ替わって表示されます。</p>
+</div>
+</div>
+
+<figure>
+<div class="row">
+<div><img class="px" src="images/tex1.png" width="256" alt="元の画像">元の画像(Tex1.bmp)</div>
+<div class="arrow">→</div>
+<div><img class="px" src="images/c2_result.png" width="256" alt="シェーダーを通した画面">シェーダーを通して描いた画面</div>
+</div>
+<figcaption>黄色(赤 1・緑 1・青 0)が、赤と青を入れ替えると水色(赤 0・緑 1・青 1)になります。緑は赤も青も 0 なので変わりません。</figcaption>
+</figure>
+
+<h2>しくみ</h2>
+
+<p>ふつうの <code>DrawGraph</code> は、画像の色をそのまま画面に描きます。
+シェーダーを使うと、その途中に「1 画素ごとに色を決める関数」を自分で差し込めます。これがピクセルシェーダーです。</p>
+
+<figure>
+<svg viewBox="0 0 720 190" role="img" aria-label="画像からピクセルシェーダーを通って画面へ">
+<image href="images/tex1.png" x="20" y="30" width="110" height="110" style="image-rendering:pixelated"/>
+<text x="75" y="165" text-anchor="middle">画像</text>
+<line class="d-line" x1="140" y1="85" x2="222" y2="85" marker-end="url(#ah)"/>
+<text class="s" x="181" y="72" text-anchor="middle">読む</text>
+<rect class="d-acc" x="232" y="30" width="250" height="110" rx="14"/>
+<text class="b" x="357" y="72" text-anchor="middle">ピクセルシェーダー</text>
+<text class="s" x="357" y="96" text-anchor="middle">1 画素ずつ色を決める関数</text>
+<text class="s acc" x="357" y="118" text-anchor="middle">(ここを自分で書く)</text>
+<line class="d-line" x1="492" y1="85" x2="574" y2="85" marker-end="url(#ah)"/>
+<text class="s" x="533" y="72" text-anchor="middle">色を出す</text>
+<image href="images/c2_result.png" x="584" y="30" width="110" height="110" style="image-rendering:pixelated"/>
+<text x="639" y="165" text-anchor="middle">画面</text>
+</svg>
+</figure>
+
+<p>関数は画素の数だけ呼ばれます。256×256 の画像なら 65,536 回です。GPU がまとめて同時に計算するので、それでも速く動きます。</p>
+
+<h2>読むところ</h2>
+
+<h3><code>shaders/PixelShaderTestPS.hlsl</code></h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>Texture2D    DiffuseMapTexture : register( t0 ) ;   <span class="c">// 画像</span>
+SamplerState DiffuseMapSampler : register( s0 ) ;   <span class="c">// 画像の読み方(補間するかなど)</span></code></pre>
+
+<ul>
+<li><code>t0</code> の 0 は、C++ の <code>SetUseTextureToShader( 0, 画像 )</code> の 0 です。</li>
+</ul>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>lTextureColor = DiffuseMapTexture.Sample( DiffuseMapSampler, PSInput.TextureCoord0 ) ;</code></pre>
+
+<ul>
+<li><code>Sample</code> で画像の色を読みます。<code>TextureCoord0</code> はテクスチャ座標(画像の左上が (0, 0)、右下が (1, 1))。</li>
+<li>色は <code>float4</code> で、<code>.r</code> <code>.g</code> <code>.b</code> <code>.a</code>(赤・緑・青・不透明度)。どれも <strong>0〜1</strong> の数です(255 ではありません)。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 540 310" role="img" aria-label="テクスチャ座標">
+<image href="images/tex1.png" x="110" y="60" width="200" height="200" style="image-rendering:pixelated"/>
+<rect class="d-thin" x="110" y="60" width="200" height="200"/>
+<line class="d-acc-line" x1="110" y1="22" x2="330" y2="22" marker-end="url(#ah-acc)"/>
+<text class="acc b" x="338" y="27">u(横)</text>
+<line class="d-acc-line" x1="66" y1="60" x2="66" y2="270" marker-end="url(#ah-acc)"/>
+<text class="acc b" x="66" y="296" text-anchor="middle">v(縦)</text>
+<text class="m" x="110" y="50" text-anchor="middle">(0, 0)</text>
+<text class="m" x="310" y="50" text-anchor="middle">(1, 0)</text>
+<text class="m" x="110" y="280" text-anchor="middle">(0, 1)</text>
+<text class="m" x="310" y="280" text-anchor="middle">(1, 1)</text>
+<circle cx="260" cy="110" r="7" fill="none" stroke="#fff" stroke-width="4"/>
+<circle class="d-acc2-line" cx="260" cy="110" r="7"/>
+<line class="d-acc2-line" x1="268" y1="112" x2="350" y2="140"/>
+<text class="m acc2" x="356" y="145">(0.75, 0.25)</text>
+<text class="s" x="356" y="165">右から 1/4・上から 1/4</text>
+<text class="s" x="356" y="183">の所の色を読む</text>
+</svg>
+<figcaption>テクスチャ座標は、画像の大きさに関係なく左上が (0, 0)、右下が (1, 1)。y にあたる v は<strong>下向き</strong>に増えます。</figcaption>
+</figure>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>PSOutput.Output.r = lTextureColor.b ;   <span class="c">// 赤に青を入れる</span>
+PSOutput.Output.b = lTextureColor.r ;   <span class="c">// 青に赤を入れる</span></code></pre>
+
+<ul>
+<li>出した色(<code>SV_TARGET0</code>)が画面に描かれます。</li>
+</ul>
+
+<h3>入力の並び(大事)</h3>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct PS_INPUT
+{
+    float4 Position      : SV_POSITION ;
+    float4 DiffuseColor  : COLOR0 ;
+    float4 SpecularColor : COLOR1 ;
+    float2 TextureCoord0 : TEXCOORD0 ;
+    float2 TextureCoord1 : TEXCOORD1 ;
+} ;</code></pre>
+
+<ul>
+<li>2D の描画(<code>DrawPolygon2DToShader</code> など)では、<strong>この 5 つを、この順番で全部</strong>書きます。使わないものも消しません。</li>
+<li>順番を変えると、エラーは出ないのに違う値が入ります(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 1 章・3.1</a>)。</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 720 300" role="img" aria-label="入力の並びが合っている場合と違う場合">
+<text class="b" x="175" y="22" text-anchor="middle">○ 同じ順番</text>
+<text class="b acc2" x="545" y="22" text-anchor="middle">✕ 順番を変えた</text>
+<text class="s" x="75" y="46" text-anchor="middle">DxLib が渡す順</text>
+<text class="s" x="275" y="46" text-anchor="middle">自分の PS_INPUT</text>
+<text class="s" x="445" y="46" text-anchor="middle">DxLib が渡す順</text>
+<text class="s" x="645" y="46" text-anchor="middle">自分の PS_INPUT</text>
+<g class="m">
+<rect class="d-box" x="10" y="58" width="130" height="30" rx="6"/><text class="m" x="75" y="78" text-anchor="middle">SV_POSITION</text>
+<rect class="d-box" x="10" y="98" width="130" height="30" rx="6"/><text class="m" x="75" y="118" text-anchor="middle">COLOR0</text>
+<rect class="d-box" x="10" y="138" width="130" height="30" rx="6"/><text class="m" x="75" y="158" text-anchor="middle">COLOR1</text>
+<rect class="d-box" x="10" y="178" width="130" height="30" rx="6"/><text class="m" x="75" y="198" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-box" x="10" y="218" width="130" height="30" rx="6"/><text class="m" x="75" y="238" text-anchor="middle">TEXCOORD1</text>
+<rect class="d-acc" x="210" y="58" width="130" height="30" rx="6"/><text class="m" x="275" y="78" text-anchor="middle">SV_POSITION</text>
+<rect class="d-acc" x="210" y="98" width="130" height="30" rx="6"/><text class="m" x="275" y="118" text-anchor="middle">COLOR0</text>
+<rect class="d-acc" x="210" y="138" width="130" height="30" rx="6"/><text class="m" x="275" y="158" text-anchor="middle">COLOR1</text>
+<rect class="d-acc" x="210" y="178" width="130" height="30" rx="6"/><text class="m" x="275" y="198" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-acc" x="210" y="218" width="130" height="30" rx="6"/><text class="m" x="275" y="238" text-anchor="middle">TEXCOORD1</text>
+</g>
+<line class="d-line" x1="140" y1="73" x2="208" y2="73"/>
+<line class="d-line" x1="140" y1="113" x2="208" y2="113"/>
+<line class="d-line" x1="140" y1="153" x2="208" y2="153"/>
+<line class="d-line" x1="140" y1="193" x2="208" y2="193"/>
+<line class="d-line" x1="140" y1="233" x2="208" y2="233"/>
+
+<rect class="d-box" x="380" y="58" width="130" height="30" rx="6"/><text class="m" x="445" y="78" text-anchor="middle">SV_POSITION</text>
+<rect class="d-box" x="380" y="98" width="130" height="30" rx="6"/><text class="m" x="445" y="118" text-anchor="middle">COLOR0</text>
+<rect class="d-box" x="380" y="138" width="130" height="30" rx="6"/><text class="m" x="445" y="158" text-anchor="middle">COLOR1</text>
+<rect class="d-box" x="380" y="178" width="130" height="30" rx="6"/><text class="m" x="445" y="198" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-box" x="380" y="218" width="130" height="30" rx="6"/><text class="m" x="445" y="238" text-anchor="middle">TEXCOORD1</text>
+<rect class="d-acc" x="580" y="58" width="130" height="30" rx="6"/><text class="m" x="645" y="78" text-anchor="middle">SV_POSITION</text>
+<rect class="d-acc" x="580" y="98" width="130" height="30" rx="6"/><text class="m" x="645" y="118" text-anchor="middle">COLOR0</text>
+<rect class="d-acc2" x="580" y="138" width="130" height="30" rx="6"/><text class="m" x="645" y="158" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-acc2" x="580" y="178" width="130" height="30" rx="6"/><text class="m" x="645" y="198" text-anchor="middle">COLOR1</text>
+<rect class="d-acc" x="580" y="218" width="130" height="30" rx="6"/><text class="m" x="645" y="238" text-anchor="middle">TEXCOORD1</text>
+<line class="d-line" x1="510" y1="73" x2="578" y2="73"/>
+<line class="d-line" x1="510" y1="113" x2="578" y2="113"/>
+<line class="d-acc2-line" x1="510" y1="153" x2="578" y2="153"/>
+<line class="d-acc2-line" x1="510" y1="193" x2="578" y2="193"/>
+<line class="d-line" x1="510" y1="233" x2="578" y2="233"/>
+<text class="s acc2" x="545" y="272" text-anchor="middle">TEXCOORD0 に COLOR1 の値が入る</text>
+<text class="s acc2" x="545" y="290" text-anchor="middle">(名前ではなく順番で渡る。エラーは出ない)</text>
+</svg>
+</figure>
+
+<h3><code>src/main.cpp</code></h3>
+
+<pre><span class="lang">C++</span><code>pshandle = LoadPixelShader( "shaders/bin/PixelShaderTestPS.pso" ) ;  <span class="c">// コンパイル済みのシェーダーを読む</span>
+SetUseTextureToShader( 0, texhandle ) ;   <span class="c">// 画像を 0 番に</span>
+SetUsePixelShader( pshandle ) ;           <span class="c">// このシェーダーを使う</span>
+DrawPolygon2DToShader( Vert, 2 ) ;        <span class="c">// シェーダーを使って三角形 2 枚(四角)を描く</span></code></pre>
+
+<div class="note">
+<p>シェーダーのファイル(<code>.hlsl</code>)を書き換えたら、<strong>「すべてコンパイル」してから</strong>実行します。</p>
+</div>
+
+<h2>課題</h2>
+
+<ol class="tasks">
+<li><span class="stars">★</span><span class="id">1-1</span>白黒にする。明るさは <code>dot( 色.rgb, float3( 0.299f, 0.587f, 0.114f ) )</code> で求められる(人の目は緑をいちばん明るく感じるので、重みが違う)。求めた明るさを r・g・b に入れる。
+<ul><li>画像を写真(<code>TestTex1.jpg</code>)に変えると分かりやすい。</li></ul></li>
+<li><span class="stars">★</span><span class="id">1-2</span>色を反転する(ネガ)。<code>1.0f - 色</code>。</li>
+<li><span class="stars">★★</span><span class="id">1-3</span>セピア色にする。白黒の明るさに、茶色(例 <code>float3( 1.0f, 0.8f, 0.6f )</code>)を掛ける。</li>
+<li><span class="stars">★★</span><span class="id">1-4</span>画像の左半分だけ白黒にする。<code>PSInput.Position.x</code> は、その画素の画面上の x 座標(画素)。</li>
+</ol>
+
+<details>
+<summary>完成イメージを見る</summary>
+<figure>
+<div class="row">
+<div><img src="images/photo.jpg" width="160" alt="">元の写真</div>
+<div><img src="images/sim_gray.jpg" width="160" alt="">1-1 白黒</div>
+<div><img src="images/sim_nega.jpg" width="160" alt="">1-2 ネガ</div>
+<div><img src="images/sim_sepia.jpg" width="160" alt="">1-3 セピア</div>
+<div><img src="images/sim_halfgray.jpg" width="160" alt="">1-4 左半分だけ白黒</div>
+</div>
+<figcaption>シェーダーと同じ計算を Python でした画像です(実際の画面では写真が 128×128 に縮んで描かれます)。</figcaption>
+</figure>
+</details>
+
+<p><strong>解答例</strong>: 1-1 → <code>answers/01_grayscale</code>(<code>【課題 1-1】</code> の所)</p>
+
+<details>
+<summary>解答例を動かした画面</summary>
+<figure>
+<div class="row"><div><img src="images/ans01.png" width="256" alt="">answers/01_grayscale</div></div>
+</figure>
+</details>
+
+<nav class="pager"><a class="prev" href="index.html"><span class="dir">← 目次</span>回の一覧</a><a class="next" href="02_constant_buffer.html"><span class="dir">次の回 →</span>02 C++ からシェーダーに値を渡す(定数バッファ)</a></nav>
+</main>
+</body>
+</html>

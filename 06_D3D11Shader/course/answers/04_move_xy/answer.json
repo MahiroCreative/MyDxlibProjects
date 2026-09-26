@@ -1,0 +1,9 @@
+{
+	"title": "課題 4-1: 上下にも動かす",
+	"lesson": "04",
+	"base": "C1_VertexShaderTest",
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

@@ -1,0 +1,9 @@
+{
+	"title": "課題 5-2: 回しながら大きさも変える",
+	"lesson": "05",
+	"base": "C3_SetVSConstFMtxTest",
+	"assets": [
+		"Tex1.bmp"
+	],
+	"frame": 30
+}

@@ -1,0 +1,12 @@
+{
+	"title": "課題 9-2: 画像を使わずに 2 段のトゥーン",
+	"lesson": "09",
+	"base": "A15_SkinMesh4_DirLight_Toon",
+	"assets": [
+		"DxChara.x",
+		"DxCharaEye.tga",
+		"DxCharaEye2.tga",
+		"GradTex.bmp"
+	],
+	"frame": 30
+}

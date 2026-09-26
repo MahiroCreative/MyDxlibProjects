@@ -1,0 +1,9 @@
+{
+	"title": "課題 6-2: スライムのぷるぷる",
+	"lesson": "06",
+	"base": "D1_Sprite2DVertexShader",
+	"assets": [
+		"Kao.bmp"
+	],
+	"frame": 30
+}

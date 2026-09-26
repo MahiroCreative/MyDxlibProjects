@@ -1,0 +1,10 @@
+{
+	"title": "課題 3-1: 陽炎のように揺らす",
+	"lesson": "03",
+	"base": "C5_SetPSConstFTest",
+	"assets": [
+		"Tex1.bmp",
+		"TestTex1.jpg"
+	],
+	"frame": 30
+}
