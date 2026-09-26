@@ -1,6 +1,6 @@
-# 引き継ぎ資料(2026-09-25 夜、1 台目の PC)
+# 引き継ぎ資料(2026-09-26、1 台目の PC)
 
-DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(150 項目)は完了。** 2026-09-25 に 2 台目の PC で、後片づけのエラーの修正・ワークロード追加の確認・シェーダーのファイル名の変更・プロジェクトの操作ボタンのエクスプローラーへの移動を行った(`fc16917`)。同じ日の夜に 1 台目の PC で、**「ファイルを追加」(右クリックの「DxLib」メニューと見出しのボタン)・エディタ右上のビルド/実行/デバッグボタン**を足し、ステータスバーの「▶ DxLib 実行」と右クリックの「新規プロジェクト作成」を外した(DESIGN.md 3.2 章。**未コミット**)。**どちらもユーザーはまだ手で触っていない**(5 章)。
+DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(169 項目)は完了。** 2026-09-25〜26 に、エクスプローラーの「DxLib」欄とファイルの追加、エディタ右上のボタン、テンプレートの `.dxtemplate` 化、ビルドの MSBuild 化、Visual Studio で作ったプロジェクトを開く機能を作った(1 章の箇条)。すべてユーザーが `cc28ee0 up` でコミット・push 済み。**残りは Visual Studio の画面での確認だけ**(6 章)。
 
 ## 0. 最初にやること(別の場所で再開するとき)
 
@@ -16,10 +16,10 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(150 項目)�
 | 項目 | 状態 |
 |---|---|
 | 拡張機能本体(`extension/`) | 動く状態。実利用で見つかった不具合 12 件は対応済み(4 章)。#12 の元の指摘(「字下げすべきでない場所が字下げされる」)はユーザーの指示で一旦扱わない |
-| 自動検証 | 全段階・169 項目すべて OK(段階1: 23 / 段階2: 71 / 段階3: 10 / 段階4: 11 / 段階5: 7 / 段階6-late: 11 / 段階6-soon: 6 / 段階7: 7 / 段階8: 10 / 段階9: 12 / 最後のログ確認: 1)。2026-09-26 1:06、1 台目の PC(VS のプロジェクトを開く機能の後) |
-| git | `main`。HEAD は `fc16917 UI調整`(2026-09-25 までの変更はユーザーがコミット済み)。ローカルの `vscode-extension` ブランチは古い(`3a87bc0`)ので使わない |
+| 自動検証 | 全段階・173 項目すべて OK(段階1: 27 / 段階2: 71 / 段階3: 10 / 段階4: 11 / 段階5: 7 / 段階6-late: 11 / 段階6-soon: 6 / 段階7: 7 / 段階8: 10 / 段階9: 12 / 最後のログ確認: 1)。2026-09-26 16:54、1 台目の PC(VS の選択の後) |
+| git | `main`。HEAD は `cc28ee0 up`(2026-09-26 までの変更はユーザーがコミット・push 済み)。ローカルの `vscode-extension` ブランチは古い(`3a87bc0`)ので使わない |
 | 2026-09-25 の変更(`fc16917` に含まれる) | 変更 12 ファイル・新規 2 ファイル(`extension/` の下)。<br>・後片づけのエラーの修正: `src/intellisense/configProvider.ts`、`test/runTest.js`(最後のログ確認)<br>・ワークロード追加の検証用の切り替え: `src/env/vswhere.ts`(`DXLIB_TEST_SIMULATE_NO_WORKLOAD`)<br>・シェーダーのファイル名 `_2DPS`/`_3DPS`/`_3DVS`: `src/shader/compileShaders.ts`<br>・エクスプローラーの「DxLib」欄と右クリック: 新規 `src/panel/projectView.ts`・`src/panel/webviewCommon.ts`、変更 `src/panel/panelView.ts`・`src/extension.ts`・`src/shader/compileShaders.ts`・`package.json`<br>・検証: `test/suite/phase2.js`・`test/suite/phase3.js`・`test/screenshot.ps1`(窓を前面に出せないときは撮らない)<br>・`DESIGN.md`(1・3・3.1・4・7・9・17 章)、この HANDOFF.md |
-| 2026-09-25 夜の変更(**未コミット**) | `DESIGN.md`(3.1・3.2・10 章ほか)、この HANDOFF.md、`extension/` の `package.json`・`README.md`・`src/extension.ts`・`src/project/createProject.ts`・`src/project/migrate.ts`・新規 `src/project/newFiles.ts`、`test/runTest.js`・`test/suite/phase1.js`・`phase2.js`・`phase8.js`・新規 `test/suite/phase2_steps_new_files.js` |
+| 2026-09-25 夜〜26 の変更(`cc28ee0` に含まれる) | `DESIGN.md`(3.1・3.2・10 章ほか)、この HANDOFF.md、`extension/` の `package.json`・`README.md`・`src/extension.ts`・`src/project/createProject.ts`・`src/project/migrate.ts`・新規 `src/project/newFiles.ts`、`test/runTest.js`・`test/suite/phase1.js`・`phase2.js`・`phase8.js`・新規 `test/suite/phase2_steps_new_files.js` |
 | 配布物 | `npm run release` で `extension/release/`(VSIX + install.bat + README.txt。git 管理外)。1 台目の PC で 2026-09-25 夜、3.2 章の変更の後に作り直した |
 | 手動確認 | 2026-09-24 版の 43 項目はすべて OK。**2026-09-25 の変更(エクスプローラーへの移動・ファイルを追加・エディタ右上のボタン)は、Claude のクリック操作で右クリックのメニュー・見出しのボタン・エディタ右上のボタンを確認済み。ユーザーはまだ触っていない**(5 章) |
 | バージョン | `package.json` は `0.0.1` のまま。`install.bat` は `--force` なので同じ版でも入れ直せる |
@@ -41,6 +41,7 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(150 項目)�
 - **テンプレートを 1 つのファイルにした**(ユーザー決定): **拡張子は `.dxtemplate`**(中身は zip。最初は `.zip` だったが「分かりづらい」と変更)。ファイル 1 つ = 1 テンプレート(中に `template.json` とプロジェクトのファイル)。選ぶときは手作りの `.zip` も受け付ける。保存は欄のフォーム → **Windows の保存ダイアログで保存先を決める**(初期値は前回の保存先、無ければドキュメント)。作成は、パネルの作成フォームで「最小(同梱)」「最近使ったテンプレート(zip)」「[テンプレートファイル (.zip) を選ぶ...]」から選ぶ。プロジェクト名は自由。**テンプレートフォルダの設定(`dxlib.templatesPath`)と環境欄の「テンプレート [変更]」はやめた。** zip の読み書きは拡張の中で自前(`src/util/zip.ts`。新しい依存なし)。Windows の「圧縮 (zip 形式) フォルダー」で作った zip(日本語の名前は CP932)も読める。段階 2 に 10 項目(`phase2_steps_templates.js`。Windows の Expand-Archive / Compress-Archive との相互の読み書きを含む)。控えめなボタン(参照・キャンセルなど)には、パネルも含めて枠を付けた。DESIGN.md 8 章。
 - **ビルドを MSBuild にした**(2026-09-25 夜 ユーザー決定。DESIGN.md 6 章): 拡張がプロジェクトに `<名前>.vcxproj`(ソースは `src\**\*.cpp` のワイルドカード。設定は以前の cl と同じ)・`<名前>.sln`・`dxlib.props`(この PC の DxLib の場所。`.gitignore` に入れる)を作り、MSBuild でビルドする。生徒は `.vcxproj` を触らない。変更したファイルだけコンパイルし直す。`.sln` をダブルクリックすれば Visual Studio でも開ける(**Visual Studio の画面で開いて動かすのはまだ試していない**。MSBuild で `.sln` をビルドできることは確認済み)。以前のプロジェクトは開いたときに 3 つのファイルを作る。テンプレートには入れない。MSBuild は vswhere で見つけた `<VS>\MSBuild\Current\Bin\MSBuild.exe`。`PlatformToolset` は `$(DefaultPlatformToolset)` なので 2022 でも 2026 でも動くはず(2022 は未確認)。段階 1・2・8 に確認を追加(ファイルの中身、差分ビルド、テンプレートに入らない、移行)。
 - **Visual Studio で作ったプロジェクトを開けるようにした**(2026-09-26 ユーザー決定。DESIGN.md 6.1 章): 開いたフォルダに、この拡張が作った印の無い `.vcxproj` があれば、DxLib パネルに「Visual Studio のプロジェクトです」と [DxLib 拡張で使えるようにする] を出す。押すと、BOM なし UTF-8・Shift-JIS のソースを BOM 付き UTF-8 にそろえるかを聞き(Windows の確認画面)、`.vscode` の一式を書く(`dxlib.vsProject` / `dxlib.vsPlatform`、保存時の整形は切る、`.clang-format`・`.gitignore` は書かない)。ビルドはその `.vcxproj` を MSBuild でそのまま、exe の場所・補完の定義(`UNICODE` など)・インクルードは MSBuild に聞く(`-getProperty` / `-getItem`)。VSCode で足したファイルは `.vcxproj` と `.filters`(同じ種類のファイルのフィルター)に書き足す。それ以外で `.vcxproj`・`.sln`・`.slnx`・`.filters` は触らない。新しく `src/build/vsProject.ts`・`src/project/adoptVs.ts`。自動検証は段階 9(`test/fixtures/VsGame` = VS 2026 の空のプロジェクトと同じ形、12 項目)。**Visual Studio の画面側での確認(足したファイルが VS で見える、など)はまだ。**
+- **Visual Studio が複数入っているとき、使う版を選べるようにした**(2026-09-26 ユーザー決定。DESIGN.md 4 章): C++ ワークロードの入った VS をすべて探し、2 つ以上なら DxLib パネルの VS の行に [変更]。パネルの中のフォームで選ぶと、設定 `dxlib.visualStudioPath`(PC ごと)に書き、その VS の MSBuild と cl.exe を使う。選んだものが見つからなければ、いちばん新しいものを使って知らせる。検証用に `DXLIB_TEST_EXTRA_VS=1` で実在しない「2022(検証用)」が 1 つ増える(段階 1 で 4 項目、クリック操作でも確認)。**実物が 2 つある 2 台目の PC での確認はまだ。** パネルの古い説明(ビルド・実行は DxLib 欄に)も直した。
 
 ## 2. 環境の前提
 
@@ -170,8 +171,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File test/ui/ui.ps1 -UserDataDir 
 | 1 | (済)2026-09-25 の変更の手動確認 | ユーザー | 2026-09-25 夜、ユーザーが手で確認済み |
 | 2 | (保留)授業用テンプレートの整備 | Sonnet 5・中 | ユーザー判断で「必要を感じてから」。学生が自分で作るものかもしれない(2026-09-25)。作るなら `.dxtemplate` 1 つで配る |
 | 3 | 別タスク: Direct3D 11 教材 | 下記 | **いちばん最後にやる**(2026-09-25 ユーザー)。拡張機能とは分けた作業(DESIGN.md 15 章)。下の 6 の「2D を正射影カメラ + 3D の板」も教材に入れる |
-| 4 | (放置)Visual Studio が複数入っているときのバージョン選択 | - | 2026-09-25 ユーザー判断で一旦放置。2 台目の PC は 2022 と 2026 の両方あり、2026 が選ばれていて問題は出ていない |
-| 5 | **Visual Studio のプロジェクトとの行き来** | Opus 5.5 | **両方向とも作った**(2026-09-26。1 章の箇条)。VSCode → VS は `.sln` を開けば使える、VS → VSCode は DxLib パネルの [DxLib 拡張で使えるようにする]。**残り: 実物の Visual Studio の画面での確認**(この拡張で作ったプロジェクトの `.sln` を VS で開いてビルド・デバッグ、VS のプロジェクトを VSCode で使えるようにしてからファイルを足し、VS で開いて見えるか)。VS 2026 で分かったこと: ソースは BOM なし UTF-8(MSVC は CP932 として読むので、VS でビルドしても警告 C4819・日本語の文字列が化ける)、`.slnx`、`CharacterSet` は `Unicode` |
+| 4 | (作った・確認は優先度低)Visual Studio が複数入っているときのバージョン選択 | - | 2026-09-26 に作った(1 章の箇条)。2 台目の PC で実物を選んでビルドできるかの確認は、**ユーザー判断で優先度を下げた**(面倒なので、ついでのときに) |
+| 5 | **Visual Studio のプロジェクトとの行き来** | Opus 5.5 | **両方向とも作った**(2026-09-26。1 章の箇条)。VSCode → VS は `.sln` を開けば使える、VS → VSCode は DxLib パネルの [DxLib 拡張で使えるようにする]。**残り: 実物の Visual Studio の画面での確認(2026-09-26 ユーザー判断で優先度を下げた。ついでのときに)**(この拡張で作ったプロジェクトの `.sln` を VS で開いてビルド・デバッグ、VS のプロジェクトを VSCode で使えるようにしてからファイルを足し、VS で開いて見えるか)。VS 2026 で分かったこと: ソースは BOM なし UTF-8(MSVC は CP932 として読むので、VS でビルドしても警告 C4819・日本語の文字列が化ける)、`.slnx`、`CharacterSet` は `Unicode` |
 | 6 | 2D を正射影カメラ + 3D の板で描いて頂点シェーダーを使う | Opus 5.5・中 | **Direct3D 11 教材に入れる**(2026-09-25 ユーザー決定)。DESIGN.md 15.1。未検証 |
 | 7 | (決定)C/C++ Extension Pack は入れない | - | 2026-09-25 ユーザー決定:「入れない、無視する方向」。Pack は C/C++ に Themes・CMake Tools・C++ DevTools を束ねたセットで、補完・デバッグ・整形は同じ C/C++(同じ版)なので良くならない。今どおり `unwantedRecommendations` で勧めを止め、入れてしまっても動くこと(段階 8)だけ確かめる |
 

@@ -10,7 +10,15 @@ type FormName = 'create';
 
 /** Webview へ渡す状態(JSON にできる形)。 */
 interface PanelState {
-	vs: { state: string; label: string };
+	vs: {
+		state: string;
+		label: string;
+		/** 選んでいた Visual Studio が見つからないときの説明(DESIGN.md 4 章)。 */
+		note: string;
+		/** C++ ワークロードの入った Visual Studio すべて。2 つ以上なら [変更] を出す。 */
+		installs: { name: string; version: string; path: string }[];
+		current: string;
+	};
 	sdk: { ok: boolean; label: string; path: string; missing: string[] };
 	cpptools: string;
 	project?: { name: string; path: string };
@@ -50,7 +58,13 @@ function toState(env: EnvironmentStatus, templates: TemplateInfo[], defaultLocat
 		sdkLabel = 'DxLib SDK のフォルダが正しくありません(DxLib.h が見つかりません)';
 	}
 	return {
-		vs: { state: env.vs.state, label: vsLabel },
+		vs: {
+			state: env.vs.state,
+			label: vsLabel,
+			note: env.vs.selectionMissing ? `選んでいた Visual Studio が見つからないので、${env.vs.displayName ?? 'いちばん新しいもの'} を使っています` : '',
+			installs: (env.vs.installs ?? []).map((i) => ({ name: i.displayName, version: i.version, path: i.installationPath })),
+			current: env.vs.installationPath ?? '',
+		},
 		sdk: { ok: !!env.sdk?.ok, label: sdkLabel, path: env.sdkPath, missing: env.sdk?.missing ?? [] },
 		cpptools: env.cpptools,
 		project: env.project,
@@ -154,6 +168,9 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 				await this.useTemplateZip(picked[0].fsPath);
 				return;
 			}
+			case 'selectVisualStudio':
+				await vscode.commands.executeCommand('dxlib.selectVisualStudio', (m as { path?: string }).path);
+				return;
 			case 'create':
 				await vscode.commands.executeCommand('dxlib.createProject', (m as { args: CreateProjectArgs }).args);
 				return;
@@ -172,7 +189,7 @@ export class DxLibPanelProvider implements vscode.WebviewViewProvider {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <style>
 ${BASE_CSS}
-	#form, #restricted { display: none; }
+	#form, #restricted, #vs-form { display: none; }
 	#restricted p { line-height: 1.5; margin: 6px 0; }
 </style>
 </head>
@@ -187,7 +204,7 @@ ${BASE_CSS}
 
 	<div id="main">
 		<h2>環境</h2>
-		<div class="row"><span id="vs-mark"></span><span class="text" id="vs-label">確認中…</span><span id="vs-actions"></span></div>
+		<div class="row"><span id="vs-mark"></span><span class="text"><span id="vs-label">確認中…</span><span class="path" id="vs-note"></span></span><span id="vs-actions"></span></div>
 		<div class="row"><span id="sdk-mark"></span><span class="text"><span id="sdk-label">確認中…</span><span class="path" id="sdk-path"></span></span><button class="secondary" data-cmd="selectSdk">変更</button></div>
 		<div class="row"><span id="cpp-mark"></span><span class="text" id="cpp-label">C/C++ 拡張</span><span id="cpp-actions"></span></div>
 		<div class="actions"><button class="secondary" data-cmd="refresh">再チェック</button><button class="secondary" data-cmd="openSetupGuide">手順を見る</button></div>
@@ -197,7 +214,7 @@ ${BASE_CSS}
 		<div class="error hidden" id="create-blocked">DxLib SDK が正しく設定されるまで、プロジェクトは作成できません。上の SDK の「変更」から、正しいフォルダを指定してください。</div>
 		<div id="project-section">
 			<div class="row"><span class="text">現在のプロジェクト: <b id="project-name"></b></span></div>
-			<div class="hint">ビルド・実行・シェーダー・テンプレートとして保存は、エクスプローラーの「DxLib」欄にあります。</div>
+			<div class="hint">ビルド・実行・デバッグはエディタ右上のボタン、ファイルの作成・シェーダー・テンプレートとして保存はエクスプローラーの「DxLib」欄にあります。</div>
 			<div class="actions"><button class="secondary" data-cmd="showProjectView">エクスプローラーの DxLib 欄を開く</button></div>
 		</div>
 		<div id="no-project" class="hidden"><span class="wait" id="no-project-text">プロジェクトのフォルダが開かれていません。</span></div>
@@ -206,6 +223,14 @@ ${BASE_CSS}
 			<div class="hint">.vcxproj はそのまま使います(Visual Studio でも引き続き開けます)。</div>
 			<button class="big" data-cmd="adoptVsProject">DxLib 拡張で使えるようにする</button>
 		</div>
+	</div>
+
+	<div id="vs-form">
+		<h2>使う Visual Studio を選ぶ</h2>
+		<div class="hint">この PC に入っている Visual Studio(C++ によるデスクトップ開発あり)です。ビルドと補完に、選んだものを使います。</div>
+		<div id="vsf-list"></div>
+		<div class="hint">Visual Studio で作ったプロジェクトは、作ったときの版を選んでください(ほかの版ではビルドできないことがあります)。</div>
+		<div class="actions"><button id="btn-vs-select">決定</button><button class="secondary" id="btn-vs-cancel">キャンセル</button></div>
 	</div>
 
 	<div id="form">
@@ -230,7 +255,7 @@ ${BASE_CSS}
 	document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => vscode.postMessage({ command: b.dataset.cmd })));
 
 	function showScreen(name) {
-		for (const id of ['main', 'form', 'restricted']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
+		for (const id of ['main', 'form', 'restricted', 'vs-form']) { $(id).style.display = (id === name) ? 'block' : 'none'; }
 	}
 
 	// --- 新規プロジェクト作成 -------------------------------------------------
@@ -284,17 +309,43 @@ ${BASE_CSS}
 		container.innerHTML = '';
 		for (const [label, cmd] of list) {
 			const b = document.createElement('button'); b.className = 'secondary'; b.textContent = label; b.style.marginLeft = '4px';
-			b.addEventListener('click', () => vscode.postMessage({ command: cmd }));
+			// '#vsSelect' はパネルの中で選択のフォームを開く(拡張機能のコマンドではない)
+			b.addEventListener('click', () => (cmd === '#vsSelect' ? openVsForm() : vscode.postMessage({ command: cmd })));
 			container.appendChild(b);
 		}
 	}
 
+	// --- 使う Visual Studio を選ぶ(DESIGN.md 4 章) ---------------------------------
+	function openVsForm() {
+		if (!state) return;
+		const box = $('vsf-list'); box.innerHTML = '';
+		state.vs.installs.forEach((i) => {
+			const row = document.createElement('label'); row.className = 'tpl';
+			const r = document.createElement('input'); r.type = 'radio'; r.name = 'vsf'; r.value = i.path;
+			r.checked = i.path.toLowerCase() === state.vs.current.toLowerCase();
+			const txt = document.createElement('span'); txt.textContent = i.name;
+			const small = document.createElement('small'); small.textContent = i.version + '  ' + i.path; small.title = i.path;
+			txt.appendChild(small);
+			row.appendChild(r); row.appendChild(txt); box.appendChild(row);
+		});
+		showScreen('vs-form');
+	}
+	$('btn-vs-cancel').addEventListener('click', () => showScreen('main'));
+	$('btn-vs-select').addEventListener('click', () => {
+		const picked = document.querySelector('input[name=vsf]:checked');
+		showScreen('main');
+		if (picked) { vscode.postMessage({ command: 'selectVisualStudio', path: picked.value }); }
+	});
+
 	function render() {
 		const s = state;
-		if (s.vs.state === 'ok') { mark($('vs-mark'), 'ok', '✓'); buttons($('vs-actions'), []); }
-		else if (s.vs.state === 'noWorkload') { mark($('vs-mark'), 'ng', '✗'); buttons($('vs-actions'), [['ワークロードを追加', 'addCppWorkload']]); }
+		// Visual Studio が 2 つ以上あるときだけ [変更](DESIGN.md 4 章)
+		const vsChange = s.vs.installs.length > 1 ? [['変更', '#vsSelect']] : [];
+		if (s.vs.state === 'ok') { mark($('vs-mark'), 'ok', '✓'); buttons($('vs-actions'), vsChange); }
+		else if (s.vs.state === 'noWorkload') { mark($('vs-mark'), 'ng', '✗'); buttons($('vs-actions'), [['ワークロードを追加', 'addCppWorkload'], ...vsChange]); }
 		else { mark($('vs-mark'), 'ng', '✗'); buttons($('vs-actions'), [['ダウンロードページ', 'openVsDownload']]); }
 		$('vs-label').textContent = s.vs.label;
+		$('vs-note').textContent = s.vs.note;
 
 		mark($('sdk-mark'), s.sdk.ok ? 'ok' : 'ng', s.sdk.ok ? '✓' : '✗');
 		$('sdk-label').textContent = s.sdk.label;

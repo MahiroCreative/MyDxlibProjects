@@ -412,6 +412,19 @@ async function activateTrusted(context: vscode.ExtensionContext, panel: DxLibPan
 		await projectView.showSaveTemplateForm();
 	});
 
+	// 使う Visual Studio を選ぶ(DESIGN.md 4 章)。DxLib パネルの選択のフォームから、インストール先が来る
+	register('dxlib.selectVisualStudio', async (arg?: unknown) => {
+		if (typeof arg !== 'string' || !arg) {
+			await vscode.commands.executeCommand('workbench.view.extension.dxlib');
+			return;
+		}
+		await vscode.workspace.getConfiguration('dxlib').update('visualStudioPath', arg, vscode.ConfigurationTarget.Global);
+		configProvider.invalidate();
+		await panel.refresh();
+		const vs = await detectVisualStudio();
+		void vscode.window.showInformationMessage(`使う Visual Studio を ${vs.displayName ?? arg} にしました。`);
+	});
+
 	// Visual Studio で作ったプロジェクトを使えるようにする(DESIGN.md 6.1 章)。検証では { convert } を渡して確認画面を飛ばす
 	register('dxlib.adoptVsProject', async (arg?: unknown) => {
 		const result = await adoptVsProject((arg as AdoptArgs | undefined) ?? {});

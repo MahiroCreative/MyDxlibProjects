@@ -191,6 +191,11 @@
         "command": "dxlib.adoptVsProject",
         "title": "Visual Studio のプロジェクトを DxLib 拡張で使えるようにする",
         "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "dxlib.selectVisualStudio",
+        "title": "使う Visual Studio を選ぶ",
+        "enablement": "isWorkspaceTrusted"
       }
     ],
     "keybindings": [
@@ -385,6 +390,12 @@
           ],
           "scope": "resource",
           "description": "Visual Studio で作ったプロジェクトをビルドするプラットフォーム。"
+        },
+        "dxlib.visualStudioPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "使う Visual Studio のインストール先。空ならいちばん新しいもの。DxLib パネルの Visual Studio の [変更] で選びます(Visual Studio が 2 つ以上あるとき)。"
         }
       }
     },

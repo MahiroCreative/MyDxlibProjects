@@ -63,7 +63,7 @@ DxLib
 [ 新規プロジェクト作成 ]  → パネル内フォーム(名前 / 作成先 / テンプレート)
 ──────────────────────
 現在のプロジェクト: MyGame
-  ビルド・実行・シェーダーは、エクスプローラーの「DxLib」欄から。 [開く]
+  ビルド・実行・デバッグはエディタ右上、ファイルの作成・シェーダー・テンプレートはエクスプローラーの「DxLib」欄から。 [開く]
 ```
 
 ### 3.1 エクスプローラーの「DxLib」欄と右クリック(2026-09-25 ユーザー決定)
@@ -132,6 +132,12 @@ EXPLORER
 - 検証用の切り替え(2026-09-25 追加): 環境変数 `DXLIB_TEST_SIMULATE_NO_WORKLOAD=1` で起動した VSCode では、C++ ワークロードが入っていても「未導入」(`noWorkload`)として扱う。ワークロードが入っている PC で、パネルの「ワークロードを追加」ボタン → 確認 → UAC → インストーラー起動までを実際に通して確かめるため(`test/ui/`)。インストーラーは入っているワークロードを追加しようとするだけなので、Visual Studio はほぼ変わらない(`--includeRecommended` で、入っていない推奨コンポーネントがあれば足される)。生徒の環境でこの変数が付くことはない。
 - ワークロード追加: `Installer\setup.exe modify --installPath <path> --add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --passive --norestart`。引数は `quoteWindowsArg` で 1 本のコマンドライン文字列にしてから `Start-Process -Verb RunAs` に渡す(17.1 参照)。
 - cl.exe: `<VS>\VC\Tools\MSVC\<最新>\bin\Hostx64\x64\cl.exe`(IntelliSense 用)。
+- **Visual Studio が複数入っているとき(2026-09-26 ユーザー決定)**: C++ ワークロードの入った Visual Studio をすべて探し(`vswhere -all -requires <VC ツール>`)、使うものを DxLib パネルで選べるようにする。
+  - 設定 `dxlib.visualStudioPath`(PC ごと。`scope: machine`)に、選んだ Visual Studio のインストール先を書く。空(既定)なら、いちばん新しいもの(以前と同じ)。
+  - 選んだものが見つからなくなったとき(アンインストールなど)は、いちばん新しいものを使い、環境欄に「選んでいた Visual Studio が見つからないので、<名前> を使っています」と出す。
+  - 環境欄の Visual Studio の行: C++ ワークロードの入ったものが 2 つ以上あるときだけ [変更] を出す。押すと、パネルの中に選択のフォーム(名前・版・インストール先のラジオボタンと [決定] [キャンセル])を出す(画面上部の入力欄は使わない。3.2 章)。
+  - 選んだ Visual Studio の MSBuild(ビルド)と cl.exe(補完)を使う。この拡張の `.vcxproj` はツールセットを `$(DefaultPlatformToolset)` にしているので、どの版でもビルドできる。Visual Studio で作ったプロジェクト(6.1 章)は `.vcxproj` にツールセットを直接書いている(VS 2026 なら `v145`)ので、ほかの版を選ぶとビルドできない(MSBuild のエラー MSB8020)。そのときは、そのプロジェクトを作った版を選ぶ。
+  - 検証用の切り替え: 環境変数 `DXLIB_TEST_EXTRA_VS=1` で起動した VSCode では、実在しない「Visual Studio Community 2022(検証用)」が 1 つ多く見つかったことにする(インストール先 `<一時フォルダ>\dxlib-test-fake-vs`。中身は無いので、選ぶと「ワークロード未導入」になる)。1 台の PC で選択の流れを確かめるため。実物が 2 つある PC(2 台目)での確認は手動。
 - C/C++ 拡張: `vscode.extensions.getExtension('ms-vscode.cpptools')`。
 
 ## 5. SDK

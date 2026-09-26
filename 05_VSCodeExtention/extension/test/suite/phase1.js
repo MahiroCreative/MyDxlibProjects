@@ -187,5 +187,44 @@ exports.run = async function () {
 		return { ok: state !== 'unresponsive', detail: `intelliSenseState=${state}` };
 	});
 
+	// --- Visual Studio が複数入っているとき(DESIGN.md 4 章) ---
+	// runTest.js が DXLIB_TEST_EXTRA_VS=1 で起動している。実在しない「2022(検証用)」が 1 つ多く見つかる
+	const fakeVs = path.join(require('os').tmpdir(), 'dxlib-test-fake-vs');
+	const selectVs = (p) => vscode.commands.executeCommand('dxlib.selectVisualStudio', p);
+	const same = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+	let realVs;
+	try {
+		await r.step('VS の選択: 2 つ見つかり(パネルに [変更] が出る条件)、設定が空ならいちばん新しいものを使う', async () => {
+			await vscode.workspace.getConfiguration('dxlib').update('visualStudioPath', '', vscode.ConfigurationTarget.Global);
+			const env = await api.collectEnvironment();
+			const installs = env.vs.installs || [];
+			realVs = installs.find((i) => !same(i.installationPath, fakeVs));
+			const ok = installs.length === 2 && !!realVs && same(env.vs.installationPath, installs[0].installationPath) && !same(installs[0].installationPath, fakeVs) && env.vs.state === 'ok' && !env.vs.selectionMissing;
+			return { ok, detail: `${installs.map((i) => `${i.displayName} ${i.version}`).join(' / ')} 使う=${env.vs.displayName} state=${env.vs.state}` };
+		});
+
+		await r.step('VS の選択: 古い方(検証用)を選ぶと、それを使う(中身が無いので「ワークロード未導入」になる)', async () => {
+			await selectVs(fakeVs);
+			const env = await api.collectEnvironment();
+			const ok = same(env.vs.installationPath, fakeVs) && env.vs.state === 'noWorkload' && same(vscode.workspace.getConfiguration('dxlib').get('visualStudioPath'), fakeVs);
+			return { ok, detail: `使う=${env.vs.displayName} ${env.vs.installationPath} state=${env.vs.state}` };
+		});
+
+		await r.step('VS の選択: 元に戻すと、MSBuild も見つかる状態に戻る', async () => {
+			await selectVs(realVs && realVs.installationPath);
+			const env = await api.collectEnvironment();
+			return { ok: env.vs.state === 'ok' && !!realVs && same(env.vs.installationPath, realVs.installationPath), detail: `使う=${env.vs.displayName} state=${env.vs.state}` };
+		});
+
+		await r.step('VS の選択: 選んでいたものが見つからなくなったら、いちばん新しいものを使い、そのことを知らせる', async () => {
+			await vscode.workspace.getConfiguration('dxlib').update('visualStudioPath', 'C:\\NoSuchVisualStudio', vscode.ConfigurationTarget.Global);
+			const env = await api.collectEnvironment();
+			return { ok: env.vs.state === 'ok' && env.vs.selectionMissing === true && !!realVs && same(env.vs.installationPath, realVs.installationPath), detail: `使う=${env.vs.displayName} selectionMissing=${env.vs.selectionMissing}` };
+		});
+	} finally {
+		// 後の段階に残さない
+		await vscode.workspace.getConfiguration('dxlib').update('visualStudioPath', undefined, vscode.ConfigurationTarget.Global);
+	}
+
 	r.finish();
 };

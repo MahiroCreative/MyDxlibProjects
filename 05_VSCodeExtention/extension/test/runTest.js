@@ -87,7 +87,8 @@ async function main() {
 	}
 
 	console.log('[runTest] 段階 1');
-	await runTests({ ...common, extensionTestsPath: path.join(__dirname, 'suite', 'phase1.js'), launchArgs: [...baseArgs] });
+	// Visual Studio が 2 つあることにして、選択の流れも確かめる(DESIGN.md 4 章)
+	await runTests({ ...common, extensionTestsEnv: { ...common.extensionTestsEnv, DXLIB_TEST_EXTRA_VS: '1' }, extensionTestsPath: path.join(__dirname, 'suite', 'phase1.js'), launchArgs: [...baseArgs] });
 
 	console.log('[runTest] 段階 2');
 	await runTests({ ...common, extensionTestsPath: path.join(__dirname, 'suite', 'phase2.js'), launchArgs: [...baseArgs, project] });
