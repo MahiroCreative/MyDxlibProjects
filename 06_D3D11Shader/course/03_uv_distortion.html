@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>03 テクスチャ座標をずらして画像を揺らす — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -116,7 +116,7 @@ color = DiffuseMapTexture.Sample( DiffuseMapSampler, uv ) ;</code></pre>
 <li><span class="stars">★</span><span class="id">3-1</span>陽炎のように揺らす。<code>uv.x += sin( uv.y * 40.0f + 時間 * 5.0f ) * 0.01f</code>。数を変えて、波の細かさ・速さ・大きさがどう変わるか試す。</li>
 <li><span class="stars">★★</span><span class="id">3-2</span>水の中のように、縦にも横にも揺らす(<code>uv.y</code> もずらす。x と y で波の向きや速さを変える)。</li>
 <li><span class="stars">★★</span><span class="id">3-3</span>モザイクにする。<code>floor( uv * 32.0f ) / 32.0f</code> で、テクスチャ座標をとびとびにする。</li>
-<li><span class="stars">★★★</span><span class="id">3-4</span>画像の端で、はみ出した所を読むとどうなるか確かめる。はみ出した所の読み方は、C++ の <code>SetTextureAddressModeUV</code> で変えられる(既定は端の色を伸ばす「クランプ」。<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 10.1</a>)。</li>
+<li><span class="stars">★★★</span><span class="id">3-4</span>画像の端で、はみ出した所を読むとどうなるか確かめる。はみ出した所の読み方は、C++ の <code>SetTextureAddressModeUV</code> で変えられる(既定は端の色を伸ばす「クランプ」。<a href="../spec/dxlib_d3d11_shader_spec.html#s10-1">仕様書 10.1</a>)。</li>
 </ol>
 
 <details>

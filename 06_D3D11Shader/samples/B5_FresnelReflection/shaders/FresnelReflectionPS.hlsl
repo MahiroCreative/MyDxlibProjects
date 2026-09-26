@@ -1,6 +1,6 @@
 ﻿// FresnelReflectionPS.fx の Direct3D 11 版(ps_4_0)
 // reference/d3d9_original/B_applied/FresnelReflection から移植。Direct3D 9 版からの変更点には【D3D11】と書いています。
-// DxLib が渡す定数(g_Common / g_Base など)の意味は spec/dxlib_d3d11_shader_spec.md の 8 章。
+// DxLib が渡す定数(g_Common / g_Base など)の意味は spec/dxlib_d3d11_shader_spec.html の 8 章。
 
 // 【D3D11】DxLib が渡す定数の宣言(Direct3D 9 版の register( c○ ) の定数の代わり)
 #include "DxLibPS.hlsli"

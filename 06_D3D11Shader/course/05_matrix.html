@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>05 行列で回す — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -70,7 +70,7 @@ lWorldPosition += cfCenterPosition ;                                          <s
 
 <ul>
 <li><strong>C++ の <code>MATRIX</code> をそのまま入れたら、HLSL では <code>row_major</code> を付けて、<code>mul( 座標, 行列 )</code> の順で掛ける。</strong> DxLib の <code>VTransform( 座標, 行列 )</code> と同じ順番になります。
-<ul><li><code>row_major</code> を付けないと、行と列が入れ替わって(転置されて)読まれ、回る向きが逆になります(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 7 章</a>)。</li></ul></li>
+<ul><li><code>row_major</code> を付けないと、行と列が入れ替わって(転置されて)読まれ、回る向きが逆になります(<a href="../spec/dxlib_d3d11_shader_spec.html#s7">仕様書 7 章</a>)。</li></ul></li>
 <li>回転は原点のまわりで起きるので、「回してから、中心に動かす」の順です。</li>
 </ul>
 

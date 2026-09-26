@@ -8,3 +8,4 @@ DxLib 3.24f の Direct3D 11 シェーダー教材。計画と進み具合は `RE
 - ShaderCompiler.exe は CP932 のソースしか読めない。教材の HLSL は UTF-8 で書き、コンパイル時に CP932 に変換する。
 - `reference/d3d9_original/` は公式の原本。変更しない。
 - 動作確認できたものだけを `samples/` に置く。
+- 授業・仕様書・各フォルダの説明は HTML が正(md は無い)。デザインは共通の `style.css`、図は各ページの中の SVG。画面写真などの画像は `course/make_images.py`・`spec/make_images.py`・`samples/make_images.py` で作り直す。

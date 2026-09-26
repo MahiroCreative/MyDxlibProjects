@@ -2,7 +2,7 @@
 // 頂点シェーダーの先頭で #include "DxLibVS.hlsli" する。
 //
 // 並びと名前は DxLib のソースパッケージの Windows/DxShader_VS_D3D11.h と同じ(変えないこと)。
-// 各フィールドの意味は 06_D3D11Shader/spec/dxlib_d3d11_shader_spec.md の 8 章。
+// 各フィールドの意味は 06_D3D11Shader/spec/dxlib_d3d11_shader_spec.html の 8 章。
 //
 // 行列は DxLib の MATRIX を転置して入っている。掛け方は dot(float4(座標, 1), 行列[k])(仕様書 7 章)。
 // 自作の定数バッファは b4 以降に置く(b0〜b3 は DxLib が使っている)。

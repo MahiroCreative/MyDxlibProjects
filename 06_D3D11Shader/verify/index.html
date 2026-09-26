@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>verify — 仕様書の検証</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="../course/index.html">DxLib D3D11 シェーダー教材</a><span class="spacer"></span><nav class="doc-nav"><a href="../course/index.html">授業</a><a href="../spec/dxlib_d3d11_shader_spec.html">仕様書</a><a href="../samples/index.html">サンプル</a><a href="../verify/index.html" class="now">検証</a><a href="../reference/index.html">原本</a></nav></div></header>
+<main>
+<div class="hero"><h1>verify — 仕様書の検証</h1></div>
+
+<p>DxLib が自作シェーダー用にセットする定数バッファの中身を、実際に GPU から読み戻して確かめます。</p>
+<pre><code>python verify/run.py
+</code></pre>
+<ul>
+<li>必要なもの: Visual Studio(C++)、SDK(<code>../00_DxLib_VC/</code>)、Python。</li>
+<li>結果: <code>verify/build/results.txt</code>(OK / NG の判定)、<code>verify/build/dump.txt</code>(場面ごとの定数バッファの全フィールド)。</li>
+<li>2026-09-27: 61 項目すべて OK(DxLib 3.24f、Visual Studio 2026)。内訳は定数バッファ(<code>probe/</code>)51 項目と、2D の絵を正射影カメラ + 3D の板で描く方法(<code>ortho2d/</code>。samples/D1 の Camera2D.h とシェーダーをそのまま使う)10 項目。samples/_shared の .hlsli の並びが DxLib と一致することも、この中で確かめている。</li>
+</ul>
+<h2 id="how">しくみ</h2>
+<ol>
+<li>検証用シェーダー(<code>shaders/</code>)が、定数バッファ(<code>uint4</code> の配列として宣言)の 32 ビット 1 個を、32 ビット浮動小数点の画面の 1 画素に書く。下位 16 ビットを R、上位 16 ビットを G に入れる(16 ビットの整数は float で誤差なく表せる)。B は「描いた印」の 0.5。</li>
+<li>頂点シェーダー側のバッファ(b0〜b4)は、<code>DrawPrimitive3DToShader</code> で点を 1 個ずつ描いて読む(<code>DumpVS.hlsl</code>)。ピクセルシェーダー側のバッファ(b0〜b2、b4)は、描画先の全体を覆う板を描いて読む(<code>DumpPS.hlsl</code>。2D と 3D の両方)。</li>
+<li><code>probe/main.cpp</code> が <code>GetPixelF</code> で読み戻してビット列を復元し、DxLib のソースパッケージの構造体(<code>include/</code>。原本の複写)として解釈する。DxLib の関数(<code>GetCameraViewMatrix</code> など)で取れる値や、設定した値から計算した値と比べる。</li>
+</ol>
+<figure>
+<svg viewBox="0 0 760 230" role="img" aria-label="定数バッファを読み戻すしくみ">
+<rect class="d-box" x="10" y="40" width="170" height="110" rx="10"/>
+<text class="b" x="95" y="66" text-anchor="middle">定数バッファ</text>
+<text class="s" x="95" y="88" text-anchor="middle">DxLib がセットした値</text>
+<text class="m s" x="95" y="112" text-anchor="middle">x 番目の 32 ビット</text>
+<text class="m acc" x="95" y="134" text-anchor="middle">v = 0x3F80 0000</text>
+<line class="d-line" x1="184" y1="95" x2="214" y2="95" marker-end="url(#ah)"/>
+<rect class="d-acc" x="218" y="40" width="170" height="110" rx="10"/>
+<text class="b" x="303" y="66" text-anchor="middle">検証用シェーダー</text>
+<text class="s" x="303" y="88" text-anchor="middle">x 番目の画素に書く</text>
+<text class="m s" x="303" y="112" text-anchor="middle">R = v &amp; 0xFFFF</text>
+<text class="m s" x="303" y="132" text-anchor="middle">G = v &gt;&gt; 16, B = 0.5</text>
+<line class="d-line" x1="392" y1="95" x2="422" y2="95" marker-end="url(#ah)"/>
+<rect class="d-box" x="426" y="40" width="150" height="110" rx="10"/>
+<text class="b" x="501" y="66" text-anchor="middle">32 ビット浮動</text>
+<text class="b" x="501" y="86" text-anchor="middle">小数点の画面</text>
+<text class="s" x="501" y="112" text-anchor="middle">16 ビットの整数は</text>
+<text class="s" x="501" y="130" text-anchor="middle">誤差なく入る</text>
+<line class="d-line" x1="580" y1="95" x2="610" y2="95" marker-end="url(#ah)"/>
+<rect class="d-acc2" x="614" y="40" width="136" height="110" rx="10"/>
+<text class="b" x="682" y="66" text-anchor="middle">probe/main.cpp</text>
+<text class="s" x="682" y="88" text-anchor="middle">GetPixelF で読み</text>
+<text class="s" x="682" y="108" text-anchor="middle">v を戻して、DxLib の</text>
+<text class="s" x="682" y="128" text-anchor="middle">構造体として比べる</text>
+<text class="s" x="380" y="190" text-anchor="middle">B の 0.5 は「描いた印」。描かれなかった画素(0)と区別する</text>
+<text class="s" x="380" y="212" text-anchor="middle">頂点シェーダー側の b0〜b4 は点を 1 個ずつ、ピクセルシェーダー側は画面全体を覆う板で読む</text>
+</svg>
+</figure>
+
+<h2>ファイル</h2>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run.py</code></td>
+<td>シェーダーのコンパイル(CP932 に変換 → ShaderCompiler.exe)、ビルド(cl)、実行</td>
+</tr>
+<tr>
+<td><code>probe/main.cpp</code></td>
+<td>場面の設定と判定(定数バッファ)</td>
+</tr>
+<tr>
+<td><code>ortho2d/main.cpp</code></td>
+<td>2D の絵を正射影カメラ + 3D の板で描いたものと、<code>DrawGraph</code> で描いたものを画素単位で比べる(比べた 2 枚は <code>build/ortho2d_&lt;番号&gt;_ref.png</code> / <code>_test.png</code>)</td>
+</tr>
+<tr>
+<td><code>shaders/</code></td>
+<td>検証用シェーダー</td>
+</tr>
+<tr>
+<td><code>include/</code></td>
+<td>DxLib 3.24f のソースパッケージの <code>Windows/DxShader_*_D3D11.h</code> の複写(CP932。変更しない)</td>
+</tr>
+</tbody>
+</table>
+</main>
+</body>
+</html>

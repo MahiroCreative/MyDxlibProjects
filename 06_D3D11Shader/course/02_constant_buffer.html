@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>02 C++ からシェーダーに値を渡す(定数バッファ) — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -104,7 +104,7 @@ SetShaderConstantBuffer( pscb, DX_SHADERTYPE_PIXEL, 4 ) ;             <span clas
 
 <ul>
 <li><code>b4</code> の 4 が、C++ の <code>SetShaderConstantBuffer( …, 4 )</code> の 4。</li>
-<li><strong>0〜3 は DxLib が使っているので、自分の値は 4 から</strong>(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 9 章</a>)。</li>
+<li><strong>0〜3 は DxLib が使っているので、自分の値は 4 から</strong>(<a href="../spec/dxlib_d3d11_shader_spec.html#s9">仕様書 9 章</a>)。</li>
 </ul>
 
 <h2>気をつけること</h2>
@@ -114,7 +114,7 @@ SetShaderConstantBuffer( pscb, DX_SHADERTYPE_PIXEL, 4 ) ;             <span clas
 <li><strong>大きさは 16 バイト(float 4 個)の倍数</strong>。float を 1 個だけ渡したいときも、float4 1 個分(16 バイト)で作る。倍数でないと作れません(-1 が返る)。</li>
 <li>値を 2 つ以上渡すときは、C++ で構造体を作り、HLSL の cbuffer と<strong>同じ順番</strong>で並べる。</li>
 <li>古い解説記事の <code>SetPSConstF</code> / <code>SetVSConstF</code> は Direct3D 9 用で、<strong>Direct3D 11 では何もしません</strong>。</li>
-<li><code>SetDrawBlendMode( DX_BLENDMODE_ALPHA, 128 )</code> の 128(不透明度)は、自分のシェーダーには届きません。不透明度も自分で渡します(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.5</a>)。</li>
+<li><code>SetDrawBlendMode( DX_BLENDMODE_ALPHA, 128 )</code> の 128(不透明度)は、自分のシェーダーには届きません。不透明度も自分で渡します(<a href="../spec/dxlib_d3d11_shader_spec.html#s8-5">仕様書 8.5</a>)。</li>
 </ul>
 </div>
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>09 トゥーン(アニメ調)の陰影 — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -102,7 +102,7 @@ SetUseTextureToShader( 1, GradTexHandle ) ;   <span class="c">// 1 番(t1)に置
 VSOutput.ToonCoords0 = lTotalLightGen ;      <span class="c">// それをテクスチャ座標として渡す</span></code></pre>
 
 <ul>
-<li>スキンメッシュ(アニメーションで体が曲がるモデル)なので、頂点を複数のボーンの行列で動かす処理が前に入っています(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.4</a>)。</li>
+<li>スキンメッシュ(アニメーションで体が曲がるモデル)なので、頂点を複数のボーンの行列で動かす処理が前に入っています(<a href="../spec/dxlib_d3d11_shader_spec.html#s8-4">仕様書 8.4</a>)。</li>
 </ul>
 
 <h3><code>shaders/SkinMesh4_DirLight_ToonPS.hlsl</code></h3>

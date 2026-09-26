@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>10 描画先に描いて、後で使う(鏡・影) — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -135,7 +135,7 @@
 
 <div class="warn">
 <ul>
-<li>描画先に値を書くシェーダーでは、<strong>出力のアルファを 1 にする</strong>。モデルを描くときもアルファが合成に使われるので、0 だと何も書き込まれません(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.5</a>)。</li>
+<li>描画先に値を書くシェーダーでは、<strong>出力のアルファを 1 にする</strong>。モデルを描くときもアルファが合成に使われるので、0 だと何も書き込まれません(<a href="../spec/dxlib_d3d11_shader_spec.html#s8-5">仕様書 8.5</a>)。</li>
 <li><code>SetDrawScreen</code> で描画先を変えると、カメラの設定が元に戻ります。描画先を変えたら、カメラを設定し直します。</li>
 </ul>
 </div>

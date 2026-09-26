@@ -2,7 +2,7 @@
 // DxLibVS.hlsli・DxLibPS.hlsli から読み込まれる。直接 include しなくてよい。
 //
 // 並びと名前は DxLib のソースパッケージの Windows/DxShader_Common_D3D11.h と同じ(変えないこと)。
-// 各フィールドの意味は 06_D3D11Shader/spec/dxlib_d3d11_shader_spec.md の 8.1 章。
+// 各フィールドの意味は 06_D3D11Shader/spec/dxlib_d3d11_shader_spec.html の 8.1 章。
 
 #ifndef DXLIB_COMMON_HLSLI
 #define DXLIB_COMMON_HLSLI

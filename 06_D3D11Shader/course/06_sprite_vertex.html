@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>06 2D の絵を頂点シェーダーで動かす — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -47,7 +47,7 @@
 
 <h2>しくみ</h2>
 
-<p>01〜03 の 2D の描画(<code>DrawPolygon2DToShader</code>)では、<strong>自分の頂点シェーダーは使えません</strong>。DxLib が自分の頂点シェーダーに差し替えてしまいます(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 3.1</a>)。</p>
+<p>01〜03 の 2D の描画(<code>DrawPolygon2DToShader</code>)では、<strong>自分の頂点シェーダーは使えません</strong>。DxLib が自分の頂点シェーダーに差し替えてしまいます(<a href="../spec/dxlib_d3d11_shader_spec.html#s3-1">仕様書 3.1</a>)。</p>
 
 <figure>
 <svg viewBox="0 0 720 200" role="img" aria-label="2D の描画と 3D の描画で使われる頂点シェーダー">
@@ -106,7 +106,7 @@
 <figcaption>横から見た図。点線の間が、カメラに写る範囲です。</figcaption>
 </figure>
 
-<p>こうすると、<code>DrawGraph</code> と 1 画素も違わない絵が、3D の関数で描けます(確かめてあります。<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 3.4</a>)。Unity の 2D も同じ考え方です。</p>
+<p>こうすると、<code>DrawGraph</code> と 1 画素も違わない絵が、3D の関数で描けます(確かめてあります。<a href="../spec/dxlib_d3d11_shader_spec.html#s3-4">仕様書 3.4</a>)。Unity の 2D も同じ考え方です。</p>
 
 <h2>読むところ</h2>
 

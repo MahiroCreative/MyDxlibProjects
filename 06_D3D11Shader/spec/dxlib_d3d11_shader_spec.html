@@ -1,0 +1,1659 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DxLib Direct3D 11 シェーダー仕様書(DxLib 3.24f)</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc wide">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="../course/index.html">DxLib D3D11 シェーダー教材</a><span class="spacer"></span><nav class="doc-nav"><a href="../course/index.html">授業</a><a href="../spec/dxlib_d3d11_shader_spec.html" class="now">仕様書</a><a href="../samples/index.html">サンプル</a><a href="../verify/index.html">検証</a><a href="../reference/index.html">原本</a></nav></div></header>
+<main>
+<div class="hero"><h1>DxLib Direct3D 11 シェーダー仕様書(DxLib 3.24f)</h1></div>
+
+<p>DxLib の公式リファレンスは、Direct3D 11 モードで自作シェーダー(オリジナルシェーダー)に渡される定数を「非公開」としています。
+この文書は、DxLib 3.24f のソースパッケージと実際の描画での確認をもとに、それを Direct3D 9 版のリファレンスと同じ細かさで書き起こしたものです。</p>
+<ul>
+<li>対象: DxLib <strong>3.24f</strong>、Direct3D 11 モード(DxLib の既定)。バージョンが変わったら検証をやり直す。</li>
+<li>根拠の書き方:<ul>
+<li><code>ファイル:行</code> … DxLib ソースパッケージ(<code>05_VSCodeExtention/00_DxLib_Make/DxLibMake/</code>)の中の場所。</li>
+<li><span class="tag ok">検証</span> … <code>verify/</code> の検証プログラムで、実際に DxLib が GPU に渡した値を読み戻して確かめた項目(項目名は <code>verify/build/results.txt</code> と同じ)。</li>
+<li><span class="tag guess">推測</span> … ソースを読んだうえでの推論。確かめていない。</li>
+</ul>
+</li>
+<li>検証のやり直し方: <code>python verify/run.py</code>(全 61 項目。2026-09-27 に全項目 OK)。</li>
+</ul>
+<details class="toc" open><summary>目次</summary><ol>
+<li><a href="#s1">1. はじめに: なぜ 2D と 3D でピクセルシェーダーの入力の並びが違うのか</a>
+</li>
+<li><a href="#s2">2. 早見表(これだけは守る)</a>
+</li>
+<li><a href="#s3">3. 描画関数ごとに使われる頂点シェーダーと、ピクセルシェーダーの入力</a>
+<ol>
+<li><a href="#s3-1">3.1 2D: DrawPrimitive2DToShader / DrawPolygon2DToShader / それぞれの Indexed 版</a></li>
+<li><a href="#s3-2">3.2 3D: DrawPrimitive3DToShader / DrawPolygon3DToShader / Indexed 版 / 頂点バッファ版</a></li>
+<li><a href="#s3-3">3.3 MV1 のモデル: MV1SetUseOrigShader(TRUE) のときの MV1DrawModel など</a></li>
+<li><a href="#s3-4">3.4 2D の絵に自作の頂点シェーダーを使う方法(正射影カメラ + 3D の板)</a></li>
+</ol></li>
+<li><a href="#s4">4. シェーダーの作り方</a>
+</li>
+<li><a href="#s5">5. 頂点シェーダーの入力</a>
+<ol>
+<li><a href="#s5-1">5.1 VERTEX3DSHADER(3D の ToShader 描画)</a></li>
+<li><a href="#s5-2">5.2 VERTEX2DSHADER(2D の ToShader 描画)</a></li>
+<li><a href="#s5-3">5.3 MV1 のモデル</a></li>
+</ol></li>
+<li><a href="#s6">6. 定数バッファの一覧</a>
+</li>
+<li><a href="#s7">7. 行列の読み方</a>
+</li>
+<li><a href="#s8">8. DxLib がセットする定数</a>
+<ol>
+<li><a href="#s8-1">8.1 頂点 b0 / ピクセル b0: 共通(DX_D3D11_CONST_BUFFER_COMMON)</a></li>
+<li><a href="#s8-2">8.2 頂点 b1: 基本(DX_D3D11_VS_CONST_BUFFER_BASE)</a></li>
+<li><a href="#s8-3">8.3 頂点 b2: その他の行列(DX_D3D11_VS_CONST_BUFFER_OTHERMATRIX)</a></li>
+<li><a href="#s8-4">8.4 頂点 b3: スキンメッシュのボーン行列(DX_D3D11_VS_CONST_BUFFER_LOCALWORLDMATRIX)</a></li>
+<li><a href="#s8-5">8.5 ピクセル b1: 基本(DX_D3D11_PS_CONST_BUFFER_BASE)</a></li>
+<li><a href="#s8-6">8.6 ピクセル b2: シャドウマップ(DX_D3D11_PS_CONST_BUFFER_SHADOWMAP)</a></li>
+</ol></li>
+<li><a href="#s9">9. 自分の値を渡す: 自作の定数バッファ</a>
+</li>
+<li><a href="#s10">10. テクスチャとサンプラー</a>
+<ol>
+<li><a href="#s10-1">10.1 ToShader の描画(2D・3D)</a></li>
+<li><a href="#s10-2">10.2 MV1 の描画(MV1SetUseOrigShader(TRUE))</a></li>
+<li><a href="#s10-3">10.3 画面の色のビット数と法線マップ</a></li>
+</ol></li>
+<li><a href="#s11">11. 描画先</a>
+</li>
+<li><a href="#s12">12. Direct3D 9 版から移植するときの対応表</a>
+<ol>
+<li><a href="#s12-1">12.1 頂点シェーダー</a></li>
+<li><a href="#s12-2">12.2 ピクセルシェーダー</a></li>
+<li><a href="#s12-3">12.3 書き方の違い</a></li>
+</ol></li>
+<li><a href="#s13">13. 未確認の事項</a>
+</li>
+</ol></details>
+<hr />
+<h2 id="s1">1. はじめに: なぜ 2D と 3D でピクセルシェーダーの入力の並びが違うのか</h2>
+<p>Direct3D 11 モードで自作のピクセルシェーダーを書くと、最初に次のことでつまずきます。</p>
+<ul>
+<li><code>DrawPrimitive2DToShader</code>(2D)のピクセルシェーダーは、入力を <code>SV_POSITION, COLOR0, COLOR1, TEXCOORD0, TEXCOORD1</code> の順に書かないと正しく動かない。</li>
+<li><code>DrawPolygon3DToShader</code>(3D、頂点シェーダーを指定しないとき)は、<code>SV_POSITION, COLOR0, TEXCOORD0, TEXCOORD1</code> の順(<code>COLOR1</code> が無い)。</li>
+<li>並びを間違えてもエラーは出ず、色やテクスチャ座標がずれるか、何も描かれないだけ。</li>
+</ul>
+<p>こうなっている経緯は次のとおりです。</p>
+<ol>
+<li><strong>Direct3D 9 版の 2D 描画は、頂点シェーダーを使っていなかった。</strong> 頂点(<code>VERTEX2DSHADER</code> の <code>pos</code> と <code>rhw</code>)は変換済みの座標としてそのまま Direct3D 9 に渡されていた(<code>Windows/DxGraphicsD3D9.cpp:25080-25097</code>)。</li>
+<li><strong>Direct3D 11 には「頂点シェーダー無しの描画」が無い。</strong> そこで DxLib は、Direct3D 9 の動きを真似る内蔵の頂点シェーダー <code>VS_Shader2D</code> を 2D 描画に必ず使う。自作の頂点シェーダーを設定していても、2D の描画ではこの内蔵シェーダーで上書きされる(<code>Windows/DxGraphicsD3D11.cpp:14229-14240</code>)。<span class="tag ok">検証</span> <span class="vname">2D ToShader ignores user vertex shader</span></li>
+<li>Direct3D 9 は頂点シェーダーが無いとき、頂点のスペキュラー色をピクセルシェーダーに自動で渡していた。<code>VS_Shader2D</code> もそれに合わせて <code>COLOR1</code> を出力する(<code>Shader/Windows/Direct3D11/Base/Base_2D_VS.hlsl:95-102</code>)。</li>
+<li>3D で頂点シェーダーを指定しないときに使われる <code>VS3D_Normal</code> は、座標変換だけの簡易版で、<code>COLOR1</code> を出力しない(<code>Shader/Windows/Direct3D11/Base/Base_3D_Simple_VS.hlsl:37-43</code>)。<span class="tag guess">推測</span>: 作者が 2D ほど互換性を重視しなかったため。</li>
+<li><strong>Direct3D 9 のピクセルシェーダーの入力は、名前(セマンティクス)で結び付いていたので、並びは関係なかった。</strong> Direct3D 10 以降は、頂点シェーダーの出力とピクセルシェーダーの入力が<strong>並び(レジスタの位置)で</strong>結び付く(Direct3D の一般的な仕様)。</li>
+<li>DxLib は Direct3D 9 時代の使い方(「ピクセルシェーダーだけ自作する」)のまま Direct3D 11 に対応したので、<strong>「内蔵の頂点シェーダーの出力と同じ順番で入力を書く」という、どこにも書かれていない決まり</strong>が生まれた。</li>
+</ol>
+<p>2D と 3D で並びが違うのはこのためです。DxLib の仕様として受け入れ、この文書の 3 章の表どおりに書いてください。</p>
+<figure>
+<svg viewBox="0 0 720 290" role="img" aria-label="2D と 3D の内蔵頂点シェーダーの出力の並び">
+<text class="b" x="175" y="22" text-anchor="middle">2D(DrawPrimitive2DToShader など)</text>
+<text class="b" x="545" y="22" text-anchor="middle">3D(自作の頂点シェーダー無し)</text>
+<text class="s" x="85" y="52" text-anchor="middle">VS_Shader2D の出力</text>
+<text class="s" x="265" y="52" text-anchor="middle">PS_INPUT(この順)</text>
+<text class="s" x="455" y="52" text-anchor="middle">VS3D_Normal の出力</text>
+<text class="s" x="635" y="52" text-anchor="middle">PS_INPUT(この順)</text>
+<rect class="d-box" x="20" y="62" width="130" height="28" rx="5"/><text class="m" x="85" y="81" text-anchor="middle">SV_POSITION</text>
+<rect class="d-box" x="20" y="98" width="130" height="28" rx="5"/><text class="m" x="85" y="117" text-anchor="middle">COLOR0</text>
+<rect class="d-acc2" x="20" y="134" width="130" height="28" rx="5"/><text class="m" x="85" y="153" text-anchor="middle">COLOR1</text>
+<rect class="d-box" x="20" y="170" width="130" height="28" rx="5"/><text class="m" x="85" y="189" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-box" x="20" y="206" width="130" height="28" rx="5"/><text class="m" x="85" y="225" text-anchor="middle">TEXCOORD1</text>
+<rect class="d-acc" x="200" y="62" width="130" height="28" rx="5"/><text class="m" x="265" y="81" text-anchor="middle">SV_POSITION</text>
+<rect class="d-acc" x="200" y="98" width="130" height="28" rx="5"/><text class="m" x="265" y="117" text-anchor="middle">COLOR0</text>
+<rect class="d-acc2" x="200" y="134" width="130" height="28" rx="5"/><text class="m" x="265" y="153" text-anchor="middle">COLOR1</text>
+<rect class="d-acc" x="200" y="170" width="130" height="28" rx="5"/><text class="m" x="265" y="189" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-acc" x="200" y="206" width="130" height="28" rx="5"/><text class="m" x="265" y="225" text-anchor="middle">TEXCOORD1</text>
+<line class="d-line" x1="150" y1="76" x2="198" y2="76"/><line class="d-line" x1="150" y1="112" x2="198" y2="112"/><line class="d-acc2-line" x1="150" y1="148" x2="198" y2="148"/><line class="d-line" x1="150" y1="184" x2="198" y2="184"/><line class="d-line" x1="150" y1="220" x2="198" y2="220"/>
+
+<rect class="d-box" x="390" y="62" width="130" height="28" rx="5"/><text class="m" x="455" y="81" text-anchor="middle">SV_POSITION</text>
+<rect class="d-box" x="390" y="98" width="130" height="28" rx="5"/><text class="m" x="455" y="117" text-anchor="middle">COLOR0</text>
+<rect class="d-box" x="390" y="134" width="130" height="28" rx="5"/><text class="m" x="455" y="153" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-box" x="390" y="170" width="130" height="28" rx="5"/><text class="m" x="455" y="189" text-anchor="middle">TEXCOORD1</text>
+<rect class="d-acc" x="570" y="62" width="130" height="28" rx="5"/><text class="m" x="635" y="81" text-anchor="middle">SV_POSITION</text>
+<rect class="d-acc" x="570" y="98" width="130" height="28" rx="5"/><text class="m" x="635" y="117" text-anchor="middle">COLOR0</text>
+<rect class="d-acc" x="570" y="134" width="130" height="28" rx="5"/><text class="m" x="635" y="153" text-anchor="middle">TEXCOORD0</text>
+<rect class="d-acc" x="570" y="170" width="130" height="28" rx="5"/><text class="m" x="635" y="189" text-anchor="middle">TEXCOORD1</text>
+<line class="d-line" x1="520" y1="76" x2="568" y2="76"/><line class="d-line" x1="520" y1="112" x2="568" y2="112"/><line class="d-line" x1="520" y1="148" x2="568" y2="148"/><line class="d-line" x1="520" y1="184" x2="568" y2="184"/>
+<text class="s acc2" x="545" y="226" text-anchor="middle">COLOR1(スペキュラー)が無い</text>
+<text class="s" x="360" y="270" text-anchor="middle">Direct3D 10 以降は、頂点シェーダーの出力とピクセルシェーダーの入力が「名前」ではなく「並び」で結び付く</text>
+</svg>
+<figcaption>同じ <code>PS_INPUT</code> を 2D と 3D の両方に使うと、どちらかで 3 番目以降がずれます。</figcaption>
+</figure>
+
+<hr />
+<h2 id="s2">2. 早見表(これだけは守る)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>決まり</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>コンパイルは <code>vs_4_0</code> / <code>ps_4_0</code>。SDK の <code>Tool/ShaderCompiler/ShaderCompiler.exe</code> で <code>/Tvs_4_0</code> <code>/Tps_4_0</code>。ソースは CP932 で渡す</td>
+<td><a href="#s4">4 章</a></td>
+</tr>
+<tr>
+<td>2</td>
+<td>2D(<code>DrawPrimitive2DToShader</code> など)で使えるのはピクセルシェーダーだけ。頂点シェーダーは常に内蔵の <code>VS_Shader2D</code></td>
+<td><span class="tag ok">検証</span> 2D ToShader ignores user vertex shader</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ピクセルシェーダーの入力は、使われる頂点シェーダーの出力と<strong>同じ順番</strong>で書く(3 章の表)</td>
+<td><a href="#s1">1 章</a></td>
+</tr>
+<tr>
+<td>4</td>
+<td>自作の頂点シェーダーの入力は、DxLib の内蔵シェーダーと<strong>同じ要素・同じ順番・同じ型</strong>で全部書く(5 章)。1 つでも違うと何も描かれない(エラーも出ない)</td>
+<td><a href="#s5-1">5.1</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td>MV1 のモデルを自作シェーダーで描くときは、頂点シェーダーとピクセルシェーダーの<strong>両方</strong>を設定する</td>
+<td><a href="#s3-3">3.3</a></td>
+</tr>
+<tr>
+<td>6</td>
+<td>行列は DxLib の <code>MATRIX</code> を<strong>転置</strong>して入っている。<code>dot(float4(座標, 1), 行)</code> で掛ける</td>
+<td><a href="#s7">7 章</a></td>
+</tr>
+<tr>
+<td>7</td>
+<td>ライトの位置と方向は<strong>ビュー空間</strong>。有効なライトだけが「ディレクショナル → スポット → ポイント」の順に詰めて入る</td>
+<td><span class="tag ok">検証</span> Light.order</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>Light[i].Type</code> が 0 以外でも、そのライトが有効とは限らない。有効なライトの数が要るなら自分の定数バッファで渡す</td>
+<td><span class="tag ok">検証</span> Light.Type of unused slots</td>
+</tr>
+<tr>
+<td>9</td>
+<td>自作シェーダーの描画では <code>FactorColor</code>(不透明度)は更新されない。D3D9 版サンプルのように <code>FactorColor.a</code> を掛けると、透明になって何も見えないことがある</td>
+<td><span class="tag ok">検証</span> PS.b1.FactorColor not updated</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>Fog.Mode</code> は描画の順番で変わってしまう。フォグの種類はシェーダーを作り分けるか、自分の定数バッファで渡す</td>
+<td><span class="tag ok">検証</span> Fog.Mode unreliable</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>SetVSConstF</code> / <code>SetPSConstF</code> などは Direct3D 11 では何もしない。自分の値は <code>CreateShaderConstantBuffer</code> で作った定数バッファを <strong>b4 以降</strong>に置いて渡す</td>
+<td><a href="#s9">9 章</a></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>SetUseTextureToShader</code> のステージ番号は 0 から詰めて使う(間を空けない)</td>
+<td><a href="#s10-1">10.1</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="s3">3. 描画関数ごとに使われる頂点シェーダーと、ピクセルシェーダーの入力</h2>
+<p>準備処理は <code>Graphics_D3D11_DrawPreparationToShader</code>(<code>Windows/DxGraphicsD3D11.cpp:23425-23514</code>)。自作の頂点シェーダーが設定されていなければ内蔵のものを入れる(<code>:23493-23500</code>)。
+<code>SetUseVertexShader(-1)</code> などで「設定なし」にできる(<code>DxGraphics.cpp:23061-23073</code>)。</p>
+<figure>
+<svg viewBox="0 0 760 300" role="img" aria-label="描画関数ごとに使われる頂点シェーダー">
+<text class="s b" x="10" y="20">描画</text>
+<text class="s b" x="262" y="20">使われる頂点シェーダー</text>
+<text class="s b" x="512" y="20">ピクセルシェーダーの入力</text>
+
+<text class="m" x="10" y="56">DrawPrimitive2DToShader など</text>
+<rect class="d-box" x="250" y="34" width="240" height="40" rx="8"/>
+<text x="262" y="52">内蔵の VS_Shader2D</text><text class="s acc2" x="262" y="68">自作を設定していても使われない</text>
+<rect class="d-box" x="510" y="34" width="240" height="40" rx="8"/>
+<text class="s" x="522" y="52">5 個(3.1)</text><text class="m s" x="522" y="68">POS, COLOR0, COLOR1, TEX0, TEX1</text>
+
+<text class="m" x="10" y="112">DrawPolygon3DToShader など</text><text class="s" x="10" y="130">(自作の頂点シェーダー無し)</text>
+<rect class="d-box" x="250" y="96" width="240" height="40" rx="8"/>
+<text x="262" y="114">内蔵の VS3D_Normal</text><text class="s" x="262" y="130">座標の変換だけ。ライトなし</text>
+<rect class="d-box" x="510" y="96" width="240" height="40" rx="8"/>
+<text class="s" x="522" y="114">4 個(3.2)</text><text class="m s" x="522" y="130">POS, COLOR0, TEX0, TEX1</text>
+
+<text class="m" x="10" y="174">DrawPolygon3DToShader など</text><text class="s" x="10" y="192">(自作の頂点シェーダーあり)</text>
+<rect class="d-acc" x="250" y="158" width="240" height="40" rx="8"/>
+<text x="262" y="176">自作の頂点シェーダー</text><text class="s" x="262" y="192">入力は 5.1 の 9 要素</text>
+<rect class="d-acc" x="510" y="158" width="240" height="40" rx="8"/>
+<text class="s" x="522" y="183">自作の頂点シェーダーの出力に合わせる</text>
+
+<text class="m" x="10" y="236">MV1DrawModel など</text><text class="s" x="10" y="254">(MV1SetUseOrigShader( TRUE ))</text>
+<rect class="d-acc2" x="250" y="220" width="240" height="40" rx="8"/>
+<text x="262" y="238">自作が必須</text><text class="s" x="262" y="254">無いと何も設定されない(3.3)</text>
+<rect class="d-acc" x="510" y="220" width="240" height="40" rx="8"/>
+<text class="s" x="522" y="245">自作の頂点シェーダーの出力に合わせる</text>
+<text class="s" x="380" y="290" text-anchor="middle">2D で頂点を動かしたいときは、3D の板として描く(3.4)</text>
+</svg>
+</figure>
+
+<h3 id="s3-1">3.1 2D: <code>DrawPrimitive2DToShader</code> / <code>DrawPolygon2DToShader</code> / それぞれの Indexed 版</h3>
+<ul>
+<li><strong>頂点シェーダー</strong>: 自作のものを設定していてもいなくても、内蔵の <code>VS_Shader2D</code>(<code>Base_2D_VS.hlsl</code> のエントリ <code>VS_Shader2D</code>)。<ul>
+<li>描画の直前に上書きされる。<code>Graphics_D3D11_CommonBuffer_DrawPrimitive</code> を第 5 引数 <code>UseDefaultVertexShader</code> 省略(既定 TRUE)で呼んでいるため(<code>Windows/DxGraphicsD3D11.cpp:23531-23536</code>、既定値 <code>Windows/DxGraphicsD3D11.h:1536-1537</code>、上書き <code>Windows/DxGraphicsD3D11.cpp:14229-14240</code>、Indexed 版 <code>:14337-14348</code>)。</li>
+<li><code>DrawPolygon2DToShader</code> は <code>DrawPrimitive2DToShader</code> を TRIANGLELIST で呼ぶだけ(<code>DxGraphics.cpp:23617-23638</code>)。</li>
+</ul>
+</li>
+<li><code>VS_Shader2D</code> の処理(<code>Base_2D_VS.hlsl:105-129</code>): <code>w = 1/rhw</code> として xyz に w を掛け、<code>ProjectionMatrix</code>(2D 用。8.1)を掛ける。色・テクスチャ座標はそのまま渡す。<code>rhw</code> は通常 1.0f にする(0 だと座標が無限大になる)。</li>
+<li><strong>ピクセルシェーダーの入力</strong>(この順で書く):</li>
+</ul>
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct PS_INPUT
+{
+    float4 Position   : SV_POSITION;    <span class="c">// 画面上の座標(ピクセルの中心は +0.5)</span>
+    float4 Diffuse    : COLOR0;     <span class="c">// VERTEX2DSHADER の dif</span>
+    float4 Specular   : COLOR1;     <span class="c">// VERTEX2DSHADER の spc</span>
+    float2 TexCoords0 : TEXCOORD0;  <span class="c">// VERTEX2DSHADER の u, v</span>
+    float2 TexCoords1 : TEXCOORD1;  <span class="c">// VERTEX2DSHADER の su, sv</span>
+};
+</code></pre>
+<ul>
+<li>2D の描画では、ライトとフォグの定数は更新されない(準備のフラグが 0。<code>Windows/DxGraphicsD3D11.cpp:23528</code>)。2D のピクセルシェーダーでライトやフォグの定数を読んでも、最後に 3D を描いたときの値が残っているだけ。</li>
+</ul>
+<h3 id="s3-2">3.2 3D: <code>DrawPrimitive3DToShader</code> / <code>DrawPolygon3DToShader</code> / Indexed 版 / 頂点バッファ版</h3>
+<ul>
+<li><strong>自作の頂点シェーダーを設定した場合</strong>: それがそのまま使われる(<code>UseDefaultVertexShader = FALSE</code> で呼ぶ。<code>Windows/DxGraphicsD3D11.cpp:23561-23567, 23650-23659, 23684-23693</code>)。ピクセルシェーダーの入力は、自作の頂点シェーダーの出力に合わせる。</li>
+<li><strong>設定しない場合</strong>: 内蔵の <code>VS3D_Normal</code>(<code>Base_3D_Simple_VS.hlsl</code>、<code>USE_VERTEX3DSHADER=1</code> でコンパイルしたもの。<code>Windows/DxGraphicsD3D11.cpp:2380-2391</code>)。<ul>
+<li>処理(<code>Base_3D_Simple_VS.hlsl:56-95</code>): ローカル → ワールド → ビュー → 射影の変換だけ。ライティングはしない。頂点の <code>dif</code> をそのまま出す。両方のテクスチャ座標に <code>TextureMatrix[0]</code> を掛ける。</li>
+</ul>
+</li>
+<li><strong>ピクセルシェーダーの入力</strong>(頂点シェーダーを設定しないとき。この順で書く):</li>
+</ul>
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct PS_INPUT
+{
+    float4 Position   : SV_POSITION;
+    float4 Diffuse    : COLOR0;     <span class="c">// VERTEX3DSHADER の dif(ライティングなし)</span>
+    float2 TexCoords0 : TEXCOORD0;  <span class="c">// VERTEX3DSHADER の u, v(TextureMatrix[0] で変換済み)</span>
+    float2 TexCoords1 : TEXCOORD1;  <span class="c">// VERTEX3DSHADER の su, sv(同上)</span>
+};  <span class="c">// COLOR1(スペキュラー)は無い</span>
+</code></pre>
+<ul>
+<li>3D の描画では、描画の直前にライト・フォグ・行列が定数バッファに反映される(<code>Windows/DxGraphicsD3D11.cpp:23554-23558, 23643-23647</code>)。</li>
+<li>2D と 3D の入力の並びが違うことは、拡張機能の自動検証(<code>05_VSCodeExtention/extension/test/shader-runtime/</code>)で描画して確かめてある。</li>
+</ul>
+<h3 id="s3-3">3.3 MV1 のモデル: <code>MV1SetUseOrigShader(TRUE)</code> のときの <code>MV1DrawModel</code> など</h3>
+<ul>
+<li><strong>自作の頂点シェーダーを設定した場合</strong>: それが使われる(<code>Windows/DxModelD3D11.cpp:2918-2924</code>)。入力の並びは 5.3 の MV1 の形式。</li>
+<li><strong>設定しない場合</strong>: DxLib は頂点シェーダーを<strong>何も設定しない</strong>(<code>Windows/DxModelD3D11.cpp:2911-2944</code>。ハンドルが 0 以下なら何もしない分岐しか無い)。<span class="tag guess">推測</span>: 直前の描画(たとえば <code>DrawGraph</code>)の頂点シェーダーが残り、入力の形式が合わないので描かれないか、おかしな絵になる。ピクセルシェーダーも同じ作り(<code>:2936-2942</code>)。</li>
+<li>したがって <strong>MV1 では頂点シェーダーとピクセルシェーダーの両方を自作して設定する</strong>。ピクセルシェーダーの入力は自作の頂点シェーダーの出力に合わせる。</li>
+<li>プリミティブは三角形リストで固定(<code>Windows/DxModelD3D11.cpp:3609</code>)。</li>
+<li>頂点が 9 個以上のボーンの影響を受けるメッシュ(<code>DX_MV1_VERTEX_TYPE_FREE_FRAME</code>)は、CPU で変形してワールド座標にした頂点を、剛体メッシュの形式で渡す。このとき <code>LocalWorldMatrix</code> は単位行列(<code>Windows/DxModelD3D11.cpp:2488-2492, 3833-3840</code>)。</li>
+<li><code>SetUseLarge3DPositionSupport(TRUE)</code> にすると、行列の意味が変わる(ワールド行列にビュー行列が掛け込まれ、ビュー行列が単位行列になる。<code>Windows/DxModelD3D11.cpp:3072-3086, 3155-3169</code>)。<strong>この文書は Large3D を使わない前提。</strong></li>
+</ul>
+<h3 id="s3-4">3.4 2D の絵に自作の頂点シェーダーを使う方法(正射影カメラ + 3D の板)</h3>
+<p>2D の描画では自作の頂点シェーダーが使えない(3.1)。頂点を動かしたい 2D の絵(旗・スライムの揺れなど)は、カメラを「正射影・画面の画素と 3D の座標が 1 対 1」にして、3D の板として <code>DrawPolygon3DToShader</code> で描けば、2D と同じ見た目のまま自作の頂点シェーダーが使える(Unity の 2D と同じ考え方)。実装は <code>samples/D1_Sprite2DVertexShader</code>(<code>src/Camera2D.h</code> の <code>SetupCamera2D</code> と <code>MakeSpriteGrid</code>)。</p>
+<ul>
+<li>カメラ: <code>SetupCamera_Ortho( 画面の高さ )</code>、<code>SetCameraNearFar( 1, 1000 )</code>、<code>SetCameraPositionAndTargetAndUpVec( ( 幅/2, 高さ/2, 500 ), ( 幅/2, 高さ/2, 0 ), ( 0, -1, 0 ) )</code>。<ul>
+<li><strong>+z 側から −z の向きを見て、上方向を −y にする。</strong> x は右・y は下で、<code>DrawGraph</code> と同じ向きになる。<span class="tag guess">推測</span>(計算による。描画で確かめたのは +z 側から見る形だけ): −z 側から +z の向きを見ると、左右が反対になる(DxLib のビュー行列は左手系で、右の向き = 上方向 × 見る向き)。</li>
+<li><code>SetDrawScreen</code> はカメラの設定を元に戻すので、<code>SetDrawScreen</code> の後に毎回設定する。</li>
+</ul>
+</li>
+<li>板の頂点の座標は画面の画素の座標(z = 0)。頂点シェーダーで形を変えるなら、板をマス目に分けて頂点を増やす(4 隅だけでは曲げられない)。</li>
+<li><strong>確かめたこと</strong>(<code>verify/</code> の ortho2d。<code>DrawGraph</code> / <code>DrawExtendGraph</code> で描いた絵と画素単位で比べた):<ul>
+<li>補間なしで、等倍も 4 倍も完全に一致した(位置・向き・ドット絵のにじみ無し)。<span class="tag ok">検証</span> <span class="vname">ortho2d/same as DrawGraph (1x, nearest)</span>、<span class="vname">ortho2d/same as DrawExtendGraph (4x, nearest)</span></li>
+<li>補間あり(<code>DX_DRAWMODE_BILINEAR</code>)の 4 倍も完全に一致した(透過色の無い画像)。<span class="tag ok">検証</span> <span class="vname">ortho2d/same as DrawExtendGraph (4x, bilinear, no transparent color)</span></li>
+<li><code>SetDrawBlendMode( DX_BLENDMODE_ALPHA, … )</code> の合成の方法は効く(アルファ付きの画像の半透明が一致)。不透明度(2 番目の引数)はシェーダーに届かないので、頂点の色のアルファで渡すと <code>SetDrawBlendMode( DX_BLENDMODE_ALPHA, 128 )</code> と一致した。<span class="tag ok">検証</span> <span class="vname">ortho2d/alpha blend…</span>、<span class="vname">ortho2d/opacity by vertex alpha…</span></li>
+<li>この描画の後も、ふつうの <code>DrawGraph</code> はそのまま使える。<span class="tag ok">検証</span> <span class="vname">ortho2d/DrawGraph after ortho drawing is unchanged</span></li>
+</ul>
+</li>
+<li><strong>透過色</strong>: <code>DrawGraph( x, y, 画像, TRUE )</code> と同じく透過色(既定は黒)の画素を描かないようにするには、ピクセルシェーダーで <code>clip( 色.a - 0.5f / 255.0f )</code> とする。<code>LoadGraph</code> で読み込んだ画像の透過色の画素はアルファが 0 になっている。これが無いと、合成の方法が NOBLEND(既定)のとき、透過色の画素が黒く描かれた。</li>
+<li><strong>知っておくこと</strong>: 透過色のある画像を補間ありで拡大すると、縁が <code>DrawExtendGraph</code> と違う(自作のシェーダーでは透過色の画素の黒が補間に混ざり、縁に黒い線が出る)。<span class="tag ok">検証</span> <span class="vname">ortho2d/KNOWN: transparent-color edges differ…</span> ドット絵は補間なしで描くか、透過色ではなくアルファ付きの画像(PNG など)を使う。</li>
+</ul>
+<figure>
+<div class="row">
+<div><img class="px" src="images/ortho_nearest_ref.png" width="220" alt="">DrawExtendGraph(4 倍・補間なし)</div>
+<div class="arrow">=</div>
+<div><img class="px" src="images/ortho_nearest_test.png" width="220" alt="">正射影カメラ + 3D の板 + 自作シェーダー</div>
+<div><img class="px" src="images/ortho_wave.png" width="200" alt="">同じ描き方で、頂点シェーダーで波打たせたもの</div>
+</div>
+<figcaption>左の 2 枚は画素単位で完全に一致しました(<code>verify/</code> の ortho2d。<code>python spec/make_images.py</code> で検証の画像から切り出し)。</figcaption>
+</figure>
+
+<figure>
+<div class="row">
+<div><img class="px" src="images/ortho_edge_ref.png" width="200" alt="">DrawExtendGraph(補間あり)</div>
+<div><img class="px" src="images/ortho_edge_test.png" width="200" alt="">自作シェーダー(補間あり)</div>
+</div>
+<figcaption>既知の違い: 透過色のある画像を補間ありで拡大したときの縁(目のまわりを 5 倍に拡大)。自作シェーダーでは透過色の黒が補間に混ざり、縁に黒い線が出ます。</figcaption>
+</figure>
+
+<hr />
+<h2 id="s4">4. シェーダーの作り方</h2>
+<ul>
+<li><strong>プロファイル</strong>: <code>vs_4_0</code> / <code>ps_4_0</code>。DxLib が自分のシェーダーを実行時にコンパイルするときも <code>vs_4_0</code> / <code>ps_4_0</code> を使う(<code>Windows/DxGraphicsD3D11.cpp:2256, 2285</code>)。<ul>
+<li>既定のデバイスは機能レベル 11_1 / 11_0 だけを要求して作られる(<code>Windows/DxGraphicsAPIWin.cpp:2325-2356</code>)。<code>SetUseDirect3D11MinFeatureLevel</code> を使ったときだけ 10_x / 9_x も候補に入る。</li>
+<li><span class="tag guess">推測</span>: 既定の機能レベル 11 なら <code>vs_5_0</code> / <code>ps_5_0</code> も動くが、DxLib に合わせて 4.0 を使う。DxLib にはコンピュートシェーダーなど 5.0 でしか使えない機能の公開 API が無い。</li>
+</ul>
+</li>
+<li><strong>コンパイラ</strong>: SDK の <code>Tool/ShaderCompiler/ShaderCompiler.exe</code>。オプションは <code>/T&lt;プロファイル&gt;</code> <code>/Fo&lt;出力&gt;</code> <code>/E&lt;エントリ&gt;</code> <code>/D&lt;名前&gt;=&lt;値&gt;</code>。<ul>
+<li><strong>CP932 のソースしか読めない</strong>。UTF-8 で書いたソースは CP932 に変換してから渡す(CP932 に無い文字があると失敗する)。</li>
+<li>Git Bash から呼ぶときは <code>MSYS2_ARG_CONV_EXCL='*'</code> を付ける(<code>/Tps_4_0</code> がパスに変換されてしまう)。</li>
+</ul>
+</li>
+<li><strong>読み込み</strong>: <code>LoadVertexShader("xxx.vso")</code> / <code>LoadPixelShader("xxx.pso")</code>。<strong>Direct3D 9 用にコンパイルしたもの(<code>vs_2_0</code> など)は読めない</strong>。</li>
+<li><strong>Direct3D のバージョンの確認</strong>: <code>GetUseDirect3DVersion() == DX_DIRECT3D_11</code>(値は 3)。<span class="tag ok">検証</span> <span class="vname">direct3d11</span></li>
+<li><strong>DxLib の定数バッファの宣言</strong>は、ソースパッケージの <code>Shader/Windows/Direct3D11/VertexShader.h</code> / <code>PixelShader.h</code>(と、それが読む <code>Windows/DxShader_*_D3D11.h</code>、<code>Shader/Windows/Direct3D11/DataType.h</code>)をそのまま <code>#include</code> するのがいちばん安全。C++ と同じ構造体なので、並びとパディングが必ず一致する。</li>
+</ul>
+<hr />
+<h2 id="s5">5. 頂点シェーダーの入力</h2>
+<p><strong>入力の形式(入力レイアウト)は、自作の頂点シェーダーからではなく、DxLib の内蔵の頂点シェーダーから作られる。</strong></p>
+<ul>
+<li>標準の描画用: <code>Windows/DxGraphicsD3D11.cpp:13861</code>(内蔵の <code>BaseSimple_VS</code> のバイナリで <code>CreateInputLayout</code>)。</li>
+<li>MV1 用: <code>Windows/DxGraphicsD3D11.cpp:14051, 14073</code>(内蔵の <code>MV1_VertexLighting_VS</code> のバイナリで作る)。</li>
+<li>自作の頂点シェーダーを読み込むときは、頂点シェーダーを作るだけで入力レイアウトは作らない(<code>Windows/DxGraphicsD3D11.cpp:28919</code>)。形式が合っているかの確認もしない(<code>:11808-11826</code>)。</li>
+</ul>
+<p><span class="tag guess">推測</span>: Direct3D 11 は描画のときに、頂点シェーダーの入力と入力レイアウトの対応を確かめ、合わなければその描画を捨てる。そのため<strong>内蔵の頂点シェーダーと同じ要素・同じ順番・同じ型</strong>で入力を書かないと、エラーも出ずに何も描かれない(実際に、要素を省くと何も描かれないことを確かめてある)。</p>
+<h3 id="s5-1">5.1 <code>VERTEX3DSHADER</code>(3D の ToShader 描画)</h3>
+<p>入力レイアウト: <code>Windows/DxGraphicsD3D11.cpp:559-575</code>。構造体: <code>DxLib.h:1399-1410</code>。1 頂点 88 バイト。</p>
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct VS_INPUT
+{
+    float3 Position    : POSITION0; <span class="c">// pos</span>
+    float4 SubPosition : POSITION1; <span class="c">// spos</span>
+    float3 Normal      : NORMAL0;   <span class="c">// norm</span>
+    float3 Tangent     : TANGENT0;  <span class="c">// tan</span>
+    float3 Binormal    : BINORMAL0; <span class="c">// binorm</span>
+    float4 Diffuse     : COLOR0;    <span class="c">// dif(0〜1 の float4 で届く)</span>
+    float4 Specular    : COLOR1;    <span class="c">// spc</span>
+    float2 TexCoords0  : TEXCOORD0; <span class="c">// u, v</span>
+    float2 TexCoords1  : TEXCOORD1; <span class="c">// su, sv</span>
+};
+</code></pre>
+<ul>
+<li>使わない要素も省かずに書く。</li>
+<li><code>Position</code> は <strong>float3</strong>(Direct3D 9 版のヘルプの例は float4)。</li>
+<li>色は機能レベル 10 以上では BGRA の形式で渡されるので、<code>COLOR_U8</code> の r, g, b, a がそのまま届く(<code>Windows/DxGraphicsD3D11.cpp:13848-13856</code>、<code>:7283, 7305, 7337</code>)。<span class="tag guess">推測</span>: 機能レベル 9.x の PC では赤と青が入れ替わる。</li>
+</ul>
+<h3 id="s5-2">5.2 <code>VERTEX2DSHADER</code>(2D の ToShader 描画)</h3>
+<p>2D では自作の頂点シェーダーは使われない(3.1)。参考として内蔵の <code>VS_Shader2D</code> への入力を書いておく(<code>Windows/DxGraphicsD3D11.cpp:577-589</code>、構造体 <code>DxLib.h:1360-1368</code>。1 頂点 40 バイト)。</p>
+<table>
+<thead>
+<tr>
+<th>順</th>
+<th>セマンティクス</th>
+<th>型</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>POSITION0</td>
+<td>float4</td>
+<td>pos.x, pos.y, pos.z, rhw</td>
+</tr>
+<tr>
+<td>1</td>
+<td>COLOR0</td>
+<td>float4</td>
+<td>dif</td>
+</tr>
+<tr>
+<td>2</td>
+<td>COLOR1</td>
+<td>float4</td>
+<td>spc</td>
+</tr>
+<tr>
+<td>3</td>
+<td>TEXCOORD0</td>
+<td>float2</td>
+<td>u, v</td>
+</tr>
+<tr>
+<td>4</td>
+<td>TEXCOORD1</td>
+<td>float2</td>
+<td>su, sv</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s5-3">5.3 MV1 のモデル</h3>
+<p>頂点の種類は <code>MV1GetTriangleListVertexType</code> で分かる(<code>DxLib.h:392-400</code>。法線マップ付きは +4。<code>DxModel.cpp:30130-30144</code>)。
+入力レイアウト: <code>Windows/DxGraphicsD3D11.cpp:13988-14046</code>。並びは内蔵の <code>MV1Default_VertexLighting_VS.hlsl:4-32</code> と同じ。</p>
+<pre><span class="lang">HLSL(シェーダー)</span><code>struct VS_INPUT
+{
+    float3 Position      : POSITION;        <span class="c">// ローカル座標</span>
+    float3 Normal        : NORMAL0;
+    float4 Diffuse       : COLOR0;
+    float4 Specular      : COLOR1;
+    float4 TexCoords0    : TEXCOORD0;   <span class="c">// (u, v, 1, 1)。float4 なので注意</span>
+    float4 TexCoords1    : TEXCOORD1;   <span class="c">// (u, v, 1, 1)。UV が 1 組しかなければ TexCoords0 と同じ</span>
+#ifdef BUMPMAP  <span class="c">// 法線マップ付き(種類 4〜7)</span>
+    float3 Tangent       : TANGENT0;
+    float3 Binormal      : BINORMAL0;
+#endif
+#ifdef SKINMESH <span class="c">// 4 ボーン(種類 1, 5)・8 ボーン(種類 2, 6)</span>
+    int4   BlendIndices0 : BLENDINDICES0;   <span class="c">// ボーン番号 × 3(b3 の Matrix の添え字)</span>
+    float4 BlendWeight0  : BLENDWEIGHT0;
+#ifdef BONE8    <span class="c">// 8 ボーン(種類 2, 6)</span>
+    int4   BlendIndices1 : BLENDINDICES1;
+    float4 BlendWeight1  : BLENDWEIGHT1;
+#endif
+#endif
+};
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>種類(値)</th>
+<th>追加の要素</th>
+<th>1 頂点のバイト数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_1FRAME</code>(0)</td>
+<td>なし</td>
+<td>64</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_4FRAME</code>(1)</td>
+<td>BLENDINDICES0, BLENDWEIGHT0</td>
+<td>84</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_8FRAME</code>(2)</td>
+<td>+ BLENDINDICES1, BLENDWEIGHT1</td>
+<td>104</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_FREE_FRAME</code>(3)</td>
+<td>なし(剛体として渡す。3.3)</td>
+<td>64</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_NMAP_1FRAME</code>(4)</td>
+<td>TANGENT0, BINORMAL0</td>
+<td>88</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_NMAP_4FRAME</code>(5)</td>
+<td>TANGENT0, BINORMAL0, BLENDINDICES0, BLENDWEIGHT0</td>
+<td>108</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_NMAP_8FRAME</code>(6)</td>
+<td>+ BLENDINDICES1, BLENDWEIGHT1</td>
+<td>128</td>
+</tr>
+<tr>
+<td><code>DX_MV1_VERTEX_TYPE_NMAP_FREE_FRAME</code>(7)</td>
+<td>TANGENT0, BINORMAL0(剛体として渡す)</td>
+<td>88</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Direct3D 9 版のヘルプの並び(BLENDINDICES が NORMAL より前など)とは違う。</strong> Direct3D 9 版のサンプルの入力構造体は、そのままでは使えない。</li>
+<li><code>BLENDINDICES</code> は符号なし 8 ビット整数の形式(<code>R8G8B8A8_UINT</code>)で、中身は<strong>ボーン番号 × 3</strong>(<code>Windows/DxModelD3D11.cpp:301-304, 318-321</code>)。b3 の <code>Matrix[idx + 0〜2]</code> をそのまま引ける。</li>
+<li>頂点の色は CPU 側で並べ替えてあるので、正しい r, g, b, a で届く(<code>Windows/DxModelD3D11.cpp:239-249</code>)。</li>
+<li>複数のモデルをまとめて描く機能(<code>UsePackDraw</code>)を使うと、剛体メッシュでも 4 ボーンの形式になる(<code>Windows/DxModelD3D11.cpp:426, 3645-3648</code>)。</li>
+</ul>
+<hr />
+<h2 id="s6">6. 定数バッファの一覧</h2>
+<p>DxLib は初期化のときに次のスロットに定数バッファを置き、描画のたびに置き直すことはしない(<code>Windows/DxGraphicsD3D11.cpp:8947-8956</code>)。値の書き込み(<code>UpdateSubresource</code>)は描画の直前にまとめて行う(<code>:12812-12862</code>)。</p>
+<table>
+<thead>
+<tr>
+<th>シェーダー</th>
+<th>スロット</th>
+<th>中身</th>
+<th>大きさ(float4 の数)</th>
+<th>宣言</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>頂点</td>
+<td>b0</td>
+<td>共通(ライト 6 個・マテリアル・フォグ)</td>
+<td>54</td>
+<td><code>DX_D3D11_CONST_BUFFER_COMMON</code></td>
+</tr>
+<tr>
+<td>頂点</td>
+<td>b1</td>
+<td>基本(射影・ビュー・ワールド行列など)</td>
+<td>16</td>
+<td><code>DX_D3D11_VS_CONST_BUFFER_BASE</code></td>
+</tr>
+<tr>
+<td>頂点</td>
+<td>b2</td>
+<td>その他の行列(シャドウマップ・テクスチャ座標)</td>
+<td>18</td>
+<td><code>DX_D3D11_VS_CONST_BUFFER_OTHERMATRIX</code></td>
+</tr>
+<tr>
+<td>頂点</td>
+<td>b3</td>
+<td>スキンメッシュのボーン行列</td>
+<td>162</td>
+<td><code>DX_D3D11_VS_CONST_BUFFER_LOCALWORLDMATRIX</code></td>
+</tr>
+<tr>
+<td>ピクセル</td>
+<td>b0</td>
+<td>共通(頂点の b0 と<strong>同じバッファ</strong>)</td>
+<td>54</td>
+<td><code>DX_D3D11_CONST_BUFFER_COMMON</code></td>
+</tr>
+<tr>
+<td>ピクセル</td>
+<td>b1</td>
+<td>基本(不透明度・アルファテストなど)</td>
+<td>5</td>
+<td><code>DX_D3D11_PS_CONST_BUFFER_BASE</code></td>
+</tr>
+<tr>
+<td>ピクセル</td>
+<td>b2</td>
+<td>シャドウマップ</td>
+<td>6</td>
+<td><code>DX_D3D11_PS_CONST_BUFFER_SHADOWMAP</code></td>
+</tr>
+<tr>
+<td>ピクセル</td>
+<td>b3</td>
+<td>フィルター用(<code>GraphFilter</code> などが使う。HLSL 側の宣言は無い)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>両方</td>
+<td><strong>b4〜b13</strong></td>
+<td><strong>空き。自作の定数バッファはここに置く</strong></td>
+<td>—</td>
+<td>9 章</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>定義のヘッダー: <code>Windows/DxShader_Common_D3D11.h</code>、<code>Windows/DxShader_VS_D3D11.h</code>、<code>Windows/DxShader_PS_D3D11.h</code>。HLSL 側: <code>Shader/Windows/Direct3D11/VertexShader.h:19-40</code>、<code>PixelShader.h:41-53</code>。</li>
+<li>スロット番号の定義: <code>Windows/DxGraphicsD3D11.h:123-131</code>。</li>
+<li>頂点とピクセルの b0 が同じバッファであること: <code>Windows/DxGraphicsD3D11.cpp:8948, 8953</code>。<span class="tag ok">検証</span> <span class="vname">PS.b0=VS.b0 (same buffer)</span></li>
+<li>以下の表の「位置」は、そのバッファの先頭から何番目の float4 か(<code>[n].x</code> は n 番目の float4 の x 成分)。</li>
+</ul>
+<figure>
+<svg viewBox="0 0 720 320" role="img" aria-label="定数バッファのスロットの配置">
+<text class="b" x="180" y="22" text-anchor="middle">頂点シェーダー</text>
+<text class="b" x="540" y="22" text-anchor="middle">ピクセルシェーダー</text>
+<rect class="d-acc" x="60" y="38" width="240" height="40" rx="6"/><text class="m b" x="74" y="63">b0</text><text x="110" y="63">共通(ライトなど)</text>
+<rect class="d-box" x="60" y="86" width="240" height="40" rx="6"/><text class="m" x="74" y="111">b1</text><text x="110" y="111">基本(カメラなどの行列)</text>
+<rect class="d-box" x="60" y="134" width="240" height="40" rx="6"/><text class="m" x="74" y="159">b2</text><text x="110" y="159">その他の行列</text>
+<rect class="d-box" x="60" y="182" width="240" height="40" rx="6"/><text class="m" x="74" y="207">b3</text><text x="110" y="207">スキンメッシュのボーン行列</text>
+<rect class="d-acc2" x="60" y="238" width="240" height="40" rx="6"/><text class="m b" x="74" y="263">b4〜b13</text><text class="acc2 b" x="150" y="263">空き(自作用)</text>
+
+<rect class="d-acc" x="420" y="38" width="240" height="40" rx="6"/><text class="m b" x="434" y="63">b0</text><text x="470" y="63">共通(頂点の b0 と同じ)</text>
+<rect class="d-box" x="420" y="86" width="240" height="40" rx="6"/><text class="m" x="434" y="111">b1</text><text x="470" y="111">基本(不透明度など)</text>
+<rect class="d-box" x="420" y="134" width="240" height="40" rx="6"/><text class="m" x="434" y="159">b2</text><text x="470" y="159">シャドウマップ</text>
+<rect class="d-box" x="420" y="182" width="240" height="40" rx="6"/><text class="m" x="434" y="207">b3</text><text x="470" y="207">フィルター用</text>
+<rect class="d-acc2" x="420" y="238" width="240" height="40" rx="6"/><text class="m b" x="434" y="263">b4〜b13</text><text class="acc2 b" x="510" y="263">空き(自作用)</text>
+
+<line class="d-acc-line" x1="300" y1="58" x2="418" y2="58" marker-start="url(#ah-acc)" marker-end="url(#ah-acc)"/>
+<text class="s acc" x="360" y="50" text-anchor="middle">同じバッファ</text>
+<text class="s" x="360" y="306" text-anchor="middle">b0〜b3 は DxLib が初期化のときに置いたきり置き直さない。自作の定数バッファは b4 から(9 章)</text>
+</svg>
+</figure>
+
+<hr />
+<h2 id="s7">7. 行列の読み方</h2>
+<ul>
+<li>DxLib の <code>MATRIX</code> は「行ベクトル × 行列」の決まりで、平行移動は <code>m[3][0..2]</code> に入る。</li>
+<li>定数バッファの i 番目の float4 には、<code>MATRIX</code> の <strong>i 列目</strong>(<code>m[0][i], m[1][i], m[2][i], m[3][i]</code>)が入る。つまり<strong>転置</strong>して入っている(<code>Windows/DxGraphicsD3D11.cpp:9218-9390</code>)。<span class="tag ok">検証</span> <span class="vname">VS.b1.ViewMatrix / ProjectionMatrix / LocalWorldMatrix</span></li>
+<li>掛け方: 結果の k 成分 = <code>dot(float4(座標, 1), 行列[k])</code>。</li>
+</ul>
+<figure>
+<svg viewBox="0 0 720 290" role="img" aria-label="MATRIX は転置して入る">
+<text class="b" x="144" y="22" text-anchor="middle">C++ の MATRIX(m[行][列])</text>
+<text class="b" x="544" y="22" text-anchor="middle">定数バッファ(float4 × 4)</text>
+<rect class="d-box" x="40" y="50" width="52" height="34"/>
+<text class="m" x="66.0" y="72" text-anchor="middle">m00</text>
+<rect class="d-box" x="92" y="50" width="52" height="34"/>
+<text class="m" x="118.0" y="72" text-anchor="middle">m01</text>
+<rect class="d-box" x="144" y="50" width="52" height="34"/>
+<text class="m" x="170.0" y="72" text-anchor="middle">m02</text>
+<rect class="d-box" x="196" y="50" width="52" height="34"/>
+<text class="m" x="222.0" y="72" text-anchor="middle">m03</text>
+<rect class="d-box" x="40" y="84" width="52" height="34"/>
+<text class="m" x="66.0" y="106" text-anchor="middle">m10</text>
+<rect class="d-box" x="92" y="84" width="52" height="34"/>
+<text class="m" x="118.0" y="106" text-anchor="middle">m11</text>
+<rect class="d-box" x="144" y="84" width="52" height="34"/>
+<text class="m" x="170.0" y="106" text-anchor="middle">m12</text>
+<rect class="d-box" x="196" y="84" width="52" height="34"/>
+<text class="m" x="222.0" y="106" text-anchor="middle">m13</text>
+<rect class="d-box" x="40" y="118" width="52" height="34"/>
+<text class="m" x="66.0" y="140" text-anchor="middle">m20</text>
+<rect class="d-box" x="92" y="118" width="52" height="34"/>
+<text class="m" x="118.0" y="140" text-anchor="middle">m21</text>
+<rect class="d-box" x="144" y="118" width="52" height="34"/>
+<text class="m" x="170.0" y="140" text-anchor="middle">m22</text>
+<rect class="d-box" x="196" y="118" width="52" height="34"/>
+<text class="m" x="222.0" y="140" text-anchor="middle">m23</text>
+<rect class="d-acc2" x="40" y="152" width="52" height="34"/>
+<text class="m" x="66.0" y="174" text-anchor="middle">m30</text>
+<rect class="d-acc2" x="92" y="152" width="52" height="34"/>
+<text class="m" x="118.0" y="174" text-anchor="middle">m31</text>
+<rect class="d-acc2" x="144" y="152" width="52" height="34"/>
+<text class="m" x="170.0" y="174" text-anchor="middle">m32</text>
+<rect class="d-box" x="196" y="152" width="52" height="34"/>
+<text class="m" x="222.0" y="174" text-anchor="middle">m33</text>
+<rect x="40" y="50" width="52" height="136" fill="none" stroke="var(--accent)" stroke-width="3.5"/>
+<text class="s m" x="466.0" y="44" text-anchor="middle">.x</text>
+<text class="s m" x="518.0" y="44" text-anchor="middle">.y</text>
+<text class="s m" x="570.0" y="44" text-anchor="middle">.z</text>
+<text class="s m" x="622.0" y="44" text-anchor="middle">.w</text>
+<text class="m" x="432" y="72" text-anchor="end">[0]</text>
+<rect class="d-box" x="440" y="50" width="52" height="34"/>
+<text class="m" x="466.0" y="72" text-anchor="middle">m00</text>
+<rect class="d-box" x="492" y="50" width="52" height="34"/>
+<text class="m" x="518.0" y="72" text-anchor="middle">m10</text>
+<rect class="d-box" x="544" y="50" width="52" height="34"/>
+<text class="m" x="570.0" y="72" text-anchor="middle">m20</text>
+<rect class="d-acc2" x="596" y="50" width="52" height="34"/>
+<text class="m" x="622.0" y="72" text-anchor="middle">m30</text>
+<text class="m" x="432" y="106" text-anchor="end">[1]</text>
+<rect class="d-box" x="440" y="84" width="52" height="34"/>
+<text class="m" x="466.0" y="106" text-anchor="middle">m01</text>
+<rect class="d-box" x="492" y="84" width="52" height="34"/>
+<text class="m" x="518.0" y="106" text-anchor="middle">m11</text>
+<rect class="d-box" x="544" y="84" width="52" height="34"/>
+<text class="m" x="570.0" y="106" text-anchor="middle">m21</text>
+<rect class="d-acc2" x="596" y="84" width="52" height="34"/>
+<text class="m" x="622.0" y="106" text-anchor="middle">m31</text>
+<text class="m" x="432" y="140" text-anchor="end">[2]</text>
+<rect class="d-box" x="440" y="118" width="52" height="34"/>
+<text class="m" x="466.0" y="140" text-anchor="middle">m02</text>
+<rect class="d-box" x="492" y="118" width="52" height="34"/>
+<text class="m" x="518.0" y="140" text-anchor="middle">m12</text>
+<rect class="d-box" x="544" y="118" width="52" height="34"/>
+<text class="m" x="570.0" y="140" text-anchor="middle">m22</text>
+<rect class="d-acc2" x="596" y="118" width="52" height="34"/>
+<text class="m" x="622.0" y="140" text-anchor="middle">m32</text>
+<text class="m" x="432" y="174" text-anchor="end">[3]</text>
+<rect class="d-box" x="440" y="152" width="52" height="34"/>
+<text class="m" x="466.0" y="174" text-anchor="middle">m03</text>
+<rect class="d-box" x="492" y="152" width="52" height="34"/>
+<text class="m" x="518.0" y="174" text-anchor="middle">m13</text>
+<rect class="d-box" x="544" y="152" width="52" height="34"/>
+<text class="m" x="570.0" y="174" text-anchor="middle">m23</text>
+<rect class="d-box" x="596" y="152" width="52" height="34"/>
+<text class="m" x="622.0" y="174" text-anchor="middle">m33</text>
+<rect x="440" y="50" width="208" height="34" fill="none" stroke="var(--accent)" stroke-width="3.5"/>
+<line class="d-acc-line" x1="262" y1="118" x2="396" y2="118" marker-end="url(#ah-acc)"/>
+<text class="s acc" x="329" y="108" text-anchor="middle">転置して入る</text>
+<text class="s acc" x="66" y="206" text-anchor="middle">0 列目</text>
+<text class="s acc" x="544" y="206" text-anchor="middle">[0] = 0 列目</text>
+<text class="s" x="360" y="252" text-anchor="middle">i 番目の float4 = MATRIX の i 列目(転置)。平行移動(オレンジ)は [0]〜[2] の w に入るので、</text>
+<text class="s" x="360" y="272" text-anchor="middle">dot( float4( 座標, 1 ), 行列[k] ) で掛けると、回転と平行移動が一度に計算される</text>
+</svg>
+</figure>
+
+<pre><span class="lang">HLSL(シェーダー)</span><code>float4 worldPos = float4(dot(float4(pos, 1), g_Base.LocalWorldMatrix[0]),
+                         dot(float4(pos, 1), g_Base.LocalWorldMatrix[1]),
+                         dot(float4(pos, 1), g_Base.LocalWorldMatrix[2]), 1);
+float4 viewPos  = float4(dot(worldPos, g_Base.ViewMatrix[0]),
+                         dot(worldPos, g_Base.ViewMatrix[1]),
+                         dot(worldPos, g_Base.ViewMatrix[2]), 1);
+float4 projPos  = float4(dot(viewPos, g_Base.ProjectionMatrix[0]),
+                         dot(viewPos, g_Base.ProjectionMatrix[1]),
+                         dot(viewPos, g_Base.ProjectionMatrix[2]),
+                         dot(viewPos, g_Base.ProjectionMatrix[3]));
+</code></pre>
+<ul>
+<li><code>ViewMatrix</code> と <code>LocalWorldMatrix</code> は <strong>3 行だけ</strong>(4 列目の (0,0,0,1) を捨てた形)。w は自分で 1 にする。</li>
+<li>向き(法線など)は平行移動を含めないように <code>dot(dir, 行列[k].xyz)</code> で変換する。</li>
+<li>MV1 の内部の行列(<code>MATRIX_4X4CT</code>)は最初から転置した形なので、そのまま 3 行コピーされる(<code>DxModel.h:200</code>、<code>Windows/DxModelD3D11.cpp:3042-3197</code>)。</li>
+<li>自分の定数バッファに <code>MATRIX</code> をそのまま書き込む場合は、HLSL 側を <code>row_major float4x4</code> で宣言するか、C++ 側で転置してから書く(<span class="tag general">一般知識</span>: HLSL の既定は column_major)。</li>
+</ul>
+<hr />
+<h2 id="s8">8. DxLib がセットする定数</h2>
+<h3 id="s8-1">8.1 頂点 b0 / ピクセル b0: 共通(<code>DX_D3D11_CONST_BUFFER_COMMON</code>)</h3>
+<h4>ライト <code>Light[0〜5]</code>(1 個あたり float4 × 7)</h4>
+<p>ライト i の先頭は <code>[7i]</code>。書き込み: <code>Graphics_D3D11_DeviceState_SetLightState</code>(<code>Windows/DxGraphicsD3D11.cpp:9434-9517</code>)。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[7i].x</code></td>
+<td><code>int Type</code></td>
+<td><code>DX_LIGHTTYPE_POINT</code>=1、<code>SPOT</code>=2、<code>DIRECTIONAL</code>=3(<code>DxLib.h:652-657</code>)</td>
+<td><code>:9474</code></td>
+</tr>
+<tr>
+<td><code>[7i+1].xyz</code></td>
+<td><code>Position</code></td>
+<td>位置(<strong>ビュー空間</strong>)</td>
+<td><code>:9476-9479</code>。<span class="tag ok">検証</span> <span class="vname">Light.Spot / Light.Point Position=view space</span></td>
+</tr>
+<tr>
+<td><code>[7i+1].w</code></td>
+<td><code>RangePow2</code></td>
+<td>有効距離の 2 乗</td>
+<td><code>:9480</code>。<span class="tag ok">検証</span> <span class="vname">Light.Spot / Light.Point RangePow2</span></td>
+</tr>
+<tr>
+<td><code>[7i+2].xyz</code></td>
+<td><code>Direction</code></td>
+<td>向き(<strong>ビュー空間</strong>)。下の注意を参照</td>
+<td><code>:9475, 9481-9483</code>。<span class="tag ok">検証</span> <span class="vname">Light.Direction=view space</span></td>
+</tr>
+<tr>
+<td><code>[7i+2].w</code></td>
+<td><code>FallOff</code></td>
+<td>スポットライトのフォールオフ(既定 1)</td>
+<td><code>:9484</code></td>
+</tr>
+<tr>
+<td><code>[7i+3].xyz</code></td>
+<td><code>Diffuse</code></td>
+<td>ディフューズ色</td>
+<td><code>:9485-9491</code>。<span class="tag ok">検証</span> <span class="vname">Light.Diffuse,Specular</span></td>
+</tr>
+<tr>
+<td><code>[7i+3].w</code></td>
+<td><code>SpotParam0</code></td>
+<td><code>cos(外側の角度 / 2)</code>(角度は <code>CreateSpotLightHandle</code> の <code>OutAngle</code>。円錐の全体の角度)</td>
+<td><code>:9471-9472, 9488</code>。<span class="tag ok">検証</span> <span class="vname">Light.Spot SpotParam0</span></td>
+</tr>
+<tr>
+<td><code>[7i+4].xyz</code></td>
+<td><code>Specular</code></td>
+<td>スペキュラー色</td>
+<td><code>:9485-9491</code></td>
+</tr>
+<tr>
+<td><code>[7i+4].w</code></td>
+<td><code>SpotParam1</code></td>
+<td><code>1 / (cos(内側の角度 / 2) − cos(外側の角度 / 2))</code>。差が 1e-7 未満なら 100000</td>
+<td><code>:9492-9499</code>。<span class="tag ok">検証</span> <span class="vname">Light.Spot SpotParam1</span></td>
+</tr>
+<tr>
+<td><code>[7i+5]</code></td>
+<td><code>Ambient</code></td>
+<td>ライトのアンビエント色 × マテリアルのアンビエント色(有効なライトだけ)</td>
+<td><code>:9393-9431</code>。<span class="tag ok">検証</span> <span class="vname">Light.Ambient</span></td>
+</tr>
+<tr>
+<td><code>[7i+6].xyz</code></td>
+<td><code>Attenuation0/1/2</code></td>
+<td>距離による減衰の係数 0, 1, 2</td>
+<td><code>:9504-9506</code>。<span class="tag ok">検証</span> <span class="vname">Light.Point Attenuation</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>並び方</strong>(<code>DxGraphics.cpp:36138-36215</code>)</p>
+<ul>
+<li><strong>有効なライトだけ</strong>を、<strong>ディレクショナル → スポット → ポイント</strong>の順に <code>Light[0]</code> から詰める。同じ種類の中ではハンドルの順。作った順ではない。<span class="tag ok">検証</span> <span class="vname">Light.order=enabled only, directional-&gt;spot-&gt;point</span></li>
+<li>標準ライト(<code>SetLightDirection</code> などで操作するもの)もディレクショナルライトの 1 つとして並ぶ。</li>
+<li>7 個目以降は捨てられる(<code>Windows/DxGraphicsD3D11.cpp:9451-9454</code>)。種類の順に並ぶので、捨てられるのは主にポイントライト。</li>
+</ul>
+<figure>
+<svg viewBox="0 0 720 300" role="img" aria-label="ライトの詰め方の例">
+<text class="b" x="150" y="22" text-anchor="middle">C++ で作ったライト(例)</text>
+<text class="b" x="560" y="22" text-anchor="middle">定数バッファの Light[]</text>
+<rect class="d-box" x="20" y="40" width="260" height="36" rx="6"/><text x="34" y="63">標準ライト(ディレクショナル)</text>
+<rect class="d-box" x="20" y="86" width="260" height="36" rx="6"/><text x="34" y="109">ポイントライト A</text>
+<rect class="d-box" x="20" y="132" width="260" height="36" rx="6" style="stroke-dasharray:5 4"/><text class="acc2" x="34" y="155">スポットライト B(無効にした)</text>
+<rect class="d-box" x="20" y="178" width="260" height="36" rx="6"/><text x="34" y="201">スポットライト C</text>
+
+<rect class="d-acc" x="440" y="40" width="260" height="36" rx="6"/><text class="m" x="452" y="63">[0]</text><text x="492" y="63">標準ライト</text><text class="s" x="640" y="63">Dir</text>
+<rect class="d-acc" x="440" y="86" width="260" height="36" rx="6"/><text class="m" x="452" y="109">[1]</text><text x="492" y="109">スポットライト C</text><text class="s" x="640" y="109">Spot</text>
+<rect class="d-acc" x="440" y="132" width="260" height="36" rx="6"/><text class="m" x="452" y="155">[2]</text><text x="492" y="155">ポイントライト A</text><text class="s" x="640" y="155">Point</text>
+<rect class="d-box" x="440" y="178" width="260" height="100" rx="6" style="stroke-dasharray:5 4"/><text class="m" x="452" y="201">[3]〜[5]</text>
+<text class="s" x="452" y="226">使われない。Type などは</text><text class="s" x="452" y="246">前に入っていた値のまま</text><text class="s" x="452" y="266">(0 以外でも有効とは限らない)</text>
+
+<line class="d-line" x1="280" y1="58" x2="436" y2="58" marker-end="url(#ah)"/>
+<line class="d-line" x1="280" y1="196" x2="436" y2="106" marker-end="url(#ah)"/>
+<line class="d-line" x1="280" y1="104" x2="436" y2="148" marker-end="url(#ah)"/>
+<text class="b acc2" x="288" y="156">✕ 入らない</text>
+<text class="s" x="150" y="248" text-anchor="middle">有効なものだけを</text>
+<text class="s" x="150" y="268" text-anchor="middle">ディレクショナル → スポット → ポイント</text>
+<text class="s" x="150" y="288" text-anchor="middle">の順に詰める</text>
+</svg>
+</figure>
+
+<p><strong>有効・無効の情報は無い</strong></p>
+<ul>
+<li>ライトを無効にしたり削除したりしても、そのスロットの <code>Type</code> は書き換えられず、前の値が残る(<code>Type</code> を書くのは <code>:9474</code> だけ)。<span class="tag ok">検証</span> <span class="vname">Light.Type of unused slots keeps old value</span></li>
+<li>ライティングの有効・無効(<code>SetUseLighting</code>)も定数には入らない(<code>:11185-11206</code>)。DxLib の標準シェーダーは、C++ 側でライトの数と種類に合わせたシェーダーを選んでいる。</li>
+<li><strong>有効なライトの数や種類が要るなら、自分の定数バッファで渡す。</strong></li>
+</ul>
+<p><strong>向きの注意</strong></p>
+<ul>
+<li><code>SetLightDirection</code>・<code>SetLightDirectionHandle</code>・<code>CreateDirLightHandle</code> は向きを<strong>正規化して</strong>保存する(<code>DxGraphics.cpp:25505-25509, 25761-25765</code>)。</li>
+<li><strong><code>CreateSpotLightHandle</code> は正規化しない</strong>(<code>DxGraphics.cpp:25531</code>)。長さ 1 でない向きを渡すと、そのまま長さ 1 でない値が入る。<span class="tag ok">検証</span> <span class="vname">Light.Spot Position,Direction=view space (direction NOT normalized by CreateSpotLightHandle)</span></li>
+<li>シェーダー側で <code>normalize</code> しておくのが安全。</li>
+</ul>
+<p><strong>既定値</strong>(<code>DxGraphics.cpp:36092-36110, 34238-34244</code>)</p>
+<ul>
+<li>標準ライトはディレクショナル、向き (1, −1, 1)。ディフューズ 1、スペキュラー 1、アンビエント 0.33。</li>
+<li>有効距離 2000、減衰係数 0 = 0.1、外側・内側の角度 2.0(= <code>SpotParam0</code> が <code>cos(1)</code>、<code>SpotParam1</code> が 100000)。<span class="tag ok">検証</span> <span class="vname">Light.defaults</span></li>
+<li>ビュー行列が変わると、全スロットの位置と向きがビュー空間で計算し直される(<code>Windows/DxGraphicsD3D11.cpp:9267-9284</code>)。</li>
+</ul>
+<h4>マテリアル <code>Material</code>(<code>[42]〜[45]</code>)</h4>
+<p>書き込み: <code>Graphics_D3D11_DeviceState_SetMaterial</code>(<code>Windows/DxGraphicsD3D11.cpp:9572-9620</code>)。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[42]</code></td>
+<td><code>Diffuse</code></td>
+<td>ディフューズ色</td>
+<td><code>:9596-9603</code>。<span class="tag ok">検証</span> <span class="vname">Material.Diffuse,Specular,Power</span></td>
+</tr>
+<tr>
+<td><code>[43]</code></td>
+<td><code>Specular</code></td>
+<td>スペキュラー色</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>[44]</code></td>
+<td><code>Ambient_Emissive</code></td>
+<td>エミッシブ色 + マテリアルのアンビエント色 × グローバルアンビエント色(rgba ごと)</td>
+<td><code>:9423-9426</code>。<span class="tag ok">検証</span> <span class="vname">Material.Ambient_Emissive</span></td>
+</tr>
+<tr>
+<td><code>[45].x</code></td>
+<td><code>Power</code></td>
+<td>スペキュラーの強さ(1e-11 未満は 1e-11 にされる)</td>
+<td><code>:9604</code></td>
+</tr>
+<tr>
+<td><code>[45].yzw</code></td>
+<td><code>TypeParam0/1/2</code></td>
+<td>マテリアルの種類ごとのパラメーター</td>
+<td><code>:9605-9607</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>ToShader の描画では <code>SetMaterialParam</code> の値。既定はディフューズ 0.8、スペキュラー 0.8、アンビエント 0、エミッシブ 0、強さ 20(<code>DxGraphics.cpp:34284-34288</code>)。<strong>アンビエントの既定が 0 なので、何も設定しないとライトのアンビエントも <code>Ambient_Emissive</code> も 0 になる。</strong></li>
+<li>MV1 の描画ではメッシュのマテリアル(<code>Windows/DxModelD3D11.cpp:1784-1830</code>)。</li>
+<li>グローバルアンビエントは <code>SetGlobalAmbientLight</code>(<code>DxGraphics.cpp:25236-25248</code>)。初期値 0。</li>
+</ul>
+<h4>フォグ <code>Fog</code>(<code>[46]〜[49]</code>)と高さフォグ <code>VerticalFog</code>(<code>[50]〜[53]</code>)</h4>
+<p>書き込み: <code>Graphics_D3D11_DeviceState_UpdateConstantFogParam</code>(<code>Windows/DxGraphicsD3D11.cpp:10876-10900</code>)。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[46].x</code></td>
+<td><code>int Mode</code></td>
+<td>フォグの種類(<code>DX_FOGMODE_NONE</code>=0、<code>EXP</code>=1、<code>EXP2</code>=2、<code>LINEAR</code>=3)。<strong>信用しない</strong>(下)</td>
+<td><code>:10888</code></td>
+</tr>
+<tr>
+<td><code>[47].x</code></td>
+<td><code>LinearAdd</code></td>
+<td>end / (end − start)</td>
+<td><code>:10889</code>。<span class="tag ok">検証</span> <span class="vname">Fog.Mode,LinearAdd,LinearDiv</span></td>
+</tr>
+<tr>
+<td><code>[47].y</code></td>
+<td><code>LinearDiv</code></td>
+<td>−1 / (end − start)</td>
+<td><code>:10890</code></td>
+</tr>
+<tr>
+<td><code>[47].z</code></td>
+<td><code>Density</code></td>
+<td>密度(<code>SetFogDensity</code>)</td>
+<td><code>:10891</code></td>
+</tr>
+<tr>
+<td><code>[47].w</code></td>
+<td><code>DensityStart</code></td>
+<td>0</td>
+<td><code>:10892</code></td>
+</tr>
+<tr>
+<td><code>[48].x</code></td>
+<td><code>E</code></td>
+<td>2.71828183(自然対数の底)</td>
+<td><code>:10893</code></td>
+</tr>
+<tr>
+<td><code>[49]</code></td>
+<td><code>Color</code></td>
+<td><code>SetFogColor</code> の値 / 255、a = 1</td>
+<td><code>:10858-10861</code>。<span class="tag ok">検証</span> <span class="vname">Fog.Color</span></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>線形フォグの濃さ: <code>ビュー空間の z * LinearDiv + LinearAdd</code>(DxLib の標準シェーダー <code>Shader/Windows/Direct3D11/Base/Base_3D_PixelLighting_VS.hlsl:219</code>)。指数フォグ: <code>1 / pow(E, z * Density)</code>(同 <code>:226</code>)。</li>
+<li><strong><code>Mode</code> は描画の順番で変わってしまう。</strong> 定数に書かれるのは <code>SetFogStartEnd</code> と <code>SetFogDensity</code> を呼んだときだけで、そのとき <code>Mode</code> には「その時点で内部のフォグが有効なら種類、無効なら NONE」が入る(<code>:10888, 10934, 10962</code>)。内部のフォグは 2D の描画のたびに無効にされる(<code>:14793-14807</code>)ので、2D を描いた後に <code>SetFogDensity</code> を呼ぶと、フォグを有効にしていても NONE が入る。<span class="tag ok">検証</span> <span class="vname">Fog.Mode unreliable (EXP set, but NONE after a 2D draw)</span></li>
+<li>高さフォグ(<code>VerticalFog</code>)の <code>Mode</code> は <code>SetVerticalFogEnable</code> / <code>SetVerticalFogMode</code> でも更新される(<code>:11000, 11027</code>)。start &gt; end のときは <code>LinearAdd = −end/(start−end)</code>、<code>LinearDiv = 1/(start−end)</code>(<code>:11085-11094</code>)。ワールド座標の Y で濃さを決める(<code>Base_3D_PixelLighting_VS.hlsl:244-275</code>)。</li>
+</ul>
+<h3 id="s8-2">8.2 頂点 b1: 基本(<code>DX_D3D11_VS_CONST_BUFFER_BASE</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[0]〜[3]</code></td>
+<td><code>AntiViewportMatrix[4]</code></td>
+<td>Direct3D のビューポート行列の逆行列(画面の画素座標 → 射影空間)。描画先を変えるたびに更新</td>
+<td><code>DxGraphics.cpp:18161-18184</code>、<code>Windows/DxGraphicsD3D11.cpp:25289</code></td>
+</tr>
+<tr>
+<td><code>[4]〜[7]</code></td>
+<td><code>ProjectionMatrix[4]</code></td>
+<td>3D: 射影行列(<code>GetCameraProjectionMatrix</code> の転置)。2D: 画素座標 → 射影空間の行列</td>
+<td>下。<span class="tag ok">検証</span> <span class="vname">VS.b1.ProjectionMatrix</span></td>
+</tr>
+<tr>
+<td><code>[8]〜[10]</code></td>
+<td><code>ViewMatrix[3]</code></td>
+<td>ビュー行列(<code>GetCameraViewMatrix</code> の転置、3 行)</td>
+<td><code>Windows/DxGraphicsD3D11.cpp:9253-9312</code>。<span class="tag ok">検証</span> <span class="vname">VS.b1.ViewMatrix</span></td>
+</tr>
+<tr>
+<td><code>[11]〜[13]</code></td>
+<td><code>LocalWorldMatrix[3]</code></td>
+<td>ローカル → ワールド行列(転置、3 行)</td>
+<td><code>:9218-9250</code>。<span class="tag ok">検証</span> <span class="vname">VS.b1.LocalWorldMatrix</span></td>
+</tr>
+<tr>
+<td><code>[14]</code></td>
+<td><code>ToonOutLineSize</code></td>
+<td>トゥーンの輪郭線の太さ(4 成分とも同じ)。MV1 のトゥーンの輪郭線を描くときだけ設定される</td>
+<td><code>:11580-11583</code>、<code>Windows/DxModelD3D11.cpp:2019</code>。<span class="tag ok">検証</span> <span class="vname">VS.b1.ToonOutLineSize=0</span></td>
+</tr>
+<tr>
+<td><code>[15].x</code></td>
+<td><code>DiffuseSource</code></td>
+<td>1: 頂点のディフューズ色を使う、0: マテリアルの色を使う(<code>SetMaterialUseVertDifColor</code>。既定 1)</td>
+<td><code>:9679</code>。<span class="tag ok">検証</span> <span class="vname">VS.b1.DiffuseSource</span></td>
+</tr>
+<tr>
+<td><code>[15].y</code></td>
+<td><code>SpecularSource</code></td>
+<td>同上、スペキュラー色(<code>SetMaterialUseVertSpcColor</code>。既定 1)</td>
+<td><code>:9714</code></td>
+</tr>
+<tr>
+<td><code>[15].z</code></td>
+<td><code>MulSpecularColor</code></td>
+<td>スペキュラーを使うなら 1、使わないなら 0(ToShader では <code>SetUseSpecular</code>、MV1 ではマテリアル)</td>
+<td><code>:9646</code>、<code>Windows/DxModelD3D11.cpp:1896-1900</code>。<span class="tag ok">検証</span> <span class="vname">VS.b1.DiffuseSource=0..., MulSpecularColor=0</span></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>ProjectionMatrix</code>(3D)は「射影行列 × DxLib のビューポート行列 × Direct3D のビューポート行列の逆行列」(<code>Windows/DxGraphicsD3D11.cpp:24369-24373</code>)。<code>SetCameraScreenCenter</code> を既定のまま使っていれば <code>GetCameraProjectionMatrix</code> の転置と一致する(<span class="tag ok">検証</span> はこの条件で確認)。</li>
+<li><code>ProjectionMatrix</code>(2D)は「<code>SetTransformTo2D</code> の行列(既定は単位行列)× Direct3D のビューポート行列の逆行列」(<code>:24363-24365</code>)。</li>
+<li><code>AntiViewportMatrix</code> は同梱のどの HLSL も使っていない。射影行列に同じ変換が掛け込まれているので、自作シェーダーで掛ける必要は無い。</li>
+<li><code>LocalWorldMatrix</code> の中身は描画の種類で変わる。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>描画</th>
+<th><code>LocalWorldMatrix</code></th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ToShader(3D)</td>
+<td><code>SetTransformToWorld</code> の行列(既定は単位行列。<code>SetDrawScreen</code> でも単位行列に戻る)</td>
+<td><code>Windows/DxGraphicsD3D11.cpp:23556-23558</code>、<code>DxGraphics.cpp:34612-34613</code></td>
+</tr>
+<tr>
+<td>MV1 剛体メッシュ</td>
+<td>フレームのローカル → ワールド行列</td>
+<td><code>Windows/DxModelD3D11.cpp:3684, 3101-3116</code></td>
+</tr>
+<tr>
+<td>MV1 スキンメッシュ(4・8 ボーン)</td>
+<td><strong>設定されない(前の値が残る)</strong>。モデルの位置と回転はボーン行列(b3)に入る</td>
+<td><code>Windows/DxModelD3D11.cpp:3811</code>。<span class="tag ok">検証</span> <span class="vname">VS.b3.Matrix</span></td>
+</tr>
+<tr>
+<td>MV1 9 ボーン以上</td>
+<td>単位行列</td>
+<td><code>Windows/DxModelD3D11.cpp:3835</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="s8-3">8.3 頂点 b2: その他の行列(<code>DX_D3D11_VS_CONST_BUFFER_OTHERMATRIX</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[4m]〜[4m+3]</code></td>
+<td><code>ShadowMapLightViewProjectionMatrix[m][4]</code></td>
+<td>シャドウマップ m(0〜2)のライトのビュー × 射影行列(転置)。ワールド座標に掛ける</td>
+<td><code>Windows/DxGraphicsD3D11.cpp:28713-28768</code>。<span class="tag ok">検証</span> <span class="vname">VS.b2.ShadowMapLightViewProjectionMatrix=0</span></td>
+</tr>
+<tr>
+<td><code>[12]</code>, <code>[13]</code></td>
+<td><code>TextureMatrix[0][0〜1]</code></td>
+<td>テクスチャ座標の変換行列の 0 列目と 1 列目。変換しないときは単位行列</td>
+<td><code>:10721-10750, 10780</code>。<span class="tag ok">検証</span> <span class="vname">VS.b2.TextureMatrix[0]</span></td>
+</tr>
+<tr>
+<td><code>[14]〜[17]</code></td>
+<td><code>TextureMatrix[1〜2][0〜1]</code></td>
+<td>使われない(0 のまま)</td>
+<td><span class="tag ok">検証</span> <span class="vname">VS.b2.TextureMatrix[0]=identity rows, [1],[2]=0</span></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>テクスチャ座標の変換: <code>u' = dot(float4(u, v, 1, 1), TextureMatrix[0][0])</code>、<code>v' = dot(float4(u, v, 1, 1), TextureMatrix[0][1])</code>(<code>Base_3D_Simple_VS.hlsl:80-84</code>)。行列は <code>SetTextureAddressTransform</code> / <code>SetTextureAddressTransformMatrix</code> で設定する。</li>
+<li>シャドウマップを一度も使っていなければ、<code>ShadowMapLightViewProjectionMatrix</code> はすべて 0。ソースでは未使用のスロットに (0,0,0,−1) を入れる処理がある(<code>:28717-28723</code>)が、シャドウマップの設定を一度もしていない状態では 0 だった。</li>
+</ul>
+<h3 id="s8-4">8.4 頂点 b3: スキンメッシュのボーン行列(<code>DX_D3D11_VS_CONST_BUFFER_LOCALWORLDMATRIX</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[3j]〜[3j+2]</code></td>
+<td><code>Matrix[j*3+0〜2]</code></td>
+<td>このトライアングルリストで使うボーン j の行列(転置、3 行)。<strong>モデルのワールド変換を含む</strong></td>
+<td><code>Windows/DxModelD3D11.cpp:3172-3190</code>。<span class="tag ok">検証</span> <span class="vname">VS.b3.Matrix[bone*3+0..2]</span></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>1 つのトライアングルリストで使えるボーンは 54 個まで(<code>DX_D3D11_VS_CONST_WORLD_MAT_NUM</code>)。</li>
+<li>頂点の <code>BLENDINDICES</code> はボーン番号 × 3 なので、<code>Matrix[BlendIndices0.x + 0〜2]</code> と引く。4 本の重み付き和を取ってから座標に掛ける(<code>MV1Default_VertexLighting_VS.hlsl:129-164</code>)。</li>
+<li>ToShader の描画では使われない(前の MV1 の描画の値が残る)。</li>
+</ul>
+<h3 id="s8-5">8.5 ピクセル b1: 基本(<code>DX_D3D11_PS_CONST_BUFFER_BASE</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[0]</code></td>
+<td><code>FactorColor</code></td>
+<td>MV1 の描画: (1, 1, 1, 不透明度 × ブレンドの値 / 255)。ToShader の描画では<strong>更新されない</strong></td>
+<td><code>Windows/DxModelD3D11.cpp:1844-1850</code>。<span class="tag ok">検証</span> <span class="vname">PS.b1.FactorColor=(1,1,1,opacity) set by MV1 draw</span></td>
+</tr>
+<tr>
+<td><code>[1].x</code></td>
+<td><code>MulAlphaColor</code></td>
+<td>色にアルファを掛けるか(0 / 1)。MV1 の描画でだけ設定される</td>
+<td><code>Windows/DxGraphicsD3D11.cpp:11472-11494</code></td>
+</tr>
+<tr>
+<td><code>[1].y</code></td>
+<td><code>AlphaTestRef</code></td>
+<td>アルファテストの比較値 / 255。既定 −1/255</td>
+<td><code>:11460, 23436-23447</code>。<span class="tag ok">検証</span> <span class="vname">PS.b1.AlphaTestCmpMode,AlphaTestRef</span></td>
+</tr>
+<tr>
+<td><code>[2].x</code></td>
+<td><code>int AlphaTestCmpMode</code></td>
+<td>比較方法(<code>DX_CMP_*</code>、1〜8)。既定 <code>DX_CMP_GREATER</code>(5)</td>
+<td><code>:11425</code>。<span class="tag ok">検証</span> <span class="vname">PS.b1 defaults</span></td>
+</tr>
+<tr>
+<td><code>[2].y</code></td>
+<td><code>int NoLightAngleAttenuation</code></td>
+<td><code>SetUseLightAngleAttenuation(FALSE)</code> なら 1</td>
+<td><code>:13271</code>。<span class="tag ok">検証</span> <span class="vname">PS.b1.UseHalfLambert,NoLightAngleAttenuation</span></td>
+</tr>
+<tr>
+<td><code>[2].z</code></td>
+<td><code>int UseHalfLambert</code></td>
+<td><code>SetUseHalfLambertLighting(TRUE)</code> なら 1</td>
+<td><code>:13308</code></td>
+</tr>
+<tr>
+<td><code>[3]</code></td>
+<td><code>IgnoreTextureColor</code></td>
+<td>テクスチャの色を無視する描画用。ToShader では更新されない</td>
+<td><code>:12964-12978, 14848-14851</code></td>
+</tr>
+<tr>
+<td><code>[4]</code></td>
+<td><code>DrawAddColor</code></td>
+<td><code>SetDrawAddColor</code> の値 / 255、a = 0</td>
+<td><code>:24256-24276</code>。<span class="tag ok">検証</span> <span class="vname">PS.b1.DrawAddColor</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>FactorColor</code> の注意</strong>(Direct3D 9 版のサンプルを移植するときにいちばん引っかかる所)</p>
+<ul>
+<li>ToShader の描画は、ブレンド関係の設定を飛ばす準備処理を使う(<code>DX_D3D11_DRAWPREP_NOBLENDSETTING</code>。<code>Windows/DxGraphicsD3D11.cpp:23433, 14810-14895</code>)。そのため <code>FactorColor</code>・<code>IgnoreTextureColor</code>・<code>MulAlphaColor</code> は、<strong>最後に DxLib が自分のシェーダーで設定した値のまま</strong>になる。</li>
+<li>起動してから一度も設定されていなければ <code>FactorColor</code> は (0, 0, 0, 0)(定数バッファはゼロで初期化される。<code>:13564</code>)。</li>
+<li><strong>MV1 のモデルを自作シェーダーで描くときも、ピクセルシェーダーの出力のアルファはそのまま合成に使われる。</strong> 深度などを描画先に書くときにアルファを 0 にすると、何も書き込まれない(B4 の原本。Direct3D 9 でも同じで、深度値の画像が真っ黒のままになった。アルファを 1 にすると公式ページの画像どおりになった)。<span class="tag guess">推測</span>: モデルの描画の合成の方法(アルファブレンド)に従うため。描画先に値を書くシェーダーでは、アルファを 1 にしておく。</li>
+<li><code>SetDrawBlendMode(DX_BLENDMODE_ALPHA, 128)</code> の 128 は <code>FactorColor</code> に入らない。<span class="tag ok">検証</span> <span class="vname">PS.b1.FactorColor not updated by SetDrawBlendMode (ToShader)</span></li>
+<li>MV1 の描画は <code>FactorColor</code> を設定し、その値は後の ToShader の描画にも残る。<span class="tag ok">検証</span> <span class="vname">PS.b1.FactorColor=(1,1,1,opacity) set by MV1 draw, stays for later ToShader draws</span>(標準のシェーダーでの描画で確認)。設定はメッシュを描くたびに通る <code>MV1_D3D11_SetupMeshDrawMaterialCommon</code> の中にあり(<code>Windows/DxModelD3D11.cpp:1773, 1844-1850</code>、呼び出し <code>:3612</code>)、自作シェーダーでも同じ処理を通る。</li>
+<li>Direct3D 9 版のサンプルのピクセルシェーダーは <code>cfFactorColor(c5).a</code> を出力のアルファに掛けている。ToShader の描画にそのまま移植すると、アルファが 0 になって何も見えないことがある。<strong>ToShader では、不透明度は頂点の <code>dif.a</code> か自分の定数バッファで渡す。</strong> MV1 の描画では <code>FactorColor</code> をそのまま使ってよい。</li>
+</ul>
+<h3 id="s8-6">8.6 ピクセル b2: シャドウマップ(<code>DX_D3D11_PS_CONST_BUFFER_SHADOWMAP</code>)</h3>
+<p>シャドウマップ i(0〜2)ごとに float4 × 2。書き込み: <code>Windows/DxGraphicsD3D11.cpp:28772-28832</code>。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>フィールド</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[2i].x</code></td>
+<td><code>AdjustDepth</code></td>
+<td>深度の比較の補正値(未使用なら 1)</td>
+</tr>
+<tr>
+<td><code>[2i].y</code></td>
+<td><code>GradationParam</code></td>
+<td>影の境目のぼかしの範囲(未使用なら 0)</td>
+</tr>
+<tr>
+<td><code>[2i].z</code></td>
+<td><code>Enable_Light0</code></td>
+<td>ライト 0 に<strong>影を適用しない</strong>なら 1、適用するなら 0</td>
+</tr>
+<tr>
+<td><code>[2i].w</code></td>
+<td><code>Enable_Light1</code></td>
+<td>同上、ライト 1</td>
+</tr>
+<tr>
+<td><code>[2i+1].x</code></td>
+<td><code>Enable_Light2</code></td>
+<td>同上、ライト 2</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong><code>Enable_LightN</code> は名前と意味が逆。</strong> 1 で「適用しない」(既定で 1 を入れ、適用するライトだけ 0 にする。<code>:28792, 28815</code>)。標準シェーダーは <code>max(影の濃さ, Enable_LightN)</code> で使う(<code>MV1Default_PixelLighting_PS.hlsl:426</code>)。<span class="tag ok">検証</span> <span class="vname">PS.b2 unused: AdjustDepth=1, Gradation=0, Enable_LightN=1</span></li>
+<li>ライト 0〜2 は、8.1 の並び方で詰めた後の先頭 3 つ(<code>:28788</code>)。</li>
+</ul>
+<hr />
+<h2 id="s9">9. 自分の値を渡す: 自作の定数バッファ</h2>
+<p><strong><code>SetVSConstF</code> / <code>SetPSConstF</code> / <code>SetVSConstFMtx</code> / <code>SetVSConstFArray</code> などは Direct3D 11 では何もしない</strong>(中身が空の関数。<code>Windows/DxGraphicsD3D11.cpp:29081-29092</code>)。代わりに次の関数を使う(宣言 <code>DxLib.h:3362-3367</code>。公式リファレンスには載っていない)。</p>
+<table>
+<thead>
+<tr>
+<th>関数</th>
+<th>働き</th>
+<th>根拠</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>int CreateShaderConstantBuffer(int BufferSize)</code></td>
+<td>定数バッファを作る。<strong>大きさは 16 の倍数</strong>(でないと −1)。中身は 0 で初期化</td>
+<td><code>Windows/DxGraphicsD3D11.cpp:13548-13571</code>。<span class="tag ok">検証</span> <span class="vname">CreateShaderConstantBuffer(size not multiple of 16) fails</span></td>
+</tr>
+<tr>
+<td><code>void* GetBufferShaderConstantBuffer(int h)</code></td>
+<td>書き込み用のメモリ(CPU 側)のアドレスを得る</td>
+<td><code>:29186-29189</code></td>
+</tr>
+<tr>
+<td><code>int UpdateShaderConstantBuffer(int h)</code></td>
+<td>書き込んだ内容を GPU に送る(その場で送る)</td>
+<td><code>:29192-29199</code></td>
+</tr>
+<tr>
+<td><code>int SetShaderConstantBuffer(int h, int TargetShader, int Slot)</code></td>
+<td>シェーダーのスロットに置く。<code>TargetShader</code> は <code>DX_SHADERTYPE_VERTEX</code>(0)/ <code>PIXEL</code>(1)/ <code>GEOMETRY</code>(2)</td>
+<td><code>:29202-29216</code></td>
+</tr>
+<tr>
+<td><code>int DeleteShaderConstantBuffer(int h)</code></td>
+<td>削除する</td>
+<td><code>:13622-13679</code></td>
+</tr>
+</tbody>
+</table>
+<p>使い方(<span class="tag ok">検証</span> <span class="vname">user constant buffer at b4 (VS and PS)</span>):</p>
+<pre><span class="lang">C++</span><code>const int cb = CreateShaderConstantBuffer(sizeof(float) * 4);   <span class="c">// 16 バイトの倍数</span>
+float* p = (float*)GetBufferShaderConstantBuffer(cb);
+p[0] = time; p[1] = 0; p[2] = 0; p[3] = 0;
+UpdateShaderConstantBuffer(cb);
+SetShaderConstantBuffer(cb, DX_SHADERTYPE_PIXEL, 4);    <span class="c">// b4 以降</span>
+<span class="c">// …… SetUsePixelShader → 描画 ……</span>
+DeleteShaderConstantBuffer(cb); <span class="c">// 終了時</span>
+</code></pre>
+<pre><span class="lang">HLSL(シェーダー)</span><code>cbuffer MyParam : register(b4)
+{
+    float g_Time;
+    float3 g_Padding;
+};
+</code></pre>
+<ul>
+<li><strong>スロットは b4〜b13 を使う。</strong> b0〜b3 は DxLib が使っている。同じスロットに置くと、DxLib は置き直さないので、その後の <code>DrawGraph</code> なども壊れる(<span class="tag guess">推測</span>: <code>RefreshDxLibDirect3DSetting()</code> を呼ぶまで戻らない)。</li>
+<li>スロットの範囲外(14 以上)を指定してもエラーは返らない(<code>:13705-13708, 29227-29228</code>)。</li>
+<li>DxLib は b4 以降を触らないので、一度置けば残る。ただし描画の直前に毎回置くのが確実。</li>
+<li>値の並びは HLSL の定数バッファの詰め方(float4 の境界をまたがない)に従う。C++ 側の構造体は 16 バイト単位で揃える。</li>
+</ul>
+<figure>
+<svg viewBox="0 0 720 250" role="img" aria-label="定数バッファの詰め方">
+<text class="b" x="10" y="22">HLSL の詰め方: 1 段 = float4(16 バイト)。値は段の境目をまたがない</text>
+<text class="m s" x="10" y="54">cbuffer P : register( b4 ) { float3 a ; float3 b ; } ;</text>
+<text class="m" x="60" y="92" text-anchor="end">[0]</text>
+<rect class="d-acc" x="70" y="72" width="90" height="30"/><text class="m" x="115" y="92" text-anchor="middle">a.x</text>
+<rect class="d-acc" x="160" y="72" width="90" height="30"/><text class="m" x="205" y="92" text-anchor="middle">a.y</text>
+<rect class="d-acc" x="250" y="72" width="90" height="30"/><text class="m" x="295" y="92" text-anchor="middle">a.z</text>
+<rect class="d-box" x="340" y="72" width="90" height="30" style="stroke-dasharray:4 3"/><text class="s" x="385" y="92" text-anchor="middle">空き</text>
+<text class="m" x="60" y="130" text-anchor="end">[1]</text>
+<rect class="d-acc2" x="70" y="110" width="90" height="30"/><text class="m" x="115" y="130" text-anchor="middle">b.x</text>
+<rect class="d-acc2" x="160" y="110" width="90" height="30"/><text class="m" x="205" y="130" text-anchor="middle">b.y</text>
+<rect class="d-acc2" x="250" y="110" width="90" height="30"/><text class="m" x="295" y="130" text-anchor="middle">b.z</text>
+<rect class="d-box" x="340" y="110" width="90" height="30" style="stroke-dasharray:4 3"/><text class="s" x="385" y="130" text-anchor="middle">空き</text>
+<text class="s" x="450" y="92">b は [0].w に入りきらない</text>
+<text class="s" x="450" y="112">ので次の段から</text>
+<text class="b acc2" x="10" y="182">C++ で</text>
+<text class="m s" x="70" y="182">struct { FLOAT3 a ; FLOAT3 b ; }</text>
+<text class="s acc2" x="330" y="182">と書くと b は 12 バイト目から → HLSL とずれる</text>
+<text class="b" x="10" y="220" style="fill:var(--good)">そろえる</text>
+<text class="m s" x="80" y="220">struct { FLOAT4 a ; FLOAT4 b ; }</text>
+<text class="s" x="330" y="220">(w は使わない)と、16 バイト単位にする</text>
+</svg>
+</figure>
+
+<hr />
+<h2 id="s10">10. テクスチャとサンプラー</h2>
+<h3 id="s10-1">10.1 ToShader の描画(2D・3D)</h3>
+<ul>
+<li><code>SetUseTextureToShader(ステージ, 画像)</code> のステージ(0〜15)がそのまま <strong><code>t</code> の番号</strong>になる(<code>DxGraphics.cpp:23031-23058</code>、<code>Windows/DxGraphicsD3D11.cpp:23487-23490</code>)。</li>
+<li>サンプラーも同じ番号の <strong><code>s</code></strong>。</li>
+</ul>
+<pre><span class="lang">HLSL(シェーダー)</span><code>Texture2D    g_Texture0 : register(t0);
+SamplerState g_Sampler0 : register(s0);
+float4 color = g_Texture0.Sample(g_Sampler0, input.TexCoords0);
+</code></pre>
+<ul>
+<li><strong>ステージは 0 から詰めて使う。</strong> 0 と 2 だけ設定して 1 を空けると、1 番に初期化されていない値が渡る(テクスチャの配列を初期化せずに「最後に設定した番号 + 1」個までまとめて渡しているため。<code>Windows/DxGraphicsD3D11.cpp:23429, 23464-23490</code>)。<span class="tag guess">推測</span>: 落ちることがある。</li>
+<li>1 枚も設定しないと、テクスチャは更新されず、前の描画のものが残る(<code>:23487</code>)。</li>
+<li>サンプラーの既定は「ポイント(補間なし)・範囲外はクランプ」(<code>:8433-8445</code>、<code>DxGraphics.cpp:34140-34149</code>)。<ul>
+<li>補間は <code>SetDrawMode</code> で全ステージまとめて変わる(<code>DX_DRAWMODE_BILINEAR</code> で線形補間)。ステージごとには変えられない(<code>Windows/DxGraphicsD3D11.cpp:14898-14901</code>)。</li>
+<li>範囲外の扱いは <code>SetTextureAddressModeUV(U, V, ステージ)</code> でステージごとに変えられる(<code>:14948-14971</code>)。</li>
+</ul>
+</li>
+<li>自作の頂点シェーダーを設定しているときは、頂点シェーダーにも同じテクスチャが渡る(<code>:12274-12277</code>)。サンプラーは渡らないので、頂点シェーダーでは <code>Load</code> を使う(<span class="tag guess">推測</span>)。</li>
+<li>シャドウマップのハンドルも渡せる(深度のテクスチャになる。<code>:23474-23477</code>)。</li>
+<li>テクスチャの大きさは 2 の累乗でなくてよい(<code>:7277</code>。Direct3D 9 版のヘルプの「2 の n 乗」の制限は無い)。</li>
+</ul>
+<h3 id="s10-2">10.2 MV1 の描画(<code>MV1SetUseOrigShader(TRUE)</code>)</h3>
+<p>DxLib がモデルのテクスチャを次の番号に置く(<code>Windows/DxModelD3D11.cpp:2216-2412</code>)。</p>
+<table>
+<thead>
+<tr>
+<th>番号(t / s)</th>
+<th>中身</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>ディフューズ(無ければ白の画像)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>法線マップ(ある場合)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>スペキュラーマップ(無ければ代わりの画像)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>トゥーンのディフューズのグラデーション(トゥーンのとき)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>トゥーンのスペキュラーのグラデーション(トゥーンのとき)</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td><strong>スフィアマップ</strong>(トゥーンで、ある場合)</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td><strong>RGB → VMaxRGB のボリュームテクスチャ</strong>(トゥーンのとき)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>2 枚目のディフューズ(マルチテクスチャのとき)</td>
+</tr>
+<tr>
+<td>8〜10</td>
+<td>シャドウマップ 0〜2(使っていなければ空)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>公式ヘルプ(<code>MV1SetUseOrigShader</code>)は 5 と 6 を逆に書いている</strong>(「5 = ボリューム、6 = スフィアマップ」。<code>00_DxLib_VC/help/function/dxfunc_3d_model_0.html:825-831</code>)。実装は Direct3D 11・9 とも 5 = スフィアマップ、6 = ボリューム(<code>Windows/DxModelD3D11.cpp:2291-2340</code>、<code>Windows/DxModelD3D9.cpp:350-355, 486-494</code>)。7〜10 はヘルプに載っていない。<strong>描画でも確認済み</strong>: スフィアマップを <code>register( t5 )</code> で読むサンプル A19(<code>samples/A19_SkinMesh4_DirLight_SphereMap_Toon_Phong</code>)の Direct3D 11 版が、Direct3D 9 版と同じ絵になった。</li>
+<li>各番号の補間と範囲外の扱いは、モデルのテクスチャの設定に従う。シャドウマップは線形補間・クランプ(<code>:2362-2363</code>)。</li>
+<li><code>SetUseTextureToShader(i, 画像)</code> で設定した番号は、モデルのテクスチャより優先される(<code>:2374-2408</code>)。</li>
+</ul>
+<h3 id="s10-3">10.3 画面の色のビット数と法線マップ</h3>
+<ul>
+<li><strong>DxLib の既定の画面は 16 ビットカラー</strong>(<code>SetGraphMode</code> を呼ばないとき)。この状態で、DxLib がバンプマップ(白黒の高さの画像)から作る法線マップを Direct3D 11 で読むと、平らな所の法線が (127, 127, 255) ではなく (123, 123, 255) で届いた。123 は 127 を 5 ビットに丸めた値(15 / 31 × 255)と一致する。<span class="tag guess">推測</span>: Direct3D 11 では、この法線マップが 16 ビットカラーのテクスチャとして作られる。</li>
+<li>法線が傾くので、ライティングの明るさが変わる(A20 で平らな面が約 4% 明るくなった)。Direct3D 9 では起きない。</li>
+<li><strong><code>SetGraphMode( 640, 480, 32 )</code> で 32 ビットカラーにすると起きない。</strong> A20・A21 は、Direct3D 9 版との差が 0.28% → 0.026%、0.22% → 0.070% になった(<code>samples/</code> の比較)。</li>
+<li>バンプマップから法線マップへの変換は Direct3D 9 と 11 で共通の処理(<code>DxModel.cpp:5928-5996</code>。平らな所は <code>( 0 + 1 ) × 127.5</code> で 127)。</li>
+<li>法線マップを使うなら 32 ビットカラーにする。</li>
+</ul>
+<hr />
+<h2 id="s11">11. 描画先</h2>
+<ul>
+<li><code>SetRenderTargetToShader(i, 画面)</code> の i が、ピクセルシェーダーの出力の <code>SV_TARGETi</code> になる(<code>Windows/DxGraphicsD3D11.cpp:24129-24189</code>)。i = 0 は <code>SetDrawScreen</code> と同じ。−1 で解除。</li>
+<li>同時に使える数は機能レベル 10 以上で 8(<code>:7270</code>)。</li>
+<li>ブレンドの設定は全部の描画先で共通(<code>:6443, 8417</code>)。</li>
+<li>Direct3D 9 版のサンプルは出力に <code>COLOR0</code> を使っている。Direct3D 11 では <code>SV_TARGET0</code> と書く。</li>
+<li>浮動小数点の画面: <code>SetDrawValidFloatTypeGraphCreateFlag(TRUE)</code> + <code>SetCreateGraphChannelBitDepth(32)</code> などで作る(<code>:7597, 7615</code>)。この文書の検証もこの画面を使っている。</li>
+<li>上下は反転しない。</li>
+<li><strong>Direct3D 9 版との絵のずれ</strong>(<code>samples/run.py</code> で同じフレームを撮って比べた結果): 2D の ToShader の描画(C2・C5・C6・C7)は画素単位で完全に一致した。3D の ToShader の描画(C1・C3・C4・C8)は、テクスチャの模様の境目だけが 1 画素ずれた(描かれた画素の約 5% に当たる境目の線。ほかは一致)。<span class="tag guess">推測</span>: Direct3D 9 と 11 でピクセルの中心の位置が半ピクセル違い、DxLib は 2D ではそれを補正しているが 3D では補正していないため。</li>
+</ul>
+<hr />
+<h2 id="s12">12. Direct3D 9 版から移植するときの対応表</h2>
+<p>Direct3D 9 版のリファレンス(<code>LoadVertexShader</code> / <code>LoadPixelShader</code> の解説)の定数レジスタと、Direct3D 11 版の対応です。</p>
+<h3 id="s12-1">12.1 頂点シェーダー</h3>
+<table>
+<thead>
+<tr>
+<th>D3D9</th>
+<th>中身</th>
+<th>D3D11</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c0</td>
+<td>(0, 1) の定数</td>
+<td>無し(リテラルで書く)</td>
+</tr>
+<tr>
+<td>c1</td>
+<td>エミッシブ + アンビエント × グローバルアンビエント</td>
+<td>b0 <code>Material.Ambient_Emissive</code></td>
+</tr>
+<tr>
+<td>c2〜c5</td>
+<td>射影行列(転置)</td>
+<td>b1 <code>ProjectionMatrix[0〜3]</code></td>
+</tr>
+<tr>
+<td>c6〜c9</td>
+<td>ビュー行列(転置)</td>
+<td>b1 <code>ViewMatrix[0〜2]</code>(3 行だけ。4 行目は (0,0,0,1))</td>
+</tr>
+<tr>
+<td>c10</td>
+<td>フォグ(x: end/(end−start)、y: −1/(end−start)、z: 密度、w: 自然対数の底)</td>
+<td>b0 <code>Fog.LinearAdd</code>、<code>Fog.LinearDiv</code>、<code>Fog.Density</code>、<code>Fog.E</code></td>
+</tr>
+<tr>
+<td>c11 / c12 / c13</td>
+<td>マテリアルのディフューズ / スペキュラー / 強さ</td>
+<td>b0 <code>Material.Diffuse</code> / <code>Specular</code> / <code>Power</code></td>
+</tr>
+<tr>
+<td>c14〜c20</td>
+<td>有効ライト 0 番目(位置・方向・色・アンビエント・距離・減衰・スポット)</td>
+<td>b0 <code>Light[0]</code> の各フィールド(8.1。並びは違う)</td>
+</tr>
+<tr>
+<td>c21〜c41</td>
+<td>有効ライト 1〜3 番目</td>
+<td>b0 <code>Light[1〜3]</code>(D3D11 は 6 個まで)</td>
+</tr>
+<tr>
+<td>c42</td>
+<td>トゥーンの輪郭線の太さ</td>
+<td>b1 <code>ToonOutLineSize</code></td>
+</tr>
+<tr>
+<td>c43</td>
+<td>ディフューズ・スペキュラーの元(頂点 / マテリアル)</td>
+<td>b1 <code>DiffuseSource</code> / <code>SpecularSource</code></td>
+</tr>
+<tr>
+<td>c44〜c56</td>
+<td>シャドウマップ</td>
+<td>b2 <code>ShadowMapLightViewProjectionMatrix</code></td>
+</tr>
+<tr>
+<td>c88〜c93</td>
+<td>テクスチャ座標の変換行列 0〜2</td>
+<td>b2 <code>TextureMatrix[0〜2]</code>(使われるのは 0 だけ)</td>
+</tr>
+<tr>
+<td>c94〜c96</td>
+<td>ローカル → ワールド行列</td>
+<td>b1 <code>LocalWorldMatrix[0〜2]</code></td>
+</tr>
+<tr>
+<td>c97〜c255</td>
+<td>スキンメッシュのボーン行列</td>
+<td>b3 <code>Matrix[]</code>(<code>BLENDINDICES</code> はボーン番号 × 3)</td>
+</tr>
+<tr>
+<td>b0〜b3(BOOL)</td>
+<td>フォグの種類・使うか</td>
+<td>無し(<code>Fog.Mode</code> は信用しない。8.1)</td>
+</tr>
+<tr>
+<td>b4〜b15(BOOL)</td>
+<td>ライト 0〜3 を使うか・種類</td>
+<td>無し(<code>Light[i].Type</code> は無効でも残る。8.1)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s12-2">12.2 ピクセルシェーダー</h3>
+<table>
+<thead>
+<tr>
+<th>D3D9</th>
+<th>中身</th>
+<th>D3D11</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c0</td>
+<td>(0, 0.5, 1, 2) の定数</td>
+<td>無し(リテラルで書く)</td>
+</tr>
+<tr>
+<td>c1</td>
+<td>エミッシブ + アンビエント × グローバルアンビエント</td>
+<td>b0 <code>Material.Ambient_Emissive</code></td>
+</tr>
+<tr>
+<td>c2 / c3 / c4</td>
+<td>マテリアルのディフューズ / スペキュラー / 強さ</td>
+<td>b0 <code>Material.Diffuse</code> / <code>Specular</code> / <code>Power</code></td>
+</tr>
+<tr>
+<td>c5</td>
+<td>不透明度など</td>
+<td>b1 <code>FactorColor</code>(<strong>ToShader では更新されない</strong>。8.5)</td>
+</tr>
+<tr>
+<td>c6 / c7</td>
+<td>トゥーンの輪郭線の色 / 太さ</td>
+<td>無し(<span class="tag guess">推測</span>: MV1 のトゥーンの輪郭線は別の仕組み)</td>
+</tr>
+<tr>
+<td>c8</td>
+<td>フォグの色</td>
+<td>b0 <code>Fog.Color</code></td>
+</tr>
+<tr>
+<td>c9〜c17</td>
+<td>有効ライト 0〜2 番目の色(ディフューズ・スペキュラー・アンビエント)</td>
+<td>b0 <code>Light[0〜2].Diffuse</code> / <code>Specular</code> / <code>Ambient</code></td>
+</tr>
+<tr>
+<td>c18〜c21</td>
+<td>シャドウマップ</td>
+<td>b2 <code>Data[]</code></td>
+</tr>
+<tr>
+<td>c32〜c59</td>
+<td>有効ライト 0〜3 番目(位置・方向など全部)</td>
+<td>b0 <code>Light[0〜3]</code>(頂点とピクセルの b0 は同じバッファ)</td>
+</tr>
+<tr>
+<td>s0〜</td>
+<td>テクスチャ(サンプラー)</td>
+<td><code>Texture2D : register(tN)</code> + <code>SamplerState : register(sN)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="s12-3">12.3 書き方の違い</h3>
+<table>
+<thead>
+<tr>
+<th>D3D9</th>
+<th>D3D11</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>float4 x : register(c5);</code></td>
+<td><code>cbuffer … : register(b1) { … }</code> の中のフィールド(4 章の include を使う)</td>
+</tr>
+<tr>
+<td><code>sampler s : register(s0);</code> と <code>tex2D(s, uv)</code></td>
+<td><code>Texture2D t : register(t0);</code> <code>SamplerState s : register(s0);</code> と <code>t.Sample(s, uv)</code></td>
+</tr>
+<tr>
+<td>出力 <code>: POSITION</code></td>
+<td><code>: SV_POSITION</code></td>
+</tr>
+<tr>
+<td>出力 <code>: COLOR0</code>(ピクセル)</td>
+<td><code>: SV_TARGET0</code></td>
+</tr>
+<tr>
+<td>頂点入力は部分的に書いてよい</td>
+<td>5 章の形式を全部同じ順で書く</td>
+</tr>
+<tr>
+<td>ピクセル入力は名前で結び付く</td>
+<td>頂点シェーダーの出力と同じ順で書く(3 章)</td>
+</tr>
+<tr>
+<td>頂点シェーダーの出力 <code>FOG</code> で、固定機能のフォグが色を混ぜる</td>
+<td>固定機能のフォグは無い。フォグの濃さを <code>TEXCOORD</code> で渡し、ピクセルシェーダーで <code>lerp( g_Common.Fog.Color.rgb, 色, saturate( 濃さ ) )</code> と混ぜる(A03)</td>
+</tr>
+<tr>
+<td>シェーダーモデル 2.0 の <code>sqrt</code> は、負の値の絶対値を取ってから計算する(<code>rsq</code> 命令の決まり。<span class="tag general">一般知識</span>)</td>
+<td>負の値の <code>sqrt</code> は NaN(数でない値)。NaN はその後の計算に広がり、<code>min( NaN, 1 )</code> などは 1 を返す。Direct3D 9 版と同じ結果にするには <code>sqrt( abs( … ) )</code>(B5 のフレネル反射。入れないと映り込みが不透明になり、一致しなかった)</td>
+</tr>
+<tr>
+<td>頂点シェーダーの入力に、頂点データに無い要素(剛体メッシュなのに <code>BLENDINDICES</code> など)を宣言してもよい。無い要素には既定の値が入る</td>
+<td>入力の要素と並びが頂点データと合わないと、エラーも出ずに何も描かれない(5 章)。B1・B3 の原本の剛体メッシュ用のシェーダーには、スキンメッシュ用からの写し残りの入力があった。そのまま移すと、ステージが深度の画像に描かれず、影がまったく違う絵になった</td>
+</tr>
+<tr>
+<td>シェーダーモデル 2.0 では、頂点シェーダーの <code>COLOR0</code> / <code>COLOR1</code> の出力が 0〜1 に切り詰められる(<span class="tag general">一般知識</span>)</td>
+<td>切り詰めない。1 を超えた値がそのままピクセルシェーダーに届く。Direct3D 9 版(<code>vs_2_0</code>)と同じ見た目にするには、出力の前に <code>saturate</code> する(A05〜A10・A15・A16。入れないとトゥーンの帯が明るい側にずれて、A15・A16 は Direct3D 9 版と一致しなかった)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="s13">13. 未確認の事項</h2>
+<table>
+<thead>
+<tr>
+<th>事項</th>
+<th>状態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>内蔵シェーダーのコンパイル済みバイナリのプロファイル</td>
+<td>ソースでは実行時コンパイル版の <code>vs_4_0</code> / <code>ps_4_0</code> しか読めない。バイナリも同じと推測</td>
+</tr>
+<tr>
+<td>機能レベル 9.x での色の赤と青の入れ替わり</td>
+<td>推測。確認する環境が無い</td>
+</tr>
+<tr>
+<td><code>DX_PRIMTYPE_TRIANGLEFAN</code> が使えないこと</td>
+<td>推測(Direct3D 11 に扇形の描画は無い。<code>DxLib.h:642-647</code>)</td>
+</tr>
+<tr>
+<td>自作の定数バッファを b0〜b3 に置いたときに DxLib の描画が壊れること</td>
+<td>推測</td>
+</tr>
+<tr>
+<td><code>SetUseLarge3DPositionSupport(TRUE)</code> のときの行列</td>
+<td>ソースの読みだけ。この文書の対象外</td>
+</tr>
+</tbody>
+</table>
+</main>
+</body>
+</html>

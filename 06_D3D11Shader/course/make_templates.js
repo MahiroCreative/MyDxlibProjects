@@ -2,7 +2,7 @@
 //
 // 【置き場所についての注意】拡張機能本体(05_VSCodeExtention/extension/)には**入れない**。
 // これらのテンプレートには DxLib SDK 付属のサンプル素材(Tex1.bmp・Kao.bmp・DxChara.x など)が入っており、
-// DxLib 作者の権利物で、拡張機能の MIT ライセンスの対象外(CLAUDE.md・06_D3D11Shader/samples/README.md と同じ扱い)。
+// DxLib 作者の権利物で、拡張機能の MIT ライセンスの対象外(CLAUDE.md・06_D3D11Shader/samples/index.html と同じ扱い)。
 // 生徒は「新規プロジェクト作成」の「テンプレートファイル (.dxtemplate) を選ぶ...」からこのフォルダのファイルを選ぶ。
 //
 // 使い方: node course/make_templates.js

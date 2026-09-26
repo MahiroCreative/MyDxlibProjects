@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reference/d3d9_original — 公式 Direct3D 9 版サンプルの原本</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="../course/index.html">DxLib D3D11 シェーダー教材</a><span class="spacer"></span><nav class="doc-nav"><a href="../course/index.html">授業</a><a href="../spec/dxlib_d3d11_shader_spec.html">仕様書</a><a href="../samples/index.html">サンプル</a><a href="../verify/index.html">検証</a><a href="../reference/index.html" class="now">原本</a></nav></div></header>
+<main>
+<div class="hero"><h1>reference/d3d9_original — 公式 Direct3D 9 版サンプルの原本</h1></div>
+
+<p>移植の比較用に集めた、DxLib 公式の Direct3D 9 版サンプルです。<strong>変更しません。</strong>
+DxLib の作者の権利物で、拡張機能の MIT ライセンスの対象外です。</p>
+<h2>A_base(3D モデル描画の基本 21 本)</h2>
+<ul>
+<li>出どころ: SDK の <code>help/program/dxprogram_3DModelShaderBase.html</code> と、各サンプルの「実行に必要なファイル一式」(<code>https://dxlib.xsrv.jp/file/&lt;名前&gt;.zip</code>。2026-09-26 取得)。</li>
+<li>各フォルダの直下は zip の中身(CP932・CRLF)。exe・ShaderCompiler.exe・コンパイル済みの .vso/.pso は除いた。</li>
+<li><code>html/</code> は HTML から取り出した版(UTF-8。HTML の中の <code>&lt;</code> がエスケープされていないので、コードの中のタグは div・b・a だけを消して取り出した)。zip 版との違いは、HTML 版の C++ に <code>SetUseDirect3DVersion( DX_DIRECT3D_9EX )</code> があることと、コメント・空行だけ。</li>
+<li><code>index.json</code> は見出し・zip の URL・読み込むシェーダー名の一覧。</li>
+<li>欠け:<ul>
+<li><code>02_SkinMesh4_NoLight</code> と <code>11_NormalMesh_DirLight_Phong</code> は公式 zip が壊れている(サーバーが 63,152 バイトで切れたものを返す。2 回取り直して同じ)。HTML 版だけ。モデル(DxChara.x / NormalBox.mqo)は他のサンプルと同じもの。</li>
+<li><code>21_NormalMesh_DirSpotPointLight_NrmMap</code> は、HTML の「頂点シェーダーのプログラム」の見出しの中身が実はピクセルシェーダー(頂点シェーダーは HTML に無い)。zip には両方ある。</li>
+</ul>
+</li>
+</ul>
+<h2>B_applied(応用 7 本)</h2>
+<p>SDK の <code>help/program/&lt;名前&gt;/</code> をそのまま複写(CP932・CRLF)。説明は SDK の <code>help/program/dxprogram_&lt;名前&gt;.html</code>(鏡は <code>dxprogram_Mirror_Shader.html</code>)。</p>
+<h2>C_function(関数リファレンスのサンプル 8 本)</h2>
+<p>SDK の <code>help/function/dxfunc_3d_shader.html</code> から取り出した(UTF-8)。
+C7・C8 は Indexed 版の描画関数のサンプルで、シェーダーは C2・C1 と同じもの。
+コンパイル済みの .vso/.pso と画像は SDK の <code>サンプルプログラム実行用フォルダ</code> にある。</p>
+</main>
+</body>
+</html>

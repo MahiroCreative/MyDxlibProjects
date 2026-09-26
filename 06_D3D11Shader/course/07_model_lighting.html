@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>07 3D モデルを自分のシェーダーで描く(ライト) — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -54,7 +54,7 @@ SetUsePixelShader( PixelShaderHandle ) ;   <span class="c">// ピクセルシェ
 MV1DrawModel( ModelHandle ) ;</code></pre>
 
 <ul>
-<li><strong>頂点シェーダーとピクセルシェーダーの両方が必要</strong>です。片方だけでは正しく描けません(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 3.3</a>)。</li>
+<li><strong>頂点シェーダーとピクセルシェーダーの両方が必要</strong>です。片方だけでは正しく描けません(<a href="../spec/dxlib_d3d11_shader_spec.html#s3-3">仕様書 3.3</a>)。</li>
 <li>モデルのテクスチャは、DxLib が 0 番(<code>t0</code>)に置いてくれます。</li>
 </ul>
 
@@ -71,7 +71,7 @@ MV1DrawModel( ModelHandle ) ;</code></pre>
 } ;</code></pre>
 
 <ul>
-<li>MV1 のモデルの頂点は、<code>DrawPolygon3DToShader</code> の頂点と<strong>並びが違います</strong>。モデルの種類(剛体・スキンメッシュ・法線マップ付き)でも増えます(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 5.3</a>)。</li>
+<li>MV1 のモデルの頂点は、<code>DrawPolygon3DToShader</code> の頂点と<strong>並びが違います</strong>。モデルの種類(剛体・スキンメッシュ・法線マップ付き)でも増えます(<a href="../spec/dxlib_d3d11_shader_spec.html#s5-3">仕様書 5.3</a>)。</li>
 <li>04 と同じく、並びが合わないとエラーも出ずに何も描かれません。</li>
 </ul>
 
@@ -129,7 +129,7 @@ VSOutput.Diffuse = lLightLitDest.y * ライトの色 * マテリアルの色 + �
 
 <ul>
 <li><code>lit</code> は、内積がマイナス(ライトの裏側)なら 0 にしてくれる関数です。<code>.y</code> がディフューズ(拡散)の明るさ、<code>.z</code> がスペキュラー(てかり)の強さ。</li>
-<li><code>g_Common.Light[ 0 ]</code> は、DxLib のライトの設定(<code>SetLightDirection</code> など)から DxLib が入れてくれる値です。向きは<strong>カメラから見た向き</strong>(ビュー空間)なので、法線もビュー空間にしてから内積を取ります(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 8.1</a>)。</li>
+<li><code>g_Common.Light[ 0 ]</code> は、DxLib のライトの設定(<code>SetLightDirection</code> など)から DxLib が入れてくれる値です。向きは<strong>カメラから見た向き</strong>(ビュー空間)なので、法線もビュー空間にしてから内積を取ります(<a href="../spec/dxlib_d3d11_shader_spec.html#s8-1">仕様書 8.1</a>)。</li>
 <li>この計算は頂点ごとにしています(頂点ライティング)。三角形の中は、頂点の色をなめらかに混ぜた色になります。</li>
 </ul>
 

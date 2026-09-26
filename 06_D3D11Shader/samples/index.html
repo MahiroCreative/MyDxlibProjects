@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>samples — 公式サンプルの Direct3D 11 移植版</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body class="doc">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="../course/index.html">DxLib D3D11 シェーダー教材</a><span class="spacer"></span><nav class="doc-nav"><a href="../course/index.html">授業</a><a href="../spec/dxlib_d3d11_shader_spec.html">仕様書</a><a href="../samples/index.html" class="now">サンプル</a><a href="../verify/index.html">検証</a><a href="../reference/index.html">原本</a></nav></div></header>
+<main>
+<div class="hero"><h1>samples — 公式サンプルの Direct3D 11 移植版</h1></div>
+
+<p>DxLib 公式の Direct3D 9 版シェーダーサンプルを、Direct3D 11(DxLib の既定)で動くように移植したものです。
+<strong>公式の Direct3D 9 版と同じ絵になることを確かめたものだけ</strong>を置いています。</p>
+<ul>
+<li>原本との違いは、ソースの <code>【D3D11】</code> のコメントで分かります。原本は <code>../reference/d3d9_original/</code>。</li>
+<li>各サンプルのフォルダは、拡張機能(DxLib 開発環境)のプロジェクトと同じ並びです。<code>src/main.cpp</code>、<code>shaders/*VS.hlsl</code>(頂点)・<code>*PS.hlsl</code>(ピクセル)、コンパイル先は <code>shaders/bin/</code>、素材はフォルダの直下。</li>
+<li><code>shaders/DxLibVS.hlsli</code>・<code>DxLibPS.hlsli</code>・<code>DxLibCommon.hlsli</code> は、DxLib が渡す定数(ビュー行列など)の宣言です。どのサンプルも同じ内容です(原本は <code>_shared/</code>)。並びが DxLib と一致していることは <code>../verify/</code> で確かめています。</li>
+</ul>
+<h2>一覧</h2>
+<h3>A. 3D モデル描画の基本(公式「オリジナルシェーダーを使用した３Ｄモデルの描画基本」)</h3>
+<p><code>MV1SetUseOrigShader</code> で、MV1 のモデルを頂点シェーダーとピクセルシェーダーの両方を自作して描く。
+「SM」は Direct3D 9 版のシェーダーモデル。</p>
+<table>
+<thead>
+<tr>
+<th>サンプル</th>
+<th>内容</th>
+<th>SM</th>
+<th>確認</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="thumb-cell"><img src="images/A01_NormalMesh_NoLight.jpg" alt="" loading="lazy"><span class="m">A01_NormalMesh_NoLight</span></td>
+<td>剛体メッシュのライティング無し描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A02_SkinMesh4_NoLight.jpg" alt="" loading="lazy"><span class="m">A02_SkinMesh4_NoLight</span></td>
+<td>１頂点へ影響を与えるフレームの数が１～４個のスキニングメッシュのライティング無し描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A03_NormalMesh_NoLight_Fog.jpg" alt="" loading="lazy"><span class="m">A03_NormalMesh_NoLight_Fog</span></td>
+<td>剛体メッシュのライティング無しフォグあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A04_NormalMesh_NoLight_Fog_SV3.jpg" alt="" loading="lazy"><span class="m">A04_NormalMesh_NoLight_Fog_SV3</span></td>
+<td>剛体メッシュのライティング無しフォグあり描画（シェーダーモデル３．０版）</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A05_NormalMesh_DirLight.jpg" alt="" loading="lazy"><span class="m">A05_NormalMesh_DirLight</span></td>
+<td>剛体メッシュのディレクショナルライトあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A06_SkinMesh4_DirLight.jpg" alt="" loading="lazy"><span class="m">A06_SkinMesh4_DirLight</span></td>
+<td>１頂点へ影響を与えるフレームの数が１～４個のスキニングメッシュのディレクショナルライトあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A07_NormalMesh_PointLight.jpg" alt="" loading="lazy"><span class="m">A07_NormalMesh_PointLight</span></td>
+<td>剛体メッシュのポイントライトあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A08_NormalMesh_SpotLight.jpg" alt="" loading="lazy"><span class="m">A08_NormalMesh_SpotLight</span></td>
+<td>剛体メッシュのスポットライトあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A09_NormalMesh_DirPointLight.jpg" alt="" loading="lazy"><span class="m">A09_NormalMesh_DirPointLight</span></td>
+<td>剛体メッシュのディレクショナルライトとポイントライトあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A10_NormalMesh_SpotPointLight.jpg" alt="" loading="lazy"><span class="m">A10_NormalMesh_SpotPointLight</span></td>
+<td>剛体メッシュのスポットライトとポイントライトあり描画</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A11_NormalMesh_DirLight_Phong.jpg" alt="" loading="lazy"><span class="m">A11_NormalMesh_DirLight_Phong</span></td>
+<td>剛体メッシュのディレクショナルライトありフォンシェーディング描画</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A12_NormalMesh_PointLight_Phong.jpg" alt="" loading="lazy"><span class="m">A12_NormalMesh_PointLight_Phong</span></td>
+<td>剛体メッシュのポイントライトありフォンシェーディング描画</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A13_NormalMesh_PointLight6_Phong.jpg" alt="" loading="lazy"><span class="m">A13_NormalMesh_PointLight6_Phong</span></td>
+<td>剛体メッシュのポイントライトありフォンシェーディング描画（ポイントライト６つ版）</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A14_NormalMesh_SpotLight_Phong.jpg" alt="" loading="lazy"><span class="m">A14_NormalMesh_SpotLight_Phong</span></td>
+<td>剛体メッシュのスポットライトありフォンシェーディング描画</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A15_SkinMesh4_DirLight_Toon.jpg" alt="" loading="lazy"><span class="m">A15_SkinMesh4_DirLight_Toon</span></td>
+<td>ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つ</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A16_SkinMesh4_DirSpotPointLight_Toon.jpg" alt="" loading="lazy"><span class="m">A16_SkinMesh4_DirSpotPointLight_Toon</span></td>
+<td>ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライトとスポットライトとポイントライト一つづつ</td>
+<td>2.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A17_SkinMesh4_DirLight_Toon_Phong.jpg" alt="" loading="lazy"><span class="m">A17_SkinMesh4_DirLight_Toon_Phong</span></td>
+<td>ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つのフォンシェーディング</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A18_SkinMesh4_DirSpotPointLight_Toon_Phong.jpg" alt="" loading="lazy"><span class="m">A18_SkinMesh4_DirSpotPointLight_Toon_Phong</span></td>
+<td>ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライトとスポットライトとポイントライト一つづつのフォンシェーディング</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A19_SkinMesh4_DirLight_SphereMap_Toon_Phong.jpg" alt="" loading="lazy"><span class="m">A19_SkinMesh4_DirLight_SphereMap_Toon_Phong</span></td>
+<td>ＭＭＤ互換のトゥーンレンダリング　　スキニングメッシュでディレクショナルライト一つとスフィアマップのフォンシェーディング</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A20_NormalMesh_DirLight_NrmMap.jpg" alt="" loading="lazy"><span class="m">A20_NormalMesh_DirLight_NrmMap</span></td>
+<td>法線マップ付き剛体メッシュのディレクショナルライトあり描画</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/A21_NormalMesh_DirSpotPointLight_NrmMap.jpg" alt="" loading="lazy"><span class="m">A21_NormalMesh_DirSpotPointLight_NrmMap</span></td>
+<td>法線マップ付き剛体メッシュのディレクショナルライトとスポットライトとポイントライト一つづつ描画</td>
+<td>3.0</td>
+<td>一致</td>
+</tr>
+</tbody>
+</table>
+<h3>B. 応用サンプル(公式「３Ｄアクション」などの D3D9 版シェーダーサンプル)</h3>
+<p>描画先に描いて後で読む、C++ から行列や値を渡す、といった組み合わせのサンプル。</p>
+<table>
+<thead>
+<tr>
+<th>サンプル</th>
+<th>内容</th>
+<th>確認</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="thumb-cell"><img src="images/B1_3DAction_DepthShadow.jpg" alt="" loading="lazy"><span class="m">B1_3DAction_DepthShadow</span></td>
+<td>深度シャドウ(3D アクションの基本に影を付ける)</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/B2_3DAction_OpticalCamouflage.jpg" alt="" loading="lazy"><span class="m">B2_3DAction_OpticalCamouflage</span></td>
+<td>光学迷彩(背景をゆがめて透けて見せる)</td>
+<td>一致(基準 0.5%)</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/B3_3DAction_PointLight_DepthShadow.jpg" alt="" loading="lazy"><span class="m">B3_3DAction_PointLight_DepthShadow</span></td>
+<td>ポイントライトの深度シャドウ(6 方向の深度記録画像)</td>
+<td>一致(基準 0.5%)</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/B4_DepthOfField.jpg" alt="" loading="lazy"><span class="m">B4_DepthOfField</span></td>
+<td>被写界深度(ピントの前後をぼかす)</td>
+<td>一致(原本の不具合を同じように直して比較。基準 3%)</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/B5_FresnelReflection.jpg" alt="" loading="lazy"><span class="m">B5_FresnelReflection</span></td>
+<td>フレネル反射(見る角度で映り込みの強さが変わる水面)</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/B6_Mirror.jpg" alt="" loading="lazy"><span class="m">B6_Mirror</span></td>
+<td>鏡(鏡に映る視点で描いた画像を貼る)</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/B7_VolumeWater.jpg" alt="" loading="lazy"><span class="m">B7_VolumeWater</span></td>
+<td>厚みのある水(水の深さで透明度を変える)</td>
+<td>一致</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>基準を変えたものは、理由を各 <code>sample.json</code> の <code>diff_reason</code> に書いた。B2・B3 はレンガの模様の細部(モデルのテクスチャの補間の違い)、B4 は画面の文字と標準の描画の明るさ。移植したシェーダーの処理そのものは一致している。</li>
+<li>B4 の原本は、今の DxLib(3.24f)では Direct3D 9 でも正しく動かない(深度値を書くピクセルシェーダーの出力のアルファが 0 で、何も書き込まれず画面全体がぼける。公式ページの画像と違う)。移植版はアルファを 1 に直し、比べるときは原本にも同じ修正を当てた(<code>original_patches</code>。原本のファイルは書き換えない)。</li>
+<li>B3 の原本は SDK に無い DxLib 内部のヘッダー(<code>DxGraphics.h</code>)を include していて、そのままではビルドできない(中身は使っていない)。移植版はこの行を消し、比べるときは原本からこの行だけ除いてビルドした(<code>original_remove_lines</code>)。</li>
+<li>3D アクションの 3 本は NPC の動きに乱数を使うので、比べるときは乱数の種を固定した(<code>_verify/verify_hook.h</code>)。</li>
+</ul>
+<h3>D. この教材のためのサンプル(公式の Direct3D 9 版は無い)</h3>
+<table>
+<thead>
+<tr>
+<th>サンプル</th>
+<th>内容</th>
+<th>確認</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="thumb-cell"><img src="images/D1_Sprite2DVertexShader.jpg" alt="" loading="lazy"><span class="m">D1_Sprite2DVertexShader</span></td>
+<td>2D の絵を頂点シェーダーでなびかせる。正射影カメラ + 3D の板(<code>src/Camera2D.h</code>)で、2D と同じ見た目のまま自作の頂点シェーダーを使う(<a href="../spec/dxlib_d3d11_shader_spec.html#s3-4">仕様書 3.4</a>)</td>
+<td><code>verify/</code> の ortho2d(<code>DrawGraph</code> と画素単位で一致など 10 項目)。<code>run.py</code> では動くことだけ</td>
+</tr>
+</tbody>
+</table>
+<h3>C. 関数リファレンスのサンプル</h3>
+<table>
+<thead>
+<tr>
+<th>サンプル</th>
+<th>内容</th>
+<th>描画</th>
+<th>確認</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="thumb-cell"><img src="images/C1_VertexShaderTest.jpg" alt="" loading="lazy"><span class="m">C1_VertexShaderTest</span></td>
+<td>頂点シェーダーの基本。C++ から座標と色を渡す</td>
+<td>3D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C2_PixelShaderTest.jpg" alt="" loading="lazy"><span class="m">C2_PixelShaderTest</span></td>
+<td>ピクセルシェーダーの基本。赤と青を入れ替える</td>
+<td>2D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C3_SetVSConstFMtxTest.jpg" alt="" loading="lazy"><span class="m">C3_SetVSConstFMtxTest</span></td>
+<td>C++ から行列を渡して回転させる</td>
+<td>3D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C4_SetVSConstFArrayTest.jpg" alt="" loading="lazy"><span class="m">C4_SetVSConstFArrayTest</span></td>
+<td>C++ から配列と整数を渡す</td>
+<td>3D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C5_SetPSConstFTest.jpg" alt="" loading="lazy"><span class="m">C5_SetPSConstFTest</span></td>
+<td>ピクセルシェーダーに C++ から色を渡す</td>
+<td>2D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C6_SetRenderTargetTest.jpg" alt="" loading="lazy"><span class="m">C6_SetRenderTargetTest</span></td>
+<td>2 つの描画先に同時に描く</td>
+<td>2D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C7_DrawPolygonIndexed2DToShader.jpg" alt="" loading="lazy"><span class="m">C7_DrawPolygonIndexed2DToShader</span></td>
+<td>インデックス付きの 2D 描画(シェーダーは C2 と同じ)</td>
+<td>2D</td>
+<td>一致</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="images/C8_DrawPolygonIndexed3DToShader.jpg" alt="" loading="lazy"><span class="m">C8_DrawPolygonIndexed3DToShader</span></td>
+<td>インデックス付きの 3D 描画(シェーダーは C1 と同じ)</td>
+<td>3D</td>
+<td>一致</td>
+</tr>
+</tbody>
+</table>
+<p>「一致」: 公式の Direct3D 9 版を Direct3D 9Ex で動かした絵と、移植版を Direct3D 11 で動かした絵を、同じフレームで撮って比べた。相手の絵の周り 3×3 画素の色の範囲に収まっていれば一致とみなし、外れた画素が 0.2% 以下なら合格(Direct3D 9 と 11 はピクセルの中心が半ピクセル違い、3D の描画ではテクスチャの模様の境目が 1 画素ずれたり、拡大したテクスチャの境目の中間の色が変わったりするため。<a href="../spec/dxlib_d3d11_shader_spec.html#s11">仕様書 11 章</a>)。平らな面の色やライティングが違えば、周りの画素も同じように違うので見つかる。2026-09-26 に全 36 本。</p>
+<figure>
+<img src="images/compare_example.jpg" alt="原本・移植版・差の画像" style="width:100%">
+<figcaption>比べた画像の例(A15。<code>samples/build/A15_SkinMesh4_DirLight_Toon/compare.png</code> を縮小)。左から、原本(Direct3D 9)| 移植版(Direct3D 11)| 差 × 4。差がほぼ真っ黒なら一致です。</figcaption>
+</figure>
+
+<h2>Direct3D 9 版から変えたこと(共通)</h2>
+<table>
+<thead>
+<tr>
+<th>Direct3D 9 版</th>
+<th>Direct3D 11 版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetVSConstF</code> / <code>SetPSConstF</code> / <code>SetVSConstFMtx</code> / <code>SetVSConstFArray</code></td>
+<td><code>CreateShaderConstantBuffer</code> で作った定数バッファを b4 に置く(Direct3D 11 では前者は何もしない)</td>
+</tr>
+<tr>
+<td><code>ResetVSConstF</code> など</td>
+<td><code>DeleteShaderConstantBuffer</code></td>
+</tr>
+<tr>
+<td>HLSL の <code>float4 x : register( c10 ) ;</code></td>
+<td><code>cbuffer … : register( b4 ) { float4 x ; }</code></td>
+</tr>
+<tr>
+<td>ビュー行列・射影行列を <code>register( c6 )</code> などで読む</td>
+<td><code>#include "DxLibVS.hlsli"</code> して <code>g_Base.ViewMatrix</code> などで読む</td>
+</tr>
+<tr>
+<td><code>sampler s : register( s0 ) ;</code> と <code>tex2D( s, uv )</code></td>
+<td><code>Texture2D t : register( t0 ) ;</code> <code>SamplerState s : register( s0 ) ;</code> と <code>t.Sample( s, uv )</code></td>
+</tr>
+<tr>
+<td>頂点の入力は使う要素だけ</td>
+<td><code>VERTEX3DSHADER</code> の 9 要素を全部、同じ順番で書く</td>
+</tr>
+<tr>
+<td>ピクセルの入力は名前で結び付く</td>
+<td>頂点シェーダーの出力と同じ順番で書く。2D は <code>SV_POSITION, COLOR0, COLOR1, TEXCOORD0, TEXCOORD1</code></td>
+</tr>
+<tr>
+<td>出力 <code>POSITION</code> / <code>COLOR0</code></td>
+<td><code>SV_POSITION</code> / <code>SV_TARGET0</code></td>
+</tr>
+<tr>
+<td>C++ から渡した行列は <code>mul( 行列, 座標 )</code></td>
+<td>定数バッファに <code>MATRIX</code> をそのまま入れ、HLSL で <code>row_major float4x4</code> として <code>mul( 座標, 行列 )</code>(C3)</td>
+</tr>
+<tr>
+<td>フルスクリーンで起動</td>
+<td><code>ChangeWindowMode( TRUE )</code> を追加</td>
+</tr>
+<tr>
+<td>MV1 の頂点の入力(POSITION が float4、BLENDINDICES が NORMAL より前など)</td>
+<td>Direct3D 11 の MV1 の頂点の並び(<a href="../spec/dxlib_d3d11_shader_spec.html#s5-3">仕様書 5.3</a>。POSITION は float3、TEXCOORD は float4、使わない TEXCOORD1 も書く)</td>
+</tr>
+<tr>
+<td>固定機能のフォグ(頂点シェーダーの出力 <code>FOG</code>)</td>
+<td>フォグの濃さを <code>TEXCOORD1</code> で渡し、ピクセルシェーダーで <code>g_Common.Fog.Color</code> と混ぜる(A03)</td>
+</tr>
+<tr>
+<td>シェーダーモデル 2.0 は頂点シェーダーの <code>COLOR</code> の出力が 0〜1 に切り詰められる</td>
+<td>同じ見た目にするため、出力の前に <code>saturate</code>(A05〜A10・A15・A16)</td>
+</tr>
+<tr>
+<td>既定の 16 ビットカラーの画面のまま</td>
+<td>法線マップのサンプル(A20・A21)は <code>SetGraphMode( 640, 480, 32 )</code>。16 ビットカラーだと Direct3D 11 では法線マップの精度が落ちて明るさが変わる(<a href="../spec/dxlib_d3d11_shader_spec.html#s10-3">仕様書 10.3</a>)</td>
+</tr>
+<tr>
+<td>C++ から渡す自前の定数 <code>matrix cfLightViewMatrix : register( c43 ) ;</code> など</td>
+<td><code>cbuffer UserParam : register( b4 ) { matrix cfLightViewMatrix : packoffset( c0 ) ; }</code>。C++ の MATRIX をそのまま入れれば、HLSL 側は Direct3D 9 版と同じ <code>matrix</code>(column_major)・同じ <code>mul</code> のままで同じ計算になる(B1・B3)</td>
+</tr>
+<tr>
+<td>使わない入力を宣言していてもよい(無い入力には既定の値が入る)</td>
+<td>頂点データに無い入力を宣言すると何も描かれない。原本の剛体メッシュ用のシェーダーにあったスキンメッシュ用の入力(<code>BLENDINDICES</code> など)は外した(B1・B3)</td>
+</tr>
+<tr>
+<td>シェーダーモデル 2.0 の <code>sqrt</code> は負の値の絶対値を取る</td>
+<td>負の値の <code>sqrt</code> は NaN。<code>sqrt( abs( … ) )</code> にした(B5)</td>
+</tr>
+<tr>
+<td>ライトの色 <code>cfLight.Diffuse</code> などは float4</td>
+<td><code>g_Common.Light[ n ].Diffuse</code> は float3。<code>float4( …, 0.0f )</code> にして使う</td>
+</tr>
+<tr>
+<td>ライトの <code>Range_FallOff_AT0_AT1.x</code> など、詰め込んだ float4</td>
+<td><code>RangePow2</code>・<code>FallOff</code>・<code>Attenuation0〜2</code>・<code>SpotParam0〜1</code> の名前付きのフィールド</td>
+</tr>
+</tbody>
+</table>
+<h2>確かめ方</h2>
+<pre><code>python samples/sync_shared.py<span class="c">   # _shared の .hlsli を各サンプルに複写し、ソースを BOM 付き UTF-8 にそろえる</span>
+python samples/run.py        <span class="c">   # 全サンプル。サンプル名を並べるとそれだけ。--compare-only で前回の撮影結果の比べ直しだけ</span>
+</code></pre>
+<ul>
+<li>作業フォルダは <code>samples/build/&lt;サンプル名&gt;/</code>(<code>port/</code> が移植版、<code>orig/</code> が原本、<code>compare.png</code> が「原本 | 移植版 | 差 × 4」)。</li>
+<li>原本も移植版も、<code>_verify/verify_hook.h</code> をビルド時に差し込んで、決まったフレームで撮影して終了させる(ソースは書き換えない)。</li>
+<li>原本のコンパイル済みシェーダーは、SDK の <code>サンプルプログラム実行用フォルダ</code> のものを使う。</li>
+<li>シェーダーは拡張機能と同じ手順(CP932 に変換 → <code>ShaderCompiler.exe</code>、<code>vs_4_0</code> / <code>ps_4_0</code>)、C++ は拡張機能と同じ文字コードの指定(<code>/source-charset:.932 /execution-charset:.932</code>、ソースは BOM 付き UTF-8)でビルドする。</li>
+<li><code>sample.json</code> の書き方は <code>run.py</code> の先頭に書いてある。</li>
+</ul>
+<h2>素材</h2>
+<p><code>Tex1.bmp</code> は DxLib の SDK(<code>サンプルプログラム実行用フォルダ</code>)のもの。A のモデル・画像は公式サイトの各サンプルの「実行に必要なファイル一式」のもの(A02・A11 は公式の zip が壊れているので、同じ素材を使う A06・A05 のもの)。いずれも DxLib の作者の権利物で、拡張機能の MIT ライセンスの対象外。</p>
+</main>
+</body>
+</html>

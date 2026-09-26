@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>04 頂点シェーダーで板を動かす — DxLib シェーダー授業</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -128,7 +128,7 @@
 
 <ul>
 <li><code>DrawPolygon3DToShader</code> の頂点(<code>VERTEX3DSHADER</code>)の<strong>全 9 要素を、この順番で</strong>書きます。<strong>使わない要素も消しません。</strong></li>
-<li>1 つでも消したり順番を変えたりすると、<strong>エラーも出ずに何も描かれません</strong>(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 5 章</a>)。何も出ないときは、まずここを疑います。</li>
+<li>1 つでも消したり順番を変えたりすると、<strong>エラーも出ずに何も描かれません</strong>(<a href="../spec/dxlib_d3d11_shader_spec.html#s5">仕様書 5 章</a>)。何も出ないときは、まずここを疑います。</li>
 </ul>
 
 <figure>
@@ -173,7 +173,7 @@ VSOutput.ProjectionPosition.x = dot( lViewPosition, g_Base.ProjectionMatrix[ 0 ]
 
 <ul>
 <li><code>g_Base.ViewMatrix</code> と <code>g_Base.ProjectionMatrix</code> は、DxLib のカメラの設定(<code>SetCameraPositionAndTarget_UpVecY</code> など)から DxLib が入れてくれる値です。</li>
-<li>行列は「行と内積(<code>dot</code>)を取る」形で掛けます。ビュー行列は 3 行だけなので、w は自分で 1 にします(<a href="../spec/dxlib_d3d11_shader_spec.md">仕様書 7 章</a>)。</li>
+<li>行列は「行と内積(<code>dot</code>)を取る」形で掛けます。ビュー行列は 3 行だけなので、w は自分で 1 にします(<a href="../spec/dxlib_d3d11_shader_spec.html#s7">仕様書 7 章</a>)。</li>
 </ul>
 
 <figure>

@@ -1,4 +1,4 @@
-/* course の解説ページ共通のデザイン。ブラウザでファイルを開くだけで見られるように、外部の読み込みはしない。 */
+/* 06_D3D11Shader の HTML(授業・仕様書・README)共通のデザイン。ブラウザでファイルを開くだけで見られるように、外部の読み込みはしない。 */
 
 :root {
 	--bg: #fbfaf7;
@@ -179,8 +179,48 @@ table {
 	overflow-x: auto;
 }
 th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
-th { background: var(--accent-soft); }
-td:first-child { white-space: nowrap; }
+th { background: var(--accent-soft); white-space: nowrap; }
+td:first-child code { white-space: nowrap; }
+td code { overflow-wrap: normal; }
+
+hr { border: none; border-top: 1px solid var(--line); margin: 40px 0; }
+
+/* ---- 文書(仕様書・README) ---- */
+.doc-nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.doc-nav a { padding: 0 8px; border-radius: 6px; line-height: 26px; }
+.doc-nav a.now { background: var(--accent); color: #fff; }
+.tag {
+	display: inline-block;
+	font-size: 12px;
+	line-height: 1.5;
+	padding: 0 6px;
+	border-radius: 4px;
+	font-weight: 700;
+	vertical-align: 1px;
+	white-space: nowrap;
+	border: 1px solid;
+}
+.tag.ok { background: var(--good-soft); color: var(--good); }
+.tag.guess { background: var(--accent2-soft); color: var(--accent2); }
+.tag.general { background: var(--code-inline-bg); color: var(--ink-soft); border-color: var(--line); }
+.vname { font-family: Consolas, monospace; font-size: .8em; color: var(--ink-soft); }
+.toc {
+	background: var(--paper);
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	padding: 10px 16px;
+	margin: 20px 0;
+}
+.toc summary { font-weight: 700; color: var(--accent); cursor: pointer; }
+.toc ol { margin: 4px 0; padding-left: .4em; font-size: 15px; list-style: none; }
+.toc ol ol { font-size: 14px; list-style: none; padding-left: 1em; }
+.toc a { text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+body.wide main { max-width: 980px; }
+body.wide .topbar-inner { max-width: 980px; }
+h2[id], h3[id], h4[id] { scroll-margin-top: 56px; }
+.thumb-cell img { display: block; width: 120px; height: auto; border-radius: 4px; background: #000; margin-bottom: 4px; }
+.thumb-cell .m, .thumb-cell code { font-family: Consolas, monospace; font-size: 12.5px; white-space: nowrap; }
 
 /* ---- 目標・注意の箱 ---- */
 .goal, .note, .warn {
@@ -338,6 +378,8 @@ details figure { border: none; box-shadow: none; padding: 8px 0 0; margin: 0; }
 	.sample { flex-direction: column; align-items: stretch; }
 	.sample img { width: 100%; }
 	.topbar .lesson-dots { display: none; }
+	body.doc .topbar .home { display: none; }
+	.doc-nav a { padding: 0 5px; }
 	.pager { flex-direction: column; }
 	/* 画面写真の並びは、スマホでは 2 枚ずつ */
 	.row > div:not(.arrow) { flex: 1 1 40%; }

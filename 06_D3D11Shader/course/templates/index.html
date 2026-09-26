@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>course/templates — 各回のテンプレートファイル(.dxtemplate)</title>
+<link rel="stylesheet" href="../../style.css">
+</head>
+<body class="doc">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-ink" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-acc2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-acc2-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="ah-good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-good-fill" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<header class="topbar"><div class="topbar-inner"><a class="home" href="../../course/index.html">DxLib D3D11 シェーダー教材</a><span class="spacer"></span><nav class="doc-nav"><a href="../../course/index.html" class="now">授業</a><a href="../../spec/dxlib_d3d11_shader_spec.html">仕様書</a><a href="../../samples/index.html">サンプル</a><a href="../../verify/index.html">検証</a><a href="../../reference/index.html">原本</a></nav></div></header>
+<main>
+<div class="hero"><h1>course/templates — 各回のテンプレートファイル(.dxtemplate)</h1></div>
+
+<p>拡張機能(05_VSCodeExtention)の「新規プロジェクト作成」フォームで、「テンプレートファイル (.dxtemplate) を選ぶ...」からここのファイルを選ぶと、その回のサンプルがそのままプロジェクトとして作れます。</p>
+<h2>置き場所についての注意</h2>
+<p><strong>拡張機能本体(<code>05_VSCodeExtention/extension/</code>)には入れていません。</strong> 中身に DxLib SDK 付属のサンプル素材(<code>Tex1.bmp</code>・<code>Kao.bmp</code>・<code>DxChara.x</code> など)が入っており、DxLib 作者の権利物で、拡張機能の MIT ライセンスの対象外だからです(<code>CLAUDE.md</code>、<code>06_D3D11Shader/samples/index.html</code> と同じ扱い)。
+拡張機能そのもの(VSIX)の大きさには影響しません。</p>
+<h2>一覧</h2>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>講座</th>
+<th>元のサンプル</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="thumb-cell"><img src="../images/c2_result.png" alt="" loading="lazy"><code>01_pixel_shader.dxtemplate</code></td>
+<td>01</td>
+<td>C2_PixelShaderTest</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/c5_f80.png" alt="" loading="lazy"><code>02_constant_buffer.dxtemplate</code></td>
+<td>02・03</td>
+<td>C5_SetPSConstFTest</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/c1_f50.png" alt="" loading="lazy"><code>04_vertex_shader.dxtemplate</code></td>
+<td>04</td>
+<td>C1_VertexShaderTest</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/c3_f50.png" alt="" loading="lazy"><code>05_matrix.dxtemplate</code></td>
+<td>05</td>
+<td>C3_SetVSConstFMtxTest</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/d1_f50.png" alt="" loading="lazy"><code>06_sprite_vertex.dxtemplate</code></td>
+<td>06</td>
+<td>D1_Sprite2DVertexShader</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/a01.png" alt="" loading="lazy"><code>07a_model_nolight.dxtemplate</code></td>
+<td>07</td>
+<td>A01_NormalMesh_NoLight</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/a05.png" alt="" loading="lazy"><code>07b_model_dirlight.dxtemplate</code></td>
+<td>07・08</td>
+<td>A05_NormalMesh_DirLight</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/a11_spec.png" alt="" loading="lazy"><code>08b_model_phong.dxtemplate</code></td>
+<td>08</td>
+<td>A11_NormalMesh_DirLight_Phong</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/a15.png" alt="" loading="lazy"><code>09_toon.dxtemplate</code></td>
+<td>09</td>
+<td>A15_SkinMesh4_DirLight_Toon</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/b6.jpg" alt="" loading="lazy"><code>10a_mirror.dxtemplate</code></td>
+<td>10</td>
+<td>B6_Mirror</td>
+</tr>
+<tr>
+<td class="thumb-cell"><img src="../images/b1.jpg" alt="" loading="lazy"><code>10b_shadow.dxtemplate</code></td>
+<td>10</td>
+<td>B1_3DAction_DepthShadow</td>
+</tr>
+</tbody>
+</table>
+<h2>作り直し方</h2>
+<p>サンプル(<code>samples/</code>)を直したら、テンプレートも作り直します。</p>
+<pre><code>node course/make_templates.js   <span class="c">   # samples/ から .dxtemplate を作り直す</span>
+node course/verify_templates.js <span class="c">   # zip として正しく読めるか確かめる(拡張機能の読み方と同じ形式)</span>
+</code></pre>
+<ul>
+<li><code>template.json</code> はテンプレートの表示名・説明。サンプルの <code>sample.json</code> とは別物(テンプレートの一覧表示用)。</li>
+<li><code>sample.json</code>・<code>README.md</code>・<code>shaders/bin</code>(コンパイル済みシェーダー)は入れない。生徒が「すべてコンパイル」する。</li>
+</ul>
+</main>
+</body>
+</html>
