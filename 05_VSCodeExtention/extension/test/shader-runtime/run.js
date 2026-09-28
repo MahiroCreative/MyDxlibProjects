@@ -82,8 +82,77 @@ function main() {
 	}
 }
 
+/**
+ * シェーダー入りテンプレート(templates/shader。DESIGN.md 8 章)を、そのまま動かして画素で判定する。
+ * シェーダーはビルドと同じ dist/buildShaders.js でコンパイルし、main.cpp は ScreenFlip だけを差し替えて
+ * (template_check.cpp)最初の 1 フレームを判定する。
+ */
+function checkShaderTemplate(workRoot, sdk) {
+	const work = path.resolve(workRoot, 'shader-template');
+	const tpl = path.resolve(__dirname, '..', '..', 'templates', 'shader');
+	const compiler = path.join(path.dirname(sdk), 'Tool', 'ShaderCompiler', 'ShaderCompiler.exe');
+	fs.rmSync(work, { recursive: true, force: true });
+	fs.mkdirSync(path.join(work, 'src'), { recursive: true });
+	fs.cpSync(path.join(tpl, 'shaders'), path.join(work, 'shaders'), { recursive: true });
+	const bom = (f) => '﻿' + fs.readFileSync(f, 'utf8').replace(/^﻿/, '');
+	fs.writeFileSync(path.join(work, 'src', 'template_main.cpp'), bom(path.join(tpl, 'src', 'main.cpp')).split('__PROJECT_NAME__').join('TemplateCheck'), 'utf8');
+	fs.writeFileSync(path.join(work, 'src', 'template_check.cpp'), bom(path.join(__dirname, 'template_check.cpp')), 'utf8');
+
+	// 1. シェーダー: ビルドと同じスクリプト(拡張ではビルド用 bat が VSCode 本体で呼ぶ。ここでは Node で呼ぶ)
+	const cfg = path.join(work, 'shaders.json');
+	fs.writeFileSync(
+		cfg,
+		JSON.stringify({ srcDir: path.join(work, 'shaders'), outDir: path.join(work, 'shaders', 'bin'), baseDir: work, compiler, vsTarget: 'vs_4_0', psTarget: 'ps_4_0', log: path.join(work, 'build.log') }),
+		'utf8',
+	);
+	const out = execFileSync(process.execPath, [path.resolve(__dirname, '..', '..', 'dist', 'buildShaders.js'), cfg], { encoding: 'utf8' });
+	console.log(out.trim().replace(/^/gm, '[shader-template] '));
+	for (const f of ['Sample_2DPS.pso', 'Sample_3DPS.pso', 'Sample_3DVS.vso']) {
+		if (!fs.existsSync(path.join(work, 'shaders', 'bin', f))) {
+			throw new Error(`テンプレートのシェーダーがコンパイルされない: ${f}`);
+		}
+	}
+
+	// 2. C++: 拡張機能のビルドと同じオプション
+	const bat = path.join(work, 'build.bat');
+	fs.writeFileSync(
+		bat,
+		[
+			'@echo off',
+			'chcp 65001 >nul',
+			`call "${findVcvarsall()}" x64 >nul 2>&1`,
+			`cd /d "${work}"`,
+			'if not exist build mkdir build',
+			`cl /nologo /EHsc /W3 /wd4819 /std:c++20 /source-charset:.932 /execution-charset:.932 /D_WINDOWS /DWIN32 /O2 /MT /DNDEBUG /I "${sdk}" src\\template_check.cpp /Fobuild\\ /Febuild\\templatecheck.exe /link /SUBSYSTEM:WINDOWS /LIBPATH:"${sdk}"`,
+		].join('\r\n') + '\r\n',
+		'utf8',
+	);
+	execFileSync('cmd.exe', ['/d', '/c', bat], { stdio: 'ignore' });
+	const exe = path.join(work, 'build', 'templatecheck.exe');
+	if (!fs.existsSync(exe)) {
+		throw new Error('テンプレートの検証プログラムのビルドに失敗');
+	}
+
+	// 3. 実行して判定(作業フォルダはプロジェクトのフォルダ。VSCode から実行したときと同じ)
+	execFileSync(exe, [], { cwd: work, timeout: 60000 });
+	const results = fs.readFileSync(path.join(work, 'template_results.txt'), 'utf8');
+	const lines = results.split(/\r?\n/).filter((l) => /^(OK|NG) \S+ \(\d+,\d+\)/.test(l));
+	for (const line of lines) {
+		console.log(`[phase4] template ${line}`);
+	}
+	console.log(`[phase4] テンプレートの画像: ${path.join(work, 'template_result.png')}`);
+	if (lines.length === 0) {
+		throw new Error('テンプレート: 判定行が 1 つも無い');
+	}
+	const ng = lines.filter((l) => l.startsWith('NG ')).length;
+	if (ng > 0) {
+		throw new Error(`テンプレート: NG ${ng} 件`);
+	}
+}
+
 try {
 	main();
+	checkShaderTemplate(process.argv[2], process.argv[3]);
 } catch (e) {
 	console.error('[phase4] 失敗:', e.message);
 	process.exit(1);

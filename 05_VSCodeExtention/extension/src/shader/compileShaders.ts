@@ -1,76 +1,23 @@
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
-import * as iconv from 'iconv-lite';
 import * as vscode from 'vscode';
 import { currentFolder, getConfig } from '../env/environment';
 import { inspectSdk } from '../env/sdk';
-import { run } from '../util/exec';
-
-type ShaderKind = 'vertex' | 'pixel';
-
-const SOURCE_EXTS = new Set(['.hlsl', '.fx']);
-const COPY_EXTS = new Set(['.hlsl', '.hlsli', '.fx', '.fxh', '.h']);
-
-/** ファイル名の末尾で種類を決める: *VS.hlsl → 頂点、*PS.hlsl → ピクセル。 */
-function classify(file: string): ShaderKind | undefined {
-	const stem = path.basename(file, path.extname(file));
-	if (/(^|[_\-.])?VS$/i.test(stem) || /_vs$/i.test(stem)) {
-		return 'vertex';
-	}
-	if (/(^|[_\-.])?PS$/i.test(stem) || /_ps$/i.test(stem)) {
-		return 'pixel';
-	}
-	return undefined;
-}
-
-function listFiles(dir: string, exts: Set<string>): string[] {
-	if (!fs.existsSync(dir)) {
-		return [];
-	}
-	const out: string[] = [];
-	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-		const p = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			if (entry.name !== 'bin') {
-				out.push(...listFiles(p, exts));
-			}
-		} else if (exts.has(path.extname(entry.name).toLowerCase())) {
-			out.push(p);
-		}
-	}
-	return out;
-}
-
-/** UTF-8 のソースを CP932 に変換する。CP932 に無い文字があれば位置を返す。 */
-function toCp932(text: string): { bytes: Buffer; badChar?: { line: number; ch: string } } {
-	const clean = text.replace(/^﻿/, '');
-	const bytes = iconv.encode(clean, 'shift_jis');
-	const roundTrip = iconv.decode(bytes, 'shift_jis');
-	if (roundTrip !== clean) {
-		const chars = Array.from(clean);
-		const back = Array.from(roundTrip);
-		let line = 1;
-		for (let i = 0; i < chars.length; i++) {
-			if (chars[i] === '\n') {
-				line++;
-			}
-			if (chars[i] !== back[i]) {
-				return { bytes, badChar: { line, ch: chars[i] } };
-			}
-		}
-	}
-	return { bytes };
-}
+import { compileShaderSet, listShaderSources } from './shaderCore';
 
 /** シェーダーのフォルダ(設定 dxlib.shader.sourceDir。既定 shaders)。 */
 export function shaderSourceDir(folder: vscode.WorkspaceFolder): string {
 	return path.join(folder.uri.fsPath, getConfig<string>('shader.sourceDir', 'shaders', folder));
 }
 
+/** シェーダーの出力先(設定 dxlib.shader.outputDir。既定 shaders/bin)。 */
+export function shaderOutputDir(folder: vscode.WorkspaceFolder): string {
+	return path.join(folder.uri.fsPath, getConfig<string>('shader.outputDir', 'shaders/bin', folder));
+}
+
 /**
- * プロジェクトのシェーダーを SDK 付属の ShaderCompiler.exe でコンパイルする。
- * ShaderCompiler は CP932 のソースしか読めないので、一時フォルダに変換して渡す。
+ * プロジェクトのシェーダーを SDK 付属の ShaderCompiler.exe でコンパイルする(DxLib 欄の [すべてコンパイル] と右クリック)。
+ * 変わっていないものも含めて、常に全部(only のときはそのファイル)をコンパイルする。本体は shaderCore.ts(ビルドと共通)。
  * only を渡すと、そのファイルだけをコンパイルする(エクスプローラーの右クリック。シェーダーのフォルダの中のものに限る)。
  */
 export async function compileShaders(output: vscode.OutputChannel, only?: string[]): Promise<void> {
@@ -86,11 +33,6 @@ export async function compileShaders(output: vscode.OutputChannel, only?: string
 	}
 
 	const srcDir = shaderSourceDir(folder);
-	const outDir = path.join(folder.uri.fsPath, getConfig<string>('shader.outputDir', 'shaders/bin', folder));
-	const vsTarget = getConfig<string>('shader.vertexTarget', 'vs_4_0', folder);
-	const psTarget = getConfig<string>('shader.pixelTarget', 'ps_4_0', folder);
-
-	let sources = listFiles(srcDir, SOURCE_EXTS);
 	if (only) {
 		// include はシェーダーのフォルダから探すので、その外のファイルはコンパイルしない
 		const inside = (f: string): boolean => {
@@ -101,80 +43,41 @@ export async function compileShaders(output: vscode.OutputChannel, only?: string
 		if (outside.length > 0) {
 			void vscode.window.showWarningMessage(`シェーダーのフォルダ(${path.relative(folder.uri.fsPath, srcDir)})の中のファイルだけコンパイルできます: ${outside.map((f) => path.basename(f)).join(', ')}`);
 		}
-		const wanted = new Set(only.filter(inside).map((f) => path.resolve(f).toLowerCase()));
-		sources = sources.filter((f) => wanted.has(path.resolve(f).toLowerCase()));
-		if (sources.length === 0) {
+		only = only.filter(inside);
+		if (only.length === 0) {
 			return;
 		}
-	}
-	if (sources.length === 0) {
+	} else if (listShaderSources(srcDir).length === 0) {
 		void vscode.window.showWarningMessage(`シェーダーが見つかりません: ${srcDir}`);
 		return;
 	}
 
 	output.clear();
 	output.show(true);
-	output.appendLine(`[DxLib] シェーダーをコンパイルします (${sources.length} 本) → ${outDir}`);
-
-	// 1. 一時フォルダへ CP932 で書き出す(include も一緒に)
-	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dxlib-shader-'));
-	let hasError = false;
-	for (const file of listFiles(srcDir, COPY_EXTS)) {
-		const rel = path.relative(srcDir, file);
-		const { bytes, badChar } = toCp932(fs.readFileSync(file, 'utf8'));
-		if (badChar) {
-			output.appendLine(`NG  ${rel}(${badChar.line}): CP932 で表せない文字「${badChar.ch}」があります。コメントから取り除いてください。`);
-			hasError = true;
-			continue;
-		}
-		const dst = path.join(tmp, rel);
-		fs.mkdirSync(path.dirname(dst), { recursive: true });
-		fs.writeFileSync(dst, bytes);
+	const r = await compileShaderSet(
+		{
+			srcDir,
+			outDir: shaderOutputDir(folder),
+			baseDir: folder.uri.fsPath,
+			compiler: sdk.shaderCompiler,
+			vsTarget: getConfig<string>('shader.vertexTarget', 'vs_4_0', folder),
+			psTarget: getConfig<string>('shader.pixelTarget', 'ps_4_0', folder),
+			only,
+			reportSkipped: true,
+		},
+		(line) => output.appendLine(line),
+	);
+	if (r.total + r.skipped === 0) {
+		return;
 	}
-
-	// 2. 1 本ずつコンパイル
-	fs.mkdirSync(outDir, { recursive: true });
-	let ok = 0;
-	let skipped = 0;
-	for (const file of sources) {
-		const rel = path.relative(srcDir, file);
-		const kind = classify(file);
-		if (!kind) {
-			output.appendLine(`--  ${rel}: 名前の末尾が VS でも PS でもないので飛ばしました`);
-			skipped++;
-			continue;
-		}
-		const target = kind === 'vertex' ? vsTarget : psTarget;
-		const outFile = path.join(outDir, path.basename(file, path.extname(file)) + (kind === 'vertex' ? '.vso' : '.pso'));
-		const tmpSrc = path.join(tmp, rel);
-		if (!fs.existsSync(tmpSrc)) {
-			hasError = true;
-			continue;
-		}
-		const r = await run(sdk.shaderCompiler, [`/T${target}`, `/Fo${outFile}`, tmpSrc], path.dirname(tmpSrc));
-		const log = iconv.decode(Buffer.from(r.stdout + r.stderr, 'binary'), 'shift_jis').trim();
-		if (r.code !== 0 || !fs.existsSync(outFile)) {
-			hasError = true;
-			output.appendLine(`NG  ${rel} (${target})`);
-			if (log) {
-				output.appendLine(log.replace(/^/gm, '      '));
-			}
-		} else {
-			ok++;
-			output.appendLine(`OK  ${rel} (${target}) → ${path.relative(folder.uri.fsPath, outFile)}`);
-		}
-	}
-
-	fs.rmSync(tmp, { recursive: true, force: true });
-	const summary = `シェーダーのコンパイル: 成功 ${ok} / 失敗 ${sources.length - ok - skipped} / 対象外 ${skipped}`;
+	const summary = `シェーダーのコンパイル: 成功 ${r.compiled} / 失敗 ${r.failed} / 対象外 ${r.skipped}`;
 	output.appendLine(`[DxLib] ${summary}`);
-	if (hasError) {
+	if (r.failed > 0) {
 		void vscode.window.showErrorMessage(summary + '(出力パネルを確認してください)');
 	} else {
 		void vscode.window.showInformationMessage(summary);
 	}
 }
-
 /** 新しいシェーダーの雛形(resources/shaders)。DxLib 3.24f の D3D11 で描画まで確認済み(2026-09-23)。 */
 export const SHADER_TEMPLATES = [
 	{ id: '2d-ps', label: 'ピクセルシェーダー(2D)', description: 'DrawPrimitive2DToShader 用', file: 'PixelShader2D.hlsl', suffix: '_2DPS' },

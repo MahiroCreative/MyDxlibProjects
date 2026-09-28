@@ -91,7 +91,8 @@ export class BuildDiagnostics implements vscode.Disposable {
 			const range = new vscode.Range(d.line - 1, d.column - 1, d.line - 1, Number.MAX_SAFE_INTEGER);
 			const severity = d.severity === 'error' ? vscode.DiagnosticSeverity.Error : d.severity === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Information;
 			const diag = new vscode.Diagnostic(range, d.message, severity);
-			diag.source = 'cl';
+			// シェーダーのエラー(X3004 など。CP932 に無い文字は DX0001)は、ビルドの前に buildShaders.js が同じログに書く(DESIGN.md 9.2 章)
+			diag.source = /^D?X\d+$/.test(d.code) ? 'ShaderCompiler' : 'cl';
 			diag.code = d.code;
 			const key = d.file.toLowerCase();
 			const entry = byFile.get(key) ?? { uri: vscode.Uri.file(d.file), diags: [] };

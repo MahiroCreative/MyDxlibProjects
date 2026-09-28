@@ -3,12 +3,13 @@ const watch = process.argv.includes('--watch');
 
 async function main() {
   const ctx = await esbuild.context({
-    entryPoints: ['src/extension.ts'],
+    // buildShaders.js はビルド用 bat が VSCode 本体(Node として)で呼ぶ(DESIGN.md 9.2 章)
+    entryPoints: { extension: 'src/extension.ts', buildShaders: 'src/shader/buildShaders.ts' },
     bundle: true,
     format: 'cjs',
     platform: 'node',
     target: 'node18',
-    outfile: 'dist/extension.js',
+    outdir: 'dist',
     external: ['vscode'],
     sourcemap: true,
     minify: false,

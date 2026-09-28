@@ -360,6 +360,9 @@ exports.run = async function () {
 		});
 	}
 
+	// --- ビルドでシェーダーもコンパイルする(phase2_steps_build_shaders.js。DESIGN.md 9.2 章) ---
+	await require('./phase2_steps_build_shaders')(r, { proj, waitTaskEnd });
+
 	// --- HLSL の自動整形(clang-format を C/C++ 拡張から借用) ----------------
 	await r.step('HLSL ファイルの保存時整形(タブ・Allman ブレース)', async () => {
 		const dir = path.join(proj, 'shaders');
@@ -502,6 +505,46 @@ exports.run = async function () {
 		return { ok, detail: details.join(' / ') };
 	});
 
+	// シェーダー入りのテンプレート(DESIGN.md 8 章)。main.cpp とシェーダー 3 本をそのまま写した別名のファイルで確かめる
+	await r.step('整形: シェーダーのテンプレートの main.cpp とシェーダー 3 本は整形で変わらない', async () => {
+		const tplDir = path.join(ext.extensionPath, 'templates', 'shader');
+		const read = (f) => fs.readFileSync(f, 'utf8').replace(/^﻿/, '');
+		const targets = [
+			{ from: path.join(tplDir, 'src', 'main.cpp'), to: path.join(proj, 'src', 'FmtShaderTpl.cpp') },
+			...['Sample_2DPS', 'Sample_3DPS', 'Sample_3DVS'].map((n) => ({ from: path.join(tplDir, 'shaders', `${n}.hlsl`), to: path.join(proj, 'shaders', `FmtTpl${n}.hlsl`) })),
+		];
+		const files = [];
+		const details = [];
+		let ok = true;
+		try {
+			for (const t of targets) {
+				files.push(t.to);
+				fs.writeFileSync(t.to, '﻿' + withProbe(read(t.from).split('__PROJECT_NAME__').join('MyGame')), 'utf8');
+				const res = await unchangedExceptProbe(vscode.Uri.file(t.to));
+				ok = ok && res.ok;
+				details.push(`${path.basename(t.from)}: ${res.detail}`);
+			}
+		} finally {
+			await closeAndRemove(files);
+		}
+		return { ok, detail: details.join(' / ') };
+	});
+
+	await r.step('シェーダーのテンプレート: シェーダー 3 本は「新しいシェーダー」の雛形と同じ中身(名前だけ違う)', async () => {
+		const pairs = [
+			['PixelShader2D.hlsl', 'Sample_2DPS'],
+			['PixelShader3D.hlsl', 'Sample_3DPS'],
+			['VertexShader.hlsl', 'Sample_3DVS'],
+		];
+		const norm = (f) => fs.readFileSync(f, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n');
+		const details = pairs.map(([res, name]) => {
+			const expected = norm(path.join(ext.extensionPath, 'resources', 'shaders', res)).split('__SHADER_NAME__').join(name);
+			const actual = norm(path.join(ext.extensionPath, 'templates', 'shader', 'shaders', `${name}.hlsl`));
+			return { name, same: expected === actual };
+		});
+		return { ok: details.every((d) => d.same), detail: details.map((d) => `${d.name}=${d.same ? '同じ' : '違う'}`).join(' / ') };
+	});
+
 	// --- ファイルを追加(phase2_steps_new_files.js。DESIGN.md 3.2 章) ---
 	await require('./phase2_steps_new_files')(r, { api, proj, withProbe, unchangedExceptProbe, closeAndRemove, waitTaskEnd });
 
@@ -525,6 +568,28 @@ exports.run = async function () {
 			ok: made && opened.length === 1 && o.options && o.options.forceNewWindow === true && still && still.toLowerCase() === proj.toLowerCase(),
 			detail: `作成=${made} / openFolder ${opened.length} 回 / ${o ? JSON.stringify(o.options) : ''} / この窓のフォルダ=${still}`,
 		};
+	});
+
+	// --- シェーダー入りのテンプレート(DESIGN.md 8 章)。描画の確認は段階 4 ---
+	await r.step('シェーダーのテンプレート: 一覧で「最小」の次に出て、作ると main.cpp とシェーダー 3 本(BOM 付き)ができる', async () => {
+		const list = api.listTemplates();
+		const idx = list.findIndex((t) => t.id === 'builtin:shader');
+		const loc = path.join(process.env.DXLIB_TEST_WORK, 'shader-template-test');
+		fs.rmSync(loc, { recursive: true, force: true });
+		fs.mkdirSync(loc, { recursive: true });
+		await createProjectCapturingOpen(vscode, { name: 'ShaderTplTest', location: loc, templateId: 'builtin:shader' });
+		const dir = path.join(loc, 'ShaderTplTest');
+		const files = ['src/main.cpp', 'shaders/Sample_2DPS.hlsl', 'shaders/Sample_3DPS.hlsl', 'shaders/Sample_3DVS.hlsl'].map((f) => path.join(dir, f));
+		const state = files.map((f) => {
+			const b = fs.existsSync(f) ? fs.readFileSync(f) : undefined;
+			return { name: path.basename(f), made: !!b, bom: !!b && b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf };
+		});
+		const main = fs.existsSync(files[0]) ? fs.readFileSync(files[0], 'utf8') : '';
+		const replaced = main.includes('SetMainWindowText("ShaderTplTest")') && !main.includes('__PROJECT_NAME__');
+		const noTemplateJson = !fs.existsSync(path.join(dir, 'template.json'));
+		fs.rmSync(loc, { recursive: true, force: true });
+		const ok = idx === 1 && list[0].id === 'builtin:minimal' && list[idx].name === 'シェーダー' && state.every((s) => s.made && s.bom) && replaced && noTemplateJson;
+		return { ok, detail: `一覧の位置=${idx}(${list.map((t) => t.name).join(', ')}) / ${state.map((s) => `${s.name}: 作成=${s.made} BOM=${s.bom}`).join(' / ')} / 名前の置換=${replaced} / template.json なし=${noTemplateJson}` };
 	});
 
 	// --- 作成先の初期値(2026-09-24 ユーザー決定)。前回の作成先が次の初期値になる ---

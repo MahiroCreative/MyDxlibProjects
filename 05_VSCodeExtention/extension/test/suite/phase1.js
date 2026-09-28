@@ -194,12 +194,15 @@ exports.run = async function () {
 	const same = (a, b) => !!a && !!b && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 	let realVs;
 	try {
-		await r.step('VS の選択: 2 つ見つかり(パネルに [変更] が出る条件)、設定が空ならいちばん新しいものを使う', async () => {
+		// 本物の VS はこの PC に入っている数(1 台目の PC は 2026 だけ、2 台目は 2026 と 2022)。それに検証用の 1 つが加わる
+		await r.step('VS の選択: 本物 + 検証用の 2 つ以上が見つかり(パネルに [変更] が出る条件)、設定が空ならいちばん新しいものを使う', async () => {
 			await vscode.workspace.getConfiguration('dxlib').update('visualStudioPath', '', vscode.ConfigurationTarget.Global);
 			const env = await api.collectEnvironment();
 			const installs = env.vs.installs || [];
-			realVs = installs.find((i) => !same(i.installationPath, fakeVs));
-			const ok = installs.length === 2 && !!realVs && same(env.vs.installationPath, installs[0].installationPath) && !same(installs[0].installationPath, fakeVs) && env.vs.state === 'ok' && !env.vs.selectionMissing;
+			const real = installs.filter((i) => !same(i.installationPath, fakeVs));
+			realVs = real[0];
+			const hasFake = installs.length === real.length + 1;
+			const ok = installs.length >= 2 && hasFake && !!realVs && same(env.vs.installationPath, installs[0].installationPath) && !same(installs[0].installationPath, fakeVs) && env.vs.state === 'ok' && !env.vs.selectionMissing;
 			return { ok, detail: `${installs.map((i) => `${i.displayName} ${i.version}`).join(' / ')} 使う=${env.vs.displayName} state=${env.vs.state}` };
 		});
 

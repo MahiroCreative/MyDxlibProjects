@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { getConfig, isDxLibProject, projectExeName } from '../env/environment';
 import { inspectSdk } from '../env/sdk';
 import { detectVisualStudio } from '../env/vswhere';
+import { shaderOutputDir, shaderSourceDir } from '../shader/compileShaders';
 import { ensureProjectFiles, projectFilePaths } from './vcxproj';
 import { vsProjectOf } from './vsProject';
 
@@ -92,7 +93,8 @@ export class DxLibTaskProvider implements vscode.TaskProvider {
 		} else if (vsProjectOf(folder)) {
 			// Visual Studio で作ったプロジェクトは、その .vcxproj をそのままビルドする(DESIGN.md 6.1 章)
 			const vsp = vsProjectOf(folder) as { vcxproj: string; platform: string };
-			lines.push(...buildLines(folder, def(config), vs.msbuild, vsp.vcxproj, vsp.platform, buildLogPath(script)));
+			const shaders = this.shaderLines(folder, script, sdk.shaderCompiler);
+			lines.push(...buildLines(folder, def(config), vs.msbuild, vsp.vcxproj, vsp.platform, buildLogPath(script), shaders));
 		} else {
 			// ビルドの前に .vcxproj・.sln・dxlib.props を今の設定に合わせる(無ければ作る)
 			const name = projectExeName(folder);
@@ -100,13 +102,46 @@ export class DxLibTaskProvider implements vscode.TaskProvider {
 			if (ensured.foreignVcxproj) {
 				lines.push(`echo [DxLib] ${path.basename(ensured.foreignVcxproj)} はこの拡張機能が作ったものではないので使えません。名前を変えるか移動してください。`, 'exit /b 1');
 			} else {
-				lines.push(...buildLines(folder, def(config), vs.msbuild, projectFilePaths(folder.uri.fsPath, name).vcxproj, 'x64', buildLogPath(script)));
+				const shaders = this.shaderLines(folder, script, sdk.shaderCompiler);
+				lines.push(...buildLines(folder, def(config), vs.msbuild, projectFilePaths(folder.uri.fsPath, name).vcxproj, 'x64', buildLogPath(script), shaders));
 			}
 		}
 
 		// chcp 65001 の後は UTF-8 として読まれるので BOM なし UTF-8 で書く。
 		fs.writeFileSync(script, lines.join('\r\n') + '\r\n', 'utf8');
 		return script;
+	}
+
+	/**
+	 * ビルドの前にシェーダーをコンパイルする行(DESIGN.md 9.2 章)。シェーダーのフォルダが無ければ何もしない。
+	 * VSCode 本体を Node として動かして同梱の dist/buildShaders.js を呼ぶ(生徒の PC に Node は要らない)。
+	 * 設定は bat と同じ場所の .json で渡す。失敗したら C++ のビルドに進まない。
+	 */
+	private shaderLines(folder: vscode.WorkspaceFolder, script: string, compiler: string | undefined): string[] {
+		const srcDir = shaderSourceDir(folder);
+		if (!fs.existsSync(srcDir)) {
+			return [];
+		}
+		const configFile = script.replace(/\.bat$/i, '.shaders.json');
+		const config = {
+			srcDir,
+			outDir: shaderOutputDir(folder),
+			baseDir: folder.uri.fsPath,
+			compiler: compiler ?? '',
+			vsTarget: getConfig<string>('shader.vertexTarget', 'vs_4_0', folder),
+			psTarget: getConfig<string>('shader.pixelTarget', 'ps_4_0', folder),
+			log: buildLogPath(script),
+		};
+		fs.writeFileSync(configFile, JSON.stringify(config, null, '\t'), 'utf8');
+		return [
+			'set "ELECTRON_RUN_AS_NODE=1"',
+			`"${process.execPath}" "${path.join(this.context.extensionPath, 'dist', 'buildShaders.js')}" "${configFile}"`,
+			'if errorlevel 1 (',
+			'  echo [DxLib] ビルドに失敗しました',
+			'  exit /b 1',
+			')',
+			'set "ELECTRON_RUN_AS_NODE="',
+		];
 	}
 }
 
@@ -136,7 +171,7 @@ function def(config: BuildConfig): 'Debug' | 'Release' {
 	return config === 'debug' ? 'Debug' : 'Release';
 }
 
-function buildLines(folder: vscode.WorkspaceFolder, cfg: 'Debug' | 'Release', msbuild: string, vcxproj: string, platform: string, logPath: string): string[] {
+function buildLines(folder: vscode.WorkspaceFolder, cfg: 'Debug' | 'Release', msbuild: string, vcxproj: string, platform: string, logPath: string, shaderLines: string[]): string[] {
 	return [
 		'setlocal',
 		`cd /d "${folder.uri.fsPath}"`,
@@ -144,8 +179,11 @@ function buildLines(folder: vscode.WorkspaceFolder, cfg: 'Debug' | 'Release', ms
 		// 前回のログを残すと、今回 MSBuild まで進まなかったときに古いエラーを表示してしまう
 		'if exist "%LOG%" del "%LOG%"',
 		`echo [DxLib] ${cfg} ビルドを開始します`,
-		// 変更したファイルだけをコンパイルし直す。ログは BuildDiagnostics が読んで赤線にする(画面にも同じ内容が出る)
-		`"${msbuild}" "${vcxproj}" -p:Configuration=${cfg} -p:Platform=${platform} -nologo -v:minimal -m "-flp:logfile=%LOG%;verbosity=minimal;encoding=utf-8"`,
+		// シェーダー(エラーの行を %LOG% に書く)
+		...shaderLines,
+		// 変更したファイルだけをコンパイルし直す。ログは BuildDiagnostics が読んで赤線にする(画面にも同じ内容が出る)。
+		// append: シェーダーのエラー・警告の行を消さない
+		`"${msbuild}" "${vcxproj}" -p:Configuration=${cfg} -p:Platform=${platform} -nologo -v:minimal -m "-flp:logfile=%LOG%;verbosity=minimal;encoding=utf-8;append"`,
 		'if errorlevel 1 (',
 		'  echo [DxLib] ビルドに失敗しました',
 		'  exit /b 1',

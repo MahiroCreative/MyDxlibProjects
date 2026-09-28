@@ -6,14 +6,14 @@ DxLib(C++)のプロジェクト作成・ビルド・実行・デバッグを、�
 
 1. 左のアクティビティバーの DxLib アイコンを押す。
 2. 環境欄が赤い項目を、横のボタンで直す(Visual Studio、DxLib SDK)。
-3. 「新規プロジェクト作成」→ 名前・作成先・テンプレートを選んで作成。
-4. F5 か、エディタ右上の「実行」ボタン。
+3. 「新規プロジェクト作成」→ 名前・作成先・テンプレートを選んで作成。テンプレートは「最小」と、自作シェーダーを書き始めるための「シェーダー」が入っている。
+4. F5 か、エディタ右上の「実行」ボタン。`shaders` フォルダのシェーダーも、ビルドのときに(変えたものだけ)コンパイルされる。
 
 ## 開発
 
 ```
 npm install
-npm run compile      # dist/extension.js を作る
+npm run compile      # dist/extension.js と dist/buildShaders.js を作る
 npm run typecheck    # 型検査
 npm run package      # VSIX を作る
 ```
