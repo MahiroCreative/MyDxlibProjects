@@ -11,7 +11,8 @@ import shutil
 HERE = os.path.dirname(os.path.abspath(__file__))
 SAMPLES = os.path.join(os.path.dirname(HERE), "samples")
 ANSWERS = os.path.join(HERE, "answers")
-SDK_DATA = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\サンプルプログラム実行用フォルダ"
+# SDK の素材はリポジトリの 00_DxLib_VC(PC によってリポジトリの場所が違うので、このファイルの場所から求める)
+SDK_DATA = os.path.join(os.path.dirname(os.path.dirname(HERE)), "00_DxLib_VC", "サンプルプログラム実行用フォルダ")
 
 # 2D の課題は、色の変化が分かりやすいように写真(256×256)を使う
 PHOTO = ('texhandle = LoadGraph( "Tex1.bmp" ) ;',

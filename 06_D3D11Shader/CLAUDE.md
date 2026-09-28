@@ -6,6 +6,8 @@ DxLib 3.24f の Direct3D 11 シェーダー教材。計画と進み具合は `RE
 - 検証は `python verify/run.py`。DxLib が自作シェーダー用にセットする定数バッファを浮動小数点の画面に書き出して読み戻し、DxLib の関数で取れる値と比べる。
 - DxLib のソースパッケージは `../05_VSCodeExtention/00_DxLib_Make/`(CP932。変更しない)。SDK は `../00_DxLib_VC/`。
 - ShaderCompiler.exe は CP932 のソースしか読めない。教材の HLSL は UTF-8 で書き、コンパイル時に CP932 に変換する。
+- HLSL のコメントの「〜」は **U+FF5E「～」**を使う。U+301C(波ダッシュ)は CP932 に無い。拡張機能 1.0.0 は U+301C をエラーにして、教材の 47 フォルダ中 41 がコンパイルできなかった(2026-09-28 に教材を ～ に置き換え、拡張機能 1.0.1 も置き換えて通すようにした)。検証の Python(`cp932`)は通してしまうので気づきにくい。
+- 検証のスクリプトは SDK をリポジトリの `00_DxLib_VC` から探す(スクリプトの場所から求める。どの PC でも動く)。Python 3.13 + numpy + Pillow。
 - `reference/d3d9_original/` は公式の原本。変更しない。
 - 動作確認できたものだけを `samples/` に置く。
 - 授業・仕様書・各フォルダの説明は HTML が正(md は無い)。デザインは共通の `style.css`、図は各ページの中の SVG。画面写真などの画像は `course/make_images.py`・`spec/make_images.py`・`samples/make_images.py` で作り直す。

@@ -11,3 +11,4 @@ release-files/**
 release/**
 scripts/**
 .gitattributes
+*.zip

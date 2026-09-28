@@ -110,7 +110,7 @@ function collectSample(dir) {
 			const relName = rel ? `${rel}/${name}` : name;
 			if (fs.statSync(full).isDirectory()) {
 				if (name === 'bin') {
-					continue; // コンパイル済みシェーダーは入れない(生徒側で「すべてコンパイル」する)
+					continue; // コンパイル済みシェーダーは入れない(生徒の PC で、ビルドのときにコンパイルされる)
 				}
 				walk(full, relName);
 			} else {

@@ -1,11 +1,11 @@
-﻿// DxLib 3.24f(Direct3D 11)が自作の頂点シェーダーに渡す定数(b0〜b3)。
+﻿// DxLib 3.24f(Direct3D 11)が自作の頂点シェーダーに渡す定数(b0～b3)。
 // 頂点シェーダーの先頭で #include "DxLibVS.hlsli" する。
 //
 // 並びと名前は DxLib のソースパッケージの Windows/DxShader_VS_D3D11.h と同じ(変えないこと)。
 // 各フィールドの意味は 06_D3D11Shader/spec/dxlib_d3d11_shader_spec.html の 8 章。
 //
 // 行列は DxLib の MATRIX を転置して入っている。掛け方は dot(float4(座標, 1), 行列[k])(仕様書 7 章)。
-// 自作の定数バッファは b4 以降に置く(b0〜b3 は DxLib が使っている)。
+// 自作の定数バッファは b4 以降に置く(b0～b3 は DxLib が使っている)。
 
 #ifndef DXLIB_VS_HLSLI
 #define DXLIB_VS_HLSLI
@@ -39,7 +39,7 @@ struct DX_D3D11_VS_CONST_BUFFER_OTHERMATRIX
 // スキンメッシュのボーン行列(b3)
 struct DX_D3D11_VS_CONST_BUFFER_LOCALWORLDMATRIX
 {
-	float4 Matrix[DX_D3D11_VS_CONST_WORLD_MAT_NUM * 3];	// ボーン j の行列が Matrix[j*3+0〜2]。頂点の BLENDINDICES はボーン番号 × 3
+	float4 Matrix[DX_D3D11_VS_CONST_WORLD_MAT_NUM * 3];	// ボーン j の行列が Matrix[j*3+0～2]。頂点の BLENDINDICES はボーン番号 × 3
 };
 
 cbuffer cbD3D11_CONST_BUFFER_VS_BASE : register(b1)

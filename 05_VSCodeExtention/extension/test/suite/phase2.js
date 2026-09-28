@@ -204,6 +204,52 @@ exports.run = async function () {
 		return { ok: !made, detail: made ? '.pso ができてしまった' : '.pso は作られなかった' };
 	});
 
+	// 06_D3D11Shader の教材はコメントに波ダッシュ(U+301C)があり、以前はここでエラーになっていた(DESIGN.md 9 章)
+	await r.step('見た目が同じで CP932 に割り当ての違う文字(波ダッシュ 〜 など 7 文字)はエラーにせずコンパイルする', async () => {
+		const dir = path.join(proj, 'shaders');
+		const file = path.join(dir, 'LookalikePS.hlsl');
+		const out = path.join(dir, 'bin', 'LookalikePS.pso');
+		fs.rmSync(out, { force: true });
+		// 「—」は「―」(2 バイト目が 0x5C)になるので、行末に置かない(行末は次の項目で確かめる)
+		fs.writeFileSync(file, '﻿// b0〜b2 ‖ − ¢ £ ¬ — end\nfloat4 main() : SV_TARGET { return 1; }\n', 'utf8');
+		const errors = [];
+		const oe = vscode.window.showErrorMessage;
+		vscode.window.showErrorMessage = async (m) => (errors.push(m), undefined);
+		try {
+			const uri = vscode.Uri.file(file);
+			await vscode.commands.executeCommand('dxlib.compileShaderFile', uri, [uri]);
+		} finally {
+			vscode.window.showErrorMessage = oe;
+		}
+		const made = fs.existsSync(out);
+		fs.rmSync(file, { force: true });
+		fs.rmSync(out, { force: true });
+		return { ok: made && errors.length === 0, detail: `pso=${made} エラー=${errors.join(' / ') || 'なし'}` };
+	});
+
+	// CP932 で 2 バイト目が 0x5C(\)の文字が行末にあると、以前は次の行が飲み込まれて消えた(DESIGN.md 9 章)
+	await r.step('コメントの行末が「能」「表」「ソ」などでも、次の行を飲み込まない', async () => {
+		const dir = path.join(proj, 'shaders');
+		const file = path.join(dir, 'TrailPS.hlsl');
+		const out = path.join(dir, 'bin', 'TrailPS.pso');
+		fs.rmSync(out, { force: true });
+		// 行末の文字が飲み込むと、main が消えて「entrypoint not found」、return の行が消えて「must return a value」になる
+		fs.writeFileSync(file, '﻿// 色を返す機能\r\nfloat4 main() : SV_TARGET\r\n{\r\n\t// 白を表\r\n\treturn 1; // ソ\r\n}\r\n', 'utf8');
+		const errors = [];
+		const oe = vscode.window.showErrorMessage;
+		vscode.window.showErrorMessage = async (m) => (errors.push(m), undefined);
+		try {
+			const uri = vscode.Uri.file(file);
+			await vscode.commands.executeCommand('dxlib.compileShaderFile', uri, [uri]);
+		} finally {
+			vscode.window.showErrorMessage = oe;
+		}
+		const made = fs.existsSync(out);
+		fs.rmSync(file, { force: true });
+		fs.rmSync(out, { force: true });
+		return { ok: made && errors.length === 0, detail: `pso=${made} エラー=${errors.join(' / ') || 'なし'}` };
+	});
+
 	// --- 新しいシェーダー(パネル内フォーム相当。webview と同じく dxlib.newShaderFile に引数で渡す) ---
 	await r.step('新しいシェーダー: 引数なしで呼ぶとパネルのフォームが開く(例外なし)', async () => {
 		await vscode.commands.executeCommand('dxlib.newShaderFile');

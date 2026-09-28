@@ -2,7 +2,7 @@
   "name": "dxlib-devenv",
   "displayName": "DxLib 開発環境",
   "description": "DxLib(C++)のプロジェクト作成・ビルド・実行・デバッグをボタン操作だけで行えるようにします。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "mahirocreative",
   "license": "MIT",
   "repository": {

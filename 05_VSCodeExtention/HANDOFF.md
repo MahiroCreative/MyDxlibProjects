@@ -16,14 +16,14 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(全段階 OK
 | 項目 | 状態 |
 |---|---|
 | 拡張機能本体(`extension/`) | 動く状態。実利用で見つかった不具合 12 件は対応済み(4 章)。#12 の元の指摘(「字下げすべきでない場所が字下げされる」)はユーザーの指示で一旦扱わない |
-| 自動検証 | 全段階すべて OK(段階1: 27 / 段階2: 85 / 段階3: 10 / 段階4: 11 + テンプレートの画素 13 / 段階5: 7 / 段階6-late: 11 / 段階6-soon: 6 / 段階7: 7 / 段階8: 10 / 段階9: 15 / ログ確認: どの回も後片づけのエラーなし)。2026-09-28 11:15〜11:35、2 台目の PC(ビルドでのシェーダーのコンパイルとテンプレート「シェーダー」の後)。段階 5 で止まった(`.vsix` 未作成。3 章の落とし穴)ので、`npm run release` の後に段階 5〜9 を個別に流した |
+| 自動検証 | 全段階すべて OK(段階1: 27 / 段階2: 87 / 段階3: 10 / 段階4: 11 + テンプレートの画素 13 / 段階5: 7 / 段階6-late: 11 / 段階6-soon: 6 / 段階7: 7 / 段階8: 10 / 段階9: 15 / ログ確認: OK)。2026-09-28 12:38〜13:00、2 台目の PC(1.0.1。CP932 変換の修正 2 つの後。通しで 1 回)。06 の教材の検証(サンプル 37・解答例 10・仕様書 61)も同日すべて OK |
 | git | `main`。HEAD は `3b51410 up`(2026-09-27 までの変更はユーザーがコミット・push 済み)。2026-09-28 の変更は、この後ユーザーがコミットする。ローカルの `vscode-extension` ブランチは古い(`3a87bc0`)ので使わない |
 | 2026-09-25 の変更(`fc16917` に含まれる) | 変更 12 ファイル・新規 2 ファイル(`extension/` の下)。<br>・後片づけのエラーの修正: `src/intellisense/configProvider.ts`、`test/runTest.js`(最後のログ確認)<br>・ワークロード追加の検証用の切り替え: `src/env/vswhere.ts`(`DXLIB_TEST_SIMULATE_NO_WORKLOAD`)<br>・シェーダーのファイル名 `_2DPS`/`_3DPS`/`_3DVS`: `src/shader/compileShaders.ts`<br>・エクスプローラーの「DxLib」欄と右クリック: 新規 `src/panel/projectView.ts`・`src/panel/webviewCommon.ts`、変更 `src/panel/panelView.ts`・`src/extension.ts`・`src/shader/compileShaders.ts`・`package.json`<br>・検証: `test/suite/phase2.js`・`test/suite/phase3.js`・`test/screenshot.ps1`(窓を前面に出せないときは撮らない)<br>・`DESIGN.md`(1・3・3.1・4・7・9・17 章)、この HANDOFF.md |
 | 2026-09-25 夜〜26 の変更(`cc28ee0` に含まれる) | `DESIGN.md`(3.1・3.2・10 章ほか)、この HANDOFF.md、`extension/` の `package.json`・`README.md`・`src/extension.ts`・`src/project/createProject.ts`・`src/project/migrate.ts`・新規 `src/project/newFiles.ts`、`test/runTest.js`・`test/suite/phase1.js`・`phase2.js`・`phase8.js`・新規 `test/suite/phase2_steps_new_files.js` |
 | 配布物 | `npm run release` で `extension/release/`(VSIX + install.bat + README.txt。git 管理外)。2 台目の PC で 2026-09-28 に作り、ユーザーの普段の VSCode に入れ直した |
 | 手動確認 | 2026-09-24 版の 43 項目はすべて OK。2026-09-25 の変更は 2026-09-25 夜にユーザーが手で確認済み(6 章 #1)。2026-09-28 の変更(ビルドでのシェーダーのコンパイル、テンプレート「シェーダー」)も、同日ユーザーが手で確認済み(5 章) |
-| バージョン | **`1.0.0`**(2026-09-28、最初に配る版として `0.0.1` から上げた)。`install.bat` は `--force` なので同じ版でも入れ直せる。直して配り直すときは版を上げる(DESIGN.md 18 章) |
-| 生徒への配布 | 2026-09-28 に配布用の zip を作った: `%USERPROFILE%\Desktop\DxLib-devenv-1.0.0.zip`(2 台目の PC。中は `DxLib-devenv-1.0.0\` に VSIX・install.bat・README.txt)。展開した install.bat で普段の VSCode に入ることを確認済み。README.txt と install.bat に「zip を展開してから」を足した。生徒と同じ状態の PC での通しの確認(ダウンロードした bat の警告画面、ランタイムの無い PC での exe)は、**配って生徒の PC で確かめる**(2026-09-28 ユーザー判断)。生徒から不具合が上がったら 4 章の表に足す |
+| バージョン | **`1.0.1`**(2026-09-28)。`1.0.0` は最初に配る版として `0.0.1` から上げた。`1.0.1` はシェーダーの CP932 変換の修正 2 つ(下の箇条)。`install.bat` は `--force` なので同じ版でも入れ直せる。直して配り直すときは版を上げる(DESIGN.md 18 章) |
+| 生徒への配布 | 配布用の zip はリポジトリの `extension/DxLib-devenv-<版>.zip`(ユーザーがコミットしている。VSIX には入れない: `.vscodeignore` の `*.zip`)。中は `DxLib-devenv-<版>\` に VSIX・install.bat・README.txt。1.0.0 を 2026-09-28 に作り、同日 1.0.1 を作った。展開した install.bat で普段の VSCode に入ることを確認済み。README.txt と install.bat に「zip を展開してから」を足した。生徒と同じ状態の PC での通しの確認(ダウンロードした bat の警告画面、ランタイムの無い PC での exe)は、**配って生徒の PC で確かめる**(2026-09-28 ユーザー判断)。生徒から不具合が上がったら 4 章の表に足す |
 
 ### 2026-09-25〜28 にしたこと(詳細は DESIGN.md)
 
@@ -49,6 +49,10 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(全段階 OK
 - **ビルドでシェーダーもコンパイルする**(2026-09-28 ユーザー決定。DESIGN.md 9.2 章): 以前はビルドと別のボタンで、直したシェーダーのコンパイルを忘れると古いまま動いた(分けていた理由は記録に無かった)。ビルド用 bat から VSCode 本体(`Code.exe` を `ELECTRON_RUN_AS_NODE=1` で Node として)で同梱の `dist/buildShaders.js` を呼ぶ。変わったもの(`#include` 先を含む)だけコンパイルし、失敗したら C++ のビルドをせずに止め、元の `.hlsl` に赤線(source `ShaderCompiler`)。`shaders` フォルダが無ければ何もしない。コンパイル本体は `src/shader/shaderCore.ts`(DxLib 欄の [すべてコンパイル] と共通)。Visual Studio でビルドしたときはシェーダーはコンパイルされない(受け入れ済み)。
 - **シェーダーのコンパイルの失敗を「OK」と表示していた不具合を直した**(2026-09-28。DESIGN.md 9 章): ShaderCompiler はエラーでも終了コード 0 で、既存の出力に触らない(実物で確認)。前回の `.pso` が残っていると、エラーでも「OK」と出ていた。一時フォルダに出力させ、エラー行が無く出力ができたときだけ置き換える。エラーの行は元のファイルのパスに読み替える。
 - **同梱テンプレート「シェーダー」**(2026-09-28 ユーザー決定。DESIGN.md 8 章): 「新しいシェーダー」の雛形 3 種そのもの(`Sample_2DPS`・`Sample_3DPS`・`Sample_3DVS`)と、それを使って左に 2D の四角形・右に 3D の板を描く `main.cpp`。画像はプログラムの中で作る(DxLib の素材は MIT の対象外なので入れない)。作った直後に ▶ で動く。段階 4 で `main.cpp` を `ScreenFlip` だけ差し替えて動かし、2D・3D とも 4 色の位置・向きを画素で判定(シェーダーが欠けると NG になることも確認)。
+- **1.0.1: 06 の教材が拡張機能でコンパイルできなかった不具合を直した**(2026-09-28。DESIGN.md 9 章): 教材のシェーダーのコメントの「〜」が U+301C(波ダッシュ。CP932 に無い)で、1.0.0 は「CP932 で表せない文字」としてエラーにし、47 フォルダ中 41 がコンパイルできなかった(共通ヘッダーが写されず X1507)。教材の検証は Python の `cp932`(U+301C を通す)だったので気づかなかった。見た目が同じで JIS と Windows で割り当ての違う 7 文字を置き換えるようにした。あわせて教材の側も「～」(U+FF5E)に置き換えた(125 ファイル。1.0.0 のままでも動く)。
+- **1.0.1: コメントの行末の「能」「表」「ソ」「―」などが次の行を飲み込む不具合を直した**(2026-09-28。DESIGN.md 9 章): CP932 で 2 バイト目が `0x5C`(`\`)の文字が行末にあると、ShaderCompiler が次の行をつなげ、**エラーも出ずにコードが消える**。上の検証を書いていて見つけた。変換のときに行末に空白を足す。教材と雛形にこの形の行は無かった。
+- **06 の検証スクリプトをどの PC でも動くようにした**(2026-09-28): `samples/run.py`・`verify/run.py`・`course/make_answers.py` が SDK を `C:\GitHub\MyDxlibProjects\...` の絶対パスで持っていた(1 台目の PC の場所)。スクリプトの場所からリポジトリの `00_DxLib_VC` を求める形にした。2 台目の PC でサンプル 37・解答例 10・仕様書の検証 61 がすべて OK。
+- **06 の教材を「ビルドでシェーダーもコンパイルする」に合わせた**(2026-09-28): 授業のページ(`course/index.html`・`01_pixel_shader.html`)の「すべてコンパイルしてから実行」の手順を消し、エラーはビルドで出て赤線が付くと書いた。「自分のシェーダーを一から書き始める場合」に同梱テンプレート「シェーダー」を案内。サンプル・解答例の `main.cpp` 37 本の「『シェーダーをすべてコンパイル』の出力先」のコメントを直し、教材用テンプレート 11 本を作り直した。
 - **補完に渡すヘッダーの写しの不具合を直した**(2026-09-26。`shadowHeaders.ts`): 新しい写しを作ったあと古い写しを消すとき、C/C++ 拡張が古い写しを開いていると消せず、その失敗で「写しを作れなかった」扱いになって元の SDK(CP932 のまま)を渡していた。SDK の場所を変えた直後にホバーの説明が化ける可能性があった。自動検証の「SDK の移動」で一度 NG になって発覚(タイミング次第)。古い写しの片づけは失敗しても無視し、名前の変更は少し試し直すようにした。別のプログラムが削除を許さずに開いている状態を作って、直す前は元の SDK、直した後は新しい写しを返すことを確かめた。
 
 ## 2. 環境の前提
@@ -58,7 +62,8 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(全段階 OK
 - Node 24 / npm 11、`vsce`(グローバル)。VSCode 1.139。
 - **1 台目の PC(ユーザー名 `mahir`)**: 最初に作った場所。
 - **2 台目の PC(ユーザー名 `teacherM`、2026-09-24 に整備)**: 2026-09-28 の時点で Node 24.13 / npm 11.6、グローバルの vsce は無い(`npm run release` は `node_modules` の vsce を使うので不要)。リポジトリを取り直した直後で `extension/node_modules` が無かったので `npm install` した。Claude Code の CLI を公式インストーラーで `%USERPROFILE%\.local\bin` に入れ、ユーザー PATH に足した(2026-09-28。VSCode の Claude Code を「ターミナルで起動」にしていて、CLI が無いと起動できなかったため)。VS は 2026 と 2022 の両方が入っていて、拡張機能は 2026 を選ぶ。`git` は PATH に無く、GitHub Desktop 同梱のものを使う(`%LOCALAPPDATA%\GitHubDesktop\app-*\resources\app\git\cmd\git.exe`)。npm 11 はインストール後スクリプトを既定で止める(esbuild・vsce-sign・keytar)が、ビルド・VSIX 作成・自動検証には影響しない。
-- **Python は `python` で呼ぶ**(`python3` は Windows ストアのスタブで何もしない)。
+- **Python は `python` で呼ぶ**(`python3` は Windows ストアのスタブで何もしない)。2 台目の PC には 2026-09-28 に Python 3.13 を winget で入れ(ユーザー許可)、numpy・Pillow を入れた。この日の Claude Code のシェルは PATH が古く、`%LOCALAPPDATA%\Programs\Python\Python313\python.exe` をフルパスで呼んだ(VSCode を開き直せば `python` で呼べる)。
+- 06 の検証スクリプトは、ビルド用の bat を CP932 で書く。**`chcp 65001` したコンソールから呼ぶと、SDK のパスの日本語が化けて `DxLib.h` が見つからない**(2026-09-28 に一度)。
 - **新しいツールやソフトのインストールは、事前にユーザーへ確認する**(ユーザー指示)。
 - DxLib のヘッダーとシェーダー原本は **CP932**。読むときは変換する(`iconv-lite` の `cp932`)。
 

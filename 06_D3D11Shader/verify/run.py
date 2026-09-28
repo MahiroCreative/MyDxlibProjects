@@ -12,11 +12,13 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SDK = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\プロジェクトに追加すべきファイル_VC用"
-COMPILER = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\Tool\ShaderCompiler\ShaderCompiler.exe"
+# SDK はリポジトリの 00_DxLib_VC(PC によってリポジトリの場所が違うので、このファイルの場所から求める)
+DXLIB_VC = os.path.join(os.path.dirname(os.path.dirname(HERE)), "00_DxLib_VC")
+SDK = os.path.join(DXLIB_VC, "プロジェクトに追加すべきファイル_VC用")
+COMPILER = os.path.join(DXLIB_VC, "Tool", "ShaderCompiler", "ShaderCompiler.exe")
 DUMP_WIDTH = 1024
 # MV1 の確認に使うモデル(SDK のサンプル用素材)
-SAMPLE_DATA = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\サンプルプログラム実行用フォルダ"
+SAMPLE_DATA = os.path.join(DXLIB_VC, "サンプルプログラム実行用フォルダ")
 SAMPLE_FILES = ["DxChara.x", "DxCharaEye.tga", "DxCharaEye2.tga", "Kao.bmp"]
 
 # (出力名, 原本, プロファイル, 定義)

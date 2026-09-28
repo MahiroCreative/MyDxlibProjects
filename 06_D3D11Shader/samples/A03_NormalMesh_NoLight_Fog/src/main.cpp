@@ -40,7 +40,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	}
 
 	// 頂点シェーダーを読み込む
-	// 【D3D11】拡張機能の「シェーダーをすべてコンパイル」の出力先 shaders/bin から読む
+	// 【D3D11】コンパイル済みのシェーダーを shaders/bin から読む(拡張機能がビルドのときに shaders/ をコンパイルしてここに置く)
 	VertexShaderHandle = LoadVertexShader( "shaders/bin/NormalMesh_NoLight_FogVS.vso" ) ;
 
 	// ピクセルシェーダーを読み込む

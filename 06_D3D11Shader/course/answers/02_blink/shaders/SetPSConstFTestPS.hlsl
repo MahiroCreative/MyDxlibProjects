@@ -44,7 +44,7 @@ PS_OUTPUT main( PS_INPUT PSInput )
     // 【D3D11】tex2D( サンプラー, 座標 ) → テクスチャ.Sample( サンプラー, 座標 )
     lTextureColor  = DiffuseMapTexture.Sample( DiffuseMapSampler, PSInput.TextureCoord0 ) ;
 
-    // 【課題 2-1】経過時間で明るさを 0〜1 の間で波のように変える。sin は -1〜1 なので、0.5 倍して 0.5 足す
+    // 【課題 2-1】経過時間で明るさを 0～1 の間で波のように変える。sin は -1～1 なので、0.5 倍して 0.5 足す
     float lBright = sin( cfTime.x * 3.0f ) * 0.5f + 0.5f ;
     PSOutput.Output = float4( lTextureColor.rgb * lBright, lTextureColor.a ) ;
 

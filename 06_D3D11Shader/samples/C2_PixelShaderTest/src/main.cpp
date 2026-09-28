@@ -22,7 +22,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     texhandle = LoadGraph( "Tex1.bmp" ) ;
 
     // ピクセルシェーダーを読み込む
-    // 【D3D11】拡張機能の「シェーダーをすべてコンパイル」の出力先 shaders/bin から読む
+    // 【D3D11】コンパイル済みのシェーダーを shaders/bin から読む(拡張機能がビルドのときに shaders/ をコンパイルしてここに置く)
     pshandle = LoadPixelShader( "shaders/bin/PixelShaderTestPS.pso" ) ;
 
     // ２ポリゴン分の頂点のデータをセットアップ

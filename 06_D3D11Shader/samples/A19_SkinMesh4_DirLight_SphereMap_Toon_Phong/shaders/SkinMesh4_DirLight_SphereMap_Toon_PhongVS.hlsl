@@ -1,4 +1,4 @@
-﻿// SkinMesh4_DirLight_SphereMap_Toon_PhongVS.fx の Direct3D 11 版(vs_4_0。1〜4 ボーンのスキニングメッシュ)
+﻿// SkinMesh4_DirLight_SphereMap_Toon_PhongVS.fx の Direct3D 11 版(vs_4_0。1～4 ボーンのスキニングメッシュ)
 // reference/d3d9_original/A_base/19_SkinMesh4_DirLight_SphereMap_Toon_Phong から移植。Direct3D 9 版からの変更点には【D3D11】と書いています。
 // DxLib が渡す定数(g_Common / g_Base など)の意味は spec/dxlib_d3d11_shader_spec.html の 8 章。
 
@@ -6,7 +6,7 @@
 #include "DxLibVS.hlsli"
 
 // 頂点シェーダーの入力
-// 【D3D11】DxLib の MV1 の頂点(1〜4 ボーンのスキニングメッシュ)の並び。使わない要素も省かず、この順番で書く(仕様書 5.3)
+// 【D3D11】DxLib の MV1 の頂点(1～4 ボーンのスキニングメッシュ)の並び。使わない要素も省かず、この順番で書く(仕様書 5.3)
 struct VS_INPUT
 {
 	float3 Position        : POSITION0     ;	// 座標( ローカル空間 )【D3D11】float3

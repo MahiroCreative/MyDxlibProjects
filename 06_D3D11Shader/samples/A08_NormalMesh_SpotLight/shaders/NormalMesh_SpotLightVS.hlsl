@@ -167,7 +167,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	// 出力パラメータセット ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( 終了 )
 
 
-	// 【D3D11】Direct3D 9 版(シェーダーモデル 2.0)は COLOR の出力が 0〜1 に切り詰められていた。同じ見た目にするため同じようにする
+	// 【D3D11】Direct3D 9 版(シェーダーモデル 2.0)は COLOR の出力が 0～1 に切り詰められていた。同じ見た目にするため同じようにする
 	VSOutput.Diffuse = saturate( VSOutput.Diffuse ) ;
 	VSOutput.Specular = saturate( VSOutput.Specular ) ;
 

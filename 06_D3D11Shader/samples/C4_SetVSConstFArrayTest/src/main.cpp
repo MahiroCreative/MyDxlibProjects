@@ -93,7 +93,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     Vertex[ 5 ].sv   = 0.0f ;
 
     // 頂点シェーダーを読み込む
-    // 【D3D11】拡張機能の「シェーダーをすべてコンパイル」の出力先 shaders/bin から読む
+    // 【D3D11】コンパイル済みのシェーダーを shaders/bin から読む(拡張機能がビルドのときに shaders/ をコンパイルしてここに置く)
     vshandle = LoadVertexShader( "shaders/bin/SetVSConstFArrayTestVS.vso" ) ;
 
     // ピクセルシェーダーを読み込む

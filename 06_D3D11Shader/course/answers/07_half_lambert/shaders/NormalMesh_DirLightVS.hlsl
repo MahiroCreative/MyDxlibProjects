@@ -97,7 +97,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	// ライトパラメータ計算
 	lLightLitDest = lit( lLightLitParam.x, lLightLitParam.y, lLightLitParam.w ) ;
 
-	// 【課題 7-2】ハーフランバート: 明るさ(-1〜1)を 0.5 倍して 0.5 足し、0〜1 にしてから 2 乗する。
+	// 【課題 7-2】ハーフランバート: 明るさ(-1～1)を 0.5 倍して 0.5 足し、0～1 にしてから 2 乗する。
 	// ライトの反対側も真っ暗にならず、やわらかい陰影になる
 	lLightLitDest.y = pow( lLightLitParam.x * 0.5f + 0.5f, 2.0f ) ;
 
@@ -130,7 +130,7 @@ VS_OUTPUT main( VS_INPUT VSInput )
 	// 出力パラメータセット ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++( 終了 )
 
 
-	// 【D3D11】Direct3D 9 版(シェーダーモデル 2.0)は COLOR の出力が 0〜1 に切り詰められていた。同じ見た目にするため同じようにする
+	// 【D3D11】Direct3D 9 版(シェーダーモデル 2.0)は COLOR の出力が 0～1 に切り詰められていた。同じ見た目にするため同じようにする
 	VSOutput.Diffuse = saturate( VSOutput.Diffuse ) ;
 	VSOutput.Specular = saturate( VSOutput.Specular ) ;
 

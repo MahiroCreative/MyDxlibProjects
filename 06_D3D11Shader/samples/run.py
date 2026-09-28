@@ -36,9 +36,11 @@ ROOT = os.path.dirname(HERE)
 ORIGINALS = os.path.join(ROOT, "reference", "d3d9_original")
 SHARED = os.path.join(HERE, "_shared")
 HOOK = os.path.join(HERE, "_verify", "verify_hook.h")
-SDK = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\プロジェクトに追加すべきファイル_VC用"
-SDK_SAMPLE_DATA = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\サンプルプログラム実行用フォルダ"
-COMPILER = r"C:\GitHub\MyDxlibProjects\00_DxLib_VC\Tool\ShaderCompiler\ShaderCompiler.exe"
+# SDK はリポジトリの 00_DxLib_VC(PC によってリポジトリの場所が違うので、このファイルの場所から求める)
+DXLIB_VC = os.path.join(os.path.dirname(ROOT), "00_DxLib_VC")
+SDK = os.path.join(DXLIB_VC, "プロジェクトに追加すべきファイル_VC用")
+SDK_SAMPLE_DATA = os.path.join(DXLIB_VC, "サンプルプログラム実行用フォルダ")
+COMPILER = os.path.join(DXLIB_VC, "Tool", "ShaderCompiler", "ShaderCompiler.exe")
 DIFF_THRESHOLD = 24  # 1 画素の差(RGB の最大)がこれを超えたら「違う画素」
 
 

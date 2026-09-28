@@ -80,9 +80,35 @@ export function listShaderSources(srcDir: string): string[] {
 	return listFiles(srcDir, SOURCE_EXTS);
 }
 
+/**
+ * 見た目が同じで、JIS と Windows(CP932)で割り当てが違う文字(DESIGN.md 9 章)。
+ * ウェブや Mac の文章を貼ると入る。CP932 にある同じ見た目の文字に置き換えてから変換する。
+ */
+const CP932_LOOKALIKE: Record<string, string> = {
+	'〜': '～', // 波ダッシュ 〜 → ～
+	'‖': '∥', // ‖
+	'−': '－', // − → －
+	'¢': '￠', // ¢
+	'£': '￡', // £
+	'¬': '￢', // ¬
+	'—': '―', // — → ―
+};
+const LOOKALIKE_RE = new RegExp(`[${Object.keys(CP932_LOOKALIKE).join('')}]`, 'g');
+
+/**
+ * 行末の文字の CP932 の 2 バイト目が 0x5C(\ と同じ。―・ソ・表・能・十 など)なら、後ろに空白を足す。
+ * そのままだと ShaderCompiler が行末の \ として次の行をつなげ、コメントの次の行のコードが消える(DESIGN.md 9 章)。
+ */
+function guardTrailingBackslash(text: string): string {
+	return text.replace(/([^\x00-\x7F])(?=\r?\n|$)/gu, (ch) => {
+		const b = iconv.encode(ch, 'shift_jis');
+		return b.length === 2 && b[1] === 0x5c ? ch + ' ' : ch;
+	});
+}
+
 /** UTF-8 のソースを CP932 に変換する。CP932 に無い文字があれば位置を返す。 */
 function toCp932(text: string): { bytes: Buffer; badChar?: { line: number; ch: string } } {
-	const clean = text.replace(/^﻿/, '');
+	const clean = guardTrailingBackslash(text.replace(/^﻿/, '').replace(LOOKALIKE_RE, (ch) => CP932_LOOKALIKE[ch]));
 	const bytes = iconv.encode(clean, 'shift_jis');
 	const roundTrip = iconv.decode(bytes, 'shift_jis');
 	if (roundTrip !== clean) {
