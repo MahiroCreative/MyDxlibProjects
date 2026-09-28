@@ -22,7 +22,8 @@ DxLib 開発環境の VSCode 拡張機能。**実装と自動検証(全段階 OK
 | 2026-09-25 夜〜26 の変更(`cc28ee0` に含まれる) | `DESIGN.md`(3.1・3.2・10 章ほか)、この HANDOFF.md、`extension/` の `package.json`・`README.md`・`src/extension.ts`・`src/project/createProject.ts`・`src/project/migrate.ts`・新規 `src/project/newFiles.ts`、`test/runTest.js`・`test/suite/phase1.js`・`phase2.js`・`phase8.js`・新規 `test/suite/phase2_steps_new_files.js` |
 | 配布物 | `npm run release` で `extension/release/`(VSIX + install.bat + README.txt。git 管理外)。2 台目の PC で 2026-09-28 に作り、ユーザーの普段の VSCode に入れ直した |
 | 手動確認 | 2026-09-24 版の 43 項目はすべて OK。2026-09-25 の変更は 2026-09-25 夜にユーザーが手で確認済み(6 章 #1)。2026-09-28 の変更(ビルドでのシェーダーのコンパイル、テンプレート「シェーダー」)も、同日ユーザーが手で確認済み(5 章) |
-| バージョン | `package.json` は `0.0.1` のまま。`install.bat` は `--force` なので同じ版でも入れ直せる |
+| バージョン | **`1.0.0`**(2026-09-28、最初に配る版として `0.0.1` から上げた)。`install.bat` は `--force` なので同じ版でも入れ直せる。直して配り直すときは版を上げる(DESIGN.md 18 章) |
+| 生徒への配布 | 2026-09-28 に配布用の zip を作った: `%USERPROFILE%\Desktop\DxLib-devenv-1.0.0.zip`(2 台目の PC。中は `DxLib-devenv-1.0.0\` に VSIX・install.bat・README.txt)。展開した install.bat で普段の VSCode に入ることを確認済み。README.txt と install.bat に「zip を展開してから」を足した。生徒と同じ状態の PC での通しの確認(ダウンロードした bat の警告画面、ランタイムの無い PC での exe)は、**配って生徒の PC で確かめる**(2026-09-28 ユーザー判断)。生徒から不具合が上がったら 4 章の表に足す |
 
 ### 2026-09-25〜28 にしたこと(詳細は DESIGN.md)
 

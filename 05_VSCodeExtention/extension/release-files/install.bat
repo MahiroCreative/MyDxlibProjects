@@ -55,7 +55,9 @@ goto :end
 :no_vsix
 echo [エラー] dxlib-devenv-*.vsix が見つかりません。
 echo.
-echo  install.bat と同じフォルダに、拡張機能のファイル(.vsix)を置いてください。
+echo  zip を開いただけで実行していませんか。
+echo  zip を右クリック →「すべて展開」で展開し、展開したフォルダの install.bat を実行してください。
+echo  (install.bat と同じフォルダに、拡張機能のファイル .vsix が必要です)
 echo  探した場所: %~dp0
 set "RC=1"
 goto :end

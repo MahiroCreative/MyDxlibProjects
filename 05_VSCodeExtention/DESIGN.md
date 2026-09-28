@@ -482,6 +482,8 @@ VSCode を開いたまま `install.bat` を実行したところ、C/C++ 拡張�
   - `code` は PATH → `%LOCALAPPDATA%\Programs\Microsoft VS Code` → `%ProgramFiles%` → `%ProgramFiles(x86)%` の順に探す。
   - 見つからない・VSIX が無い・インストールに失敗、のときは日本語で原因と次の行動を案内し、終了コード 1。最後は `pause` で画面を閉じない。
   - `--force` なので、同じ版が入っていても入れ直せる(更新にも使える)。
+  - **zip は展開してから使う(2026-09-28)。** エクスプローラーで zip を開いただけで `install.bat` をダブルクリックすると、Windows は bat だけを一時フォルダに取り出して実行するので、VSIX が見つからない。`README.txt` の手順に「展開する」を入れ、VSIX が見つからないときの案内も「zip を展開してから」にした。
+- **バージョン(2026-09-28)。** 最初に配る版を `1.0.0` にした(それまでは `0.0.1`)。VSIX で入れた拡張は自動では更新されないので、直したら版を上げて新しい zip を配り、`install.bat` をもう一度実行してもらう。
 - **書き方の注意(壊れやすい点)。**
   - 日本語を出すため、`@echo off` の直後に `chcp 65001`。それより前に日本語を置かない。BOM なし UTF-8。
   - 改行は CRLF にする(LF だけの bat は `goto` のラベルが壊れることがある)。`scripts/release.js` が `release/` へコピーするときに `.bat` と `.txt` の改行を CRLF にそろえる。git の設定(`core.autocrlf` や `.gitattributes`)には頼らない(2026-09-24 変更。当初は `extension/.gitattributes` の `*.bat text eol=crlf` で守っていたが、親リポジトリ `MyDxlibProjects` でコミットの妨げになったため削除した)。
