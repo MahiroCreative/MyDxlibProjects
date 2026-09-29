@@ -1,3 +1,0 @@
-ShaderCompiler.exe /Tvs_2_0 SkinMesh4_DirSpotPointLight_ToonVS.fx
-ShaderCompiler.exe /Tps_2_0 SkinMesh4_DirSpotPointLight_ToonPS.fx
-pause

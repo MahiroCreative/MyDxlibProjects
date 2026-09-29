@@ -1,3 +1,0 @@
-ShaderCompiler.exe /Tvs_3_0 NormalMesh_PointLight6_PhongVS.fx
-ShaderCompiler.exe /Tps_3_0 NormalMesh_PointLight6_PhongPS.fx
-pause
